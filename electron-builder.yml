@@ -1,0 +1,29 @@
+appId: io.github.andrewrozumny.acode
+productName: Acode
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - package.json
+  - '!node_modules/node-pty/{src,deps,scripts,prebuilds/win32-*}/**'
+asarUnpack:
+  - node_modules/node-pty/**
+extraResources:
+  - from: resources/acode-statusline.py
+    to: acode-statusline.py
+npmRebuild: false
+mac:
+  target:
+    - dir
+  category: public.app-category.developer-tools
+  icon: resources/icon.icns
+  hardenedRuntime: false
+  identity: null
+  darkModeSupport: true
+  electronLanguages:
+    - en
+    - en_GB
+  extendInfo:
+    NSHighResolutionCapable: true
+    LSMinimumSystemVersion: "12.0"

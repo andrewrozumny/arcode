@@ -1,0 +1,1131 @@
+/* Claude feed: the pinned viewer tab with a readable view of the active Claude session. */
+
+.fd-root {
+  --fd-bubble: #141517;
+  --fd-card: #242528;
+  --fd-code-bg: #18191b;
+  --fd-file: #6c9fe6;
+  --fd-code: #e2c08d;
+  --fd-ask: #6f9cf5;
+  --fd-ask-bg: rgba(53, 116, 240, 0.08);
+  --fd-add-bg: rgba(95, 184, 101, 0.15);
+  --fd-add-fg: #bfe5c2;
+  --fd-del-bg: rgba(247, 84, 100, 0.15);
+  --fd-del-fg: #f4bcc2;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  container-type: inline-size;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 var(--font-ui);
+}
+
+/* Corner watermark: fixed to the pane, below the conversation, hidden when the pane is too
+   narrow for it to stay clear of the centred column. */
+.fd-logo {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  z-index: 0;
+  width: 44px;
+  height: 44px;
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+@container (max-width: 900px) {
+  .fd-logo {
+    display: none;
+  }
+}
+
+.fd-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.fd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 16px 72px;
+}
+
+.fd-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+  text-align: center;
+}
+.fd-empty-text {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.fd-earlier {
+  align-self: center;
+  margin-bottom: 12px;
+  padding: 4px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-panel);
+  color: var(--fg-muted);
+  font: 12px var(--font-ui);
+  cursor: pointer;
+}
+.fd-earlier:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+
+.fd-icon {
+  flex: none;
+}
+
+/* Timestamps: subtle, shown while the message is hovered. */
+.fd-time {
+  color: var(--fg-faint);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+.fd-user:hover .fd-time {
+  opacity: 1;
+}
+
+.fd-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 6px;
+  color: var(--fg-faint);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.fd-divider::before,
+.fd-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* User turns: a rounded bubble on the right. */
+.fd-user {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 22px 0 12px;
+}
+.fd-list > .fd-user:first-child,
+.fd-earlier + .fd-user {
+  margin-top: 0;
+}
+.fd-bubble {
+  max-width: 80%;
+  min-width: 0;
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  background: var(--fd-bubble);
+}
+.fd-user-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.fd-user-text.clamped {
+  max-height: 16em;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+.fd-user.command .fd-bubble {
+  padding: 6px 13px;
+}
+.fd-user.command code {
+  color: var(--yellow);
+  font: 12.5px var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.fd-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+.fd-thumbs:last-child {
+  margin-bottom: 2px;
+}
+.fd-thumb {
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: zoom-in;
+}
+.fd-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fd-zoom {
+  flex-basis: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-out;
+}
+.fd-zoom img {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 10px;
+}
+
+.fd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.fd-chip.subtle {
+  background: none;
+  border: 1px solid var(--border);
+}
+
+.fd-more {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8fb2f5;
+  font: 12px var(--font-ui);
+  cursor: pointer;
+}
+.fd-more:hover {
+  text-decoration: underline;
+}
+
+/* Assistant text: plain Markdown on the page background, with a meta row shown on hover. */
+.fd-assistant {
+  margin: 6px 0 0;
+}
+.fd-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  color: var(--fg-faint);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.fd-assistant:hover .fd-meta,
+.fd-meta:focus-within {
+  opacity: 1;
+}
+.fd-meta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg-faint);
+  cursor: pointer;
+}
+.fd-meta-btn:hover {
+  background: var(--bg-panel);
+  color: var(--fg);
+}
+.fd-meta-btn.copied {
+  color: var(--green);
+}
+.acode-viewer .fd-md {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  font: 15px/1.55 var(--font-ui);
+  color: #e6e7ea;
+}
+.fd-root .fd-md > :first-child {
+  margin-top: 0;
+}
+.fd-root .fd-md > :last-child {
+  margin-bottom: 0;
+}
+.fd-root .fd-md p,
+.fd-root .fd-md ul,
+.fd-root .fd-md ol,
+.fd-root .fd-md blockquote,
+.fd-root .fd-md table,
+.fd-root .fd-md .fd-codeblock {
+  margin: 0 0 0.7em;
+}
+.fd-root .fd-md h1,
+.fd-root .fd-md h2,
+.fd-root .fd-md h3,
+.fd-root .fd-md h4 {
+  margin: 1.2em 0 0.45em;
+  padding: 0;
+  border: 0;
+  color: #eceef2;
+  line-height: 1.3;
+}
+.fd-root .fd-md h1 {
+  font-size: 1.4em;
+}
+.fd-root .fd-md h2 {
+  font-size: 1.22em;
+}
+.fd-root .fd-md h3 {
+  font-size: 1.08em;
+}
+.fd-root .fd-md h4 {
+  font-size: 1em;
+  color: var(--fg-muted);
+}
+.fd-root .fd-md ul,
+.fd-root .fd-md ol {
+  padding-left: 1.5em;
+}
+.fd-root .fd-md li + li {
+  margin-top: 0.3em;
+}
+.fd-root .fd-md li > ul,
+.fd-root .fd-md li > ol {
+  margin: 0.3em 0 0;
+}
+.fd-root .fd-md ol > li::marker {
+  color: var(--fg-muted);
+}
+.fd-root .fd-md ul > li::marker {
+  color: var(--fg-faint);
+}
+.fd-root .fd-md strong {
+  color: #f1f2f5;
+}
+.fd-root .fd-md code {
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--fd-code);
+  font-size: 0.85em;
+}
+.fd-root .fd-md blockquote {
+  margin-left: 0;
+  padding: 0 0 0 14px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+.fd-root .fd-md table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.fd-root .fd-md th,
+.fd-root .fd-md td {
+  padding: 6px 12px;
+}
+.fd-root .fd-md tr:nth-child(2n) td {
+  background: rgba(255, 255, 255, 0.025);
+}
+.fd-root .fd-md hr {
+  margin: 1.4em 0;
+}
+.fd-root .fd-md a {
+  color: #6f9cf5;
+}
+.fd-root .fd-md a.fd-file {
+  color: var(--fd-file);
+  text-decoration: underline dotted rgba(108, 159, 230, 0.6);
+  text-underline-offset: 3px;
+}
+.fd-root .fd-md a.fd-file code {
+  color: inherit;
+}
+.fd-root .fd-md a.fd-file:hover {
+  text-decoration-style: solid;
+}
+
+/* Code blocks: a frame with the language and a copy button. */
+.fd-codeblock {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--fd-code-bg);
+}
+.fd-codeblock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-faint);
+  font: 11.5px var(--font-ui);
+}
+.fd-copy {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg-muted);
+  font: 11.5px var(--font-ui);
+  cursor: pointer;
+}
+.fd-copy:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+.fd-copy.copied {
+  color: var(--green);
+}
+.fd-root .fd-md .fd-codeblock pre {
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.fd-root .fd-md .fd-codeblock pre code {
+  padding: 0;
+  background: none;
+  color: var(--fg);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Notices: centred and muted. */
+.fd-notice {
+  align-self: center;
+  max-width: 90%;
+  margin: 6px 0;
+  color: var(--fg-faint);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* Tool calls: compact rows with an icon and a short phrase. */
+.fd-tool {
+  min-width: 0;
+}
+.fd-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #9a9da3;
+  font: 14px/1.5 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.fd-row:hover {
+  background: var(--bg-panel);
+}
+.fd-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-faint);
+}
+.fd-mark.done {
+  color: var(--fg-muted);
+}
+.fd-mark.error {
+  color: var(--red);
+}
+.fd-mark.running {
+  color: var(--yellow);
+}
+.fd-phrase {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.fd-verb {
+  flex: none;
+  color: #9a9da3;
+}
+.fd-target {
+  min-width: 0;
+  overflow: hidden;
+  color: #c9cbd0;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+.fd-target.code {
+  color: #c9cbd0;
+  font: 600 12.5px/1.6 var(--font-mono);
+}
+.fd-stats {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--bg-panel);
+  font: 12px/1.6 var(--font-mono);
+}
+.fd-stats .add {
+  color: var(--green);
+}
+.fd-stats .del {
+  color: var(--red);
+}
+.fd-note {
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.fd-phrase .fd-note:last-child {
+  flex: 0 1 auto;
+}
+.fd-badge {
+  flex: none;
+  padding: 0 7px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg-faint);
+  font-size: 11px;
+}
+.fd-badge.error {
+  background: rgba(247, 84, 100, 0.14);
+  color: #f0a2aa;
+}
+.fd-chevron {
+  flex: none;
+  color: var(--fg-faint);
+  opacity: 0;
+  transition:
+    transform 0.12s,
+    opacity 0.12s;
+}
+.fd-row:hover .fd-chevron,
+.fd-card-head:hover .fd-chevron,
+.fd-mark.lead .fd-chevron,
+.fd-chevron.open {
+  opacity: 1;
+}
+.fd-mark.lead .fd-chevron {
+  color: #9a9da3;
+}
+.fd-chevron.open {
+  transform: rotate(90deg);
+}
+.fd-spinner {
+  animation: fd-spin 0.9s linear infinite;
+}
+@keyframes fd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fd-group-list {
+  margin: 0 0 6px 16px;
+}
+.fd-branch {
+  position: relative;
+  padding-left: 16px;
+}
+/* Tree connector: "└" in front of each child row. */
+.fd-branch::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 9px;
+  height: 15px;
+  border-bottom: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
+  border-bottom-left-radius: 3px;
+}
+.fd-branch:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  bottom: 0;
+  left: 0;
+  border-left: 1px solid var(--border-strong);
+}
+
+.fd-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 4px 0 12px 33px;
+}
+.fd-group-list .fd-detail {
+  margin-left: 25px;
+}
+.fd-label {
+  color: var(--fg-faint);
+  font-size: 12px;
+}
+.fd-muted {
+  color: var(--fg-faint);
+  font-size: 12.5px;
+}
+.fd-kv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.fd-inline {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--fd-code);
+  font: 12px var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.fd-path {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12.5px var(--font-mono);
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.fd-path.link {
+  color: var(--fd-file);
+  cursor: pointer;
+}
+.fd-path.link:hover {
+  text-decoration: underline;
+}
+.fd-weblink {
+  color: #6f9cf5;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.fd-output {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fd-pre {
+  max-height: 420px;
+  margin: 0;
+  padding: 9px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--fd-code-bg);
+  color: var(--fg-muted);
+  font: 12px/1.5 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.fd-pre.error {
+  border-color: rgba(247, 84, 100, 0.4);
+  color: #f0a2aa;
+}
+.fd-pre.cmd {
+  color: var(--fg);
+}
+.fd-bash {
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+.fd-bash-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 12px 2px;
+  font-size: 13px;
+}
+.fd-bash-head strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+.fd-bash .fd-pre {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: #a9acb2;
+}
+.fd-pre.cmd code::before {
+  content: '$ ';
+  color: var(--fg-faint);
+}
+.fd-code-host {
+  min-width: 0;
+}
+
+/* Diffs of edits and writes. */
+.fd-diff-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fd-diff {
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--fd-code-bg);
+  font: 12px/1.55 var(--font-mono);
+  user-select: text;
+}
+.fd-diff-line {
+  display: flex;
+  min-width: 0;
+  color: var(--fg-muted);
+}
+.fd-diff-line.added {
+  background: var(--fd-add-bg);
+  color: var(--fd-add-fg);
+}
+.fd-diff-line.removed {
+  background: var(--fd-del-bg);
+  color: var(--fd-del-fg);
+}
+.fd-diff-num {
+  flex: none;
+  width: 44px;
+  padding-right: 8px;
+  color: var(--fg-faint);
+  text-align: right;
+  user-select: none;
+  opacity: 0.8;
+}
+.fd-diff-mark {
+  flex: none;
+  width: 18px;
+  padding-left: 6px;
+  user-select: none;
+}
+.fd-diff:not(.numbered) .fd-diff-mark {
+  width: 22px;
+  padding-left: 10px;
+}
+.fd-diff-line.added .fd-diff-mark {
+  color: var(--green);
+}
+.fd-diff-line.removed .fd-diff-mark {
+  color: var(--red);
+}
+.fd-diff-text {
+  flex: 1;
+  min-width: 0;
+  padding-right: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fd-diff-gap {
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fg-faint);
+  text-align: center;
+  user-select: none;
+}
+
+/* Cards: agents, the task list, questions and plans. */
+.fd-card {
+  margin: 8px 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--fd-card);
+}
+.fd-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 13.5px/1.4 var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.fd-card-head.static {
+  cursor: default;
+}
+.fd-card-icon {
+  color: var(--fg-muted);
+}
+.fd-card-title {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-card-count {
+  margin-left: auto;
+  color: var(--fg-faint);
+  font-size: 12px;
+}
+.fd-card-head .fd-pill {
+  margin-left: auto;
+}
+.fd-card-head .fd-pill + .fd-chevron {
+  margin-left: 0;
+}
+.fd-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -4px;
+  padding: 0 14px 10px 38px;
+}
+.fd-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 12px;
+  font-size: 14px;
+}
+.fd-card .fd-md {
+  font-size: 14px;
+}
+.fd-quote {
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.fd-quote .fd-md {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+.fd-error-text,
+.fd-feedback {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(247, 84, 100, 0.08);
+  color: #f0a2aa;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fd-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  white-space: pre-wrap;
+}
+
+.fd-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.fd-pill .fd-icon {
+  width: 11px;
+  height: 11px;
+}
+.fd-pill.running {
+  background: rgba(229, 192, 123, 0.12);
+  color: var(--yellow);
+}
+.fd-pill.done {
+  background: rgba(95, 184, 101, 0.12);
+  color: #8fd093;
+}
+.fd-pill.error {
+  background: rgba(247, 84, 100, 0.14);
+  color: #f0a2aa;
+}
+
+.fd-card.agent.running {
+  border-color: rgba(229, 192, 123, 0.35);
+}
+
+/* Task list. */
+.fd-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+.fd-todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--fg);
+}
+.fd-todo-box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1.5px solid var(--fg-faint);
+  border-radius: 50%;
+}
+.fd-todo-box .fd-icon {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.2;
+}
+.fd-todo.completed .fd-todo-box {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--bg);
+}
+.fd-todo.completed .fd-todo-text {
+  color: var(--fg-faint);
+  text-decoration: line-through;
+}
+.fd-todo.in_progress .fd-todo-box {
+  border-color: var(--yellow);
+  box-shadow: inset 0 0 0 3px var(--fd-card), inset 0 0 0 8px var(--yellow);
+}
+.fd-todo.in_progress .fd-todo-text {
+  color: #f1f2f5;
+  font-weight: 600;
+}
+
+/* Questions and plans stand out: they need the user. */
+.fd-card.ask {
+  border-radius: 18px;
+}
+.fd-card.ask .fd-question-text {
+  font-size: 18px;
+  line-height: 1.35;
+}
+.fd-card.ask .fd-options {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.fd-card.ask .fd-options li {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.fd-card.ask .fd-options li + li {
+  border-top: 1px solid var(--border);
+}
+.fd-card.ask .fd-options li.picked {
+  background: rgba(95, 184, 101, 0.1);
+}
+.fd-card.ask .fd-option-label {
+  font-weight: 600;
+}
+.fd-card.ask,
+.fd-card.plan {
+  border-color: rgba(111, 156, 245, 0.45);
+  background: linear-gradient(var(--fd-ask-bg), var(--fd-ask-bg)), var(--fd-card);
+}
+.fd-card.ask .fd-card-icon,
+.fd-card.plan .fd-card-icon {
+  color: var(--fd-ask);
+}
+.fd-card.live {
+  box-shadow: 0 0 0 3px rgba(111, 156, 245, 0.12);
+}
+.fd-question {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.fd-question + .fd-question {
+  margin-top: 8px;
+}
+.fd-question-text {
+  color: #f1f2f5;
+  font-weight: 600;
+}
+.fd-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fd-options li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.fd-options li.picked {
+  border-color: rgba(95, 184, 101, 0.55);
+  background: rgba(95, 184, 101, 0.1);
+}
+.fd-option-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg-muted);
+  font-size: 11.5px;
+}
+.fd-options li.picked .fd-option-mark {
+  background: var(--green);
+  color: var(--bg);
+}
+.fd-option-label {
+  display: block;
+  color: var(--fg);
+  font-size: 13.5px;
+}
+.fd-option-desc {
+  display: block;
+  color: var(--fg-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.fd-answer {
+  color: #8fd093;
+  font-size: 13px;
+}
+
+/* Working indicator at the bottom while the session is mid-turn. */
+.fd-working {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 4px 8px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+.fd-working-mark {
+  display: inline-flex;
+  color: #d97757;
+  animation:
+    fd-spin 3s linear infinite,
+    fd-pulse 1.4s ease-in-out infinite;
+}
+.fd-working-mark .fd-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+@keyframes fd-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.fd-working-text {
+  flex: none;
+  background: linear-gradient(90deg, var(--fg-muted) 0%, #f1f2f5 50%, var(--fg-muted) 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: fd-shimmer 2s linear infinite;
+}
+.fd-working-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fd-working.waiting {
+  color: var(--yellow);
+}
+.fd-working.waiting .fd-working-text {
+  background: none;
+  color: var(--yellow);
+  animation: none;
+}
+@keyframes fd-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* The viewer's logo and shortcut hints, shown under the empty-state text. */
+.fd-empty .v-empty {
+  position: static;
+}

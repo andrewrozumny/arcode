@@ -1,0 +1,25 @@
+# Dependencies and build output
+node_modules/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+
+# Local notes and scratch files
+CLAUDE.local.md
+incoming/
+
+# OS and editors
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Local Claude Code settings and worktrees
+.claude/

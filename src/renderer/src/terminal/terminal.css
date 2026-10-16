@@ -1,0 +1,351 @@
+/* Terminal dock. Colors come from the theme variables; the fallbacks keep it usable on its own. */
+
+.tp-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg, #1e1f22);
+  color: var(--text, #bcbec4);
+  font-size: 12px;
+}
+
+.tp-toolbar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  flex: none;
+  min-height: 30px;
+  background: var(--panel-bg, #2b2d30);
+  border-bottom: 1px solid var(--border, #393b40);
+  user-select: none;
+}
+
+.tp-tabs {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tp-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 0 8px 0 12px;
+  color: var(--text-muted, #6f737a);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.tp-tab:hover {
+  color: var(--text, #bcbec4);
+}
+
+.tp-tab.active {
+  color: var(--text, #bcbec4);
+  border-bottom-color: var(--accent, #3574f0);
+}
+
+.tp-tab.exited .tp-tab-title {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.tp-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-gate-ok {
+  color: #5fb865;
+}
+
+.tp-gate-fail {
+  color: #f75464;
+}
+
+.tp-tab-close {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  opacity: 0;
+  cursor: default;
+}
+
+.tp-tab:hover .tp-tab-close,
+.tp-tab.active .tp-tab-close {
+  opacity: 0.7;
+}
+
+.tp-tab-close:hover {
+  background: rgb(255 255 255 / 12%);
+  opacity: 1;
+}
+
+.tp-rename {
+  width: 120px;
+  padding: 1px 4px;
+  border: 1px solid var(--accent, #3574f0);
+  border-radius: 3px;
+  background: var(--bg, #1e1f22);
+  color: var(--text, #bcbec4);
+  font: inherit;
+  outline: none;
+}
+
+.tp-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted, #6f737a);
+}
+
+.tp-dot.idle {
+  background: var(--text-muted, #6f737a);
+}
+
+.tp-dot.waiting {
+  background: #e5c07b;
+}
+
+.tp-dot.busy {
+  background: var(--accent, #3574f0);
+  animation: tp-pulse 1s ease-in-out infinite;
+}
+
+@keyframes tp-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tp-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.tp-btn {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #6f737a);
+  font: inherit;
+  cursor: default;
+}
+
+.tp-btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 8%);
+  color: var(--text, #bcbec4);
+}
+
+.tp-btn:disabled {
+  opacity: 0.4;
+}
+
+.tp-btn.on {
+  border-color: var(--accent, #3574f0);
+  color: var(--text, #bcbec4);
+}
+
+.tp-icon-btn {
+  min-width: 22px;
+  padding: 2px 4px;
+}
+
+.tp-menu-anchor {
+  position: relative;
+}
+
+.tp-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  min-width: 110px;
+  margin-top: 2px;
+  padding: 4px 0;
+  border: 1px solid var(--border, #393b40);
+  border-radius: 6px;
+  background: var(--panel-bg, #2b2d30);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 40%);
+}
+
+.tp-menu-item {
+  display: block;
+  width: 100%;
+  padding: 4px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text, #bcbec4);
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.tp-menu-item:hover {
+  background: var(--accent, #3574f0);
+  color: #fff;
+}
+
+.tp-composer {
+  display: flex;
+  align-items: flex-end;
+  flex: none;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--panel-bg, #2b2d30);
+  border-bottom: 1px solid var(--border, #393b40);
+}
+
+.tp-composer-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #393b40);
+  border-radius: 4px;
+  background: var(--bg, #1e1f22);
+  color: var(--text, #bcbec4);
+  font-family: var(--font-mono, 'JetBrains Mono', Menlo, monospace);
+  font-size: 13px;
+  line-height: 18px;
+  resize: none;
+  outline: none;
+}
+
+.tp-composer-input:focus {
+  border-color: var(--accent, #3574f0);
+}
+
+.tp-composer-send {
+  border-color: var(--border, #393b40);
+}
+
+.tp-terminals {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.tp-host {
+  position: absolute;
+  inset: 0;
+  padding: 4px 0 0 8px;
+  visibility: hidden;
+}
+
+.tp-host.active {
+  visibility: visible;
+}
+
+.tp-search {
+  position: absolute;
+  top: 6px;
+  right: 18px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--border, #393b40);
+  border-radius: 6px;
+  background: var(--panel-bg, #2b2d30);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
+}
+
+.tp-search-input {
+  width: 190px;
+  padding: 3px 6px;
+  border: 1px solid var(--border, #393b40);
+  border-radius: 4px;
+  background: var(--bg, #1e1f22);
+  color: var(--text, #bcbec4);
+  font: inherit;
+  outline: none;
+}
+
+.tp-search-input:focus {
+  border-color: var(--accent, #3574f0);
+}
+
+.tp-search-count {
+  min-width: 52px;
+  color: var(--text-muted, #6f737a);
+  text-align: center;
+}
+
+/* Choice shown over a restored Claude tab: continue the earlier session or start a new one. */
+.tp-resume {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #43454a);
+  border-radius: 6px;
+  background: var(--surface, #25272b);
+  font-size: 12px;
+}
+
+.tp-resume-text {
+  opacity: 0.75;
+  margin-right: 4px;
+}
+
+.tp-resume-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border, #43454a);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tp-resume-btn.primary {
+  border-color: var(--accent, #4f8cff);
+  color: var(--accent, #4f8cff);
+}
+
+/* xterm's VS Code style scrollbar: a thin macOS-like thumb instead of a 14px grey block. */
+.xterm .xterm-scrollable-element > .scrollbar.vertical {
+  width: 10px !important;
+}
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+  width: 6px !important;
+  left: 2px !important;
+  border-radius: 3px;
+}
+
+/*
+ * xterm parks its hidden input textarea at -9999em until the cursor first moves. macOS anchors the
+ * keyboard layout indicator to that textarea's caret, so keep it inside the terminal from the start;
+ * terminal/inputCaret.ts then keeps it on the cursor. It stays fully transparent.
+ */
+.xterm .xterm-helper-textarea {
+  left: 0;
+}

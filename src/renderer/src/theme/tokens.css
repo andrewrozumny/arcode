@@ -1,0 +1,39 @@
+/* Design tokens in the spirit of the JetBrains New UI Dark theme. */
+:root {
+  color-scheme: dark;
+
+  --bg: #1e1f22;
+  --bg-panel: #2b2d30;
+  --bg-elevated: #313438;
+  --bg-hover: #393b40;
+  --border: #393b40;
+  --border-strong: #43454a;
+
+  --fg: #dfe1e5;
+  --fg-muted: #868a91;
+  --fg-faint: #6f737a;
+
+  --accent: #3574f0;
+  --accent-hover: #4682fa;
+  --selection: #2e436e;
+  --focus-ring: #3574f0;
+
+  /* git status colours */
+  --git-modified: #6c9fe6;
+  --git-added: #73bd79;
+  --git-untracked: #d5756c;
+  --git-deleted: #868a91;
+  --green: #5fb865;
+  --red: #f75464;
+  --yellow: #e5c07b;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', Menlo, monospace;
+  --font-size-ui: 13px;
+  --font-size-mono: 13px;
+
+  --header-height: 38px;
+  --splitter-size: 1px;
+  --splitter-hit: 6px;
+  --radius: 4px;
+}
