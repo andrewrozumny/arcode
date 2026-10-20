@@ -9,7 +9,22 @@ export const ViewerChannel = {
   FileChanged: 'viewer:fileChanged',
   OpenDefault: 'viewer:open-default',
   Reveal: 'viewer:reveal',
+  ListSnapshots: 'viewer:list-snapshots',
+  ReadSnapshot: 'viewer:read-snapshot',
+  RestoreSnapshot: 'viewer:restore-snapshot',
 } as const;
+
+/** Why a local history snapshot was taken: before ARcode saved, or when the file changed from outside. */
+export type SnapshotSource = 'save' | 'external';
+
+export interface SnapshotInfo {
+  /** File name of the snapshot inside the file's history folder. */
+  id: string;
+  /** When it was taken, ms since the epoch. */
+  timestamp: number;
+  size: number;
+  source: SnapshotSource;
+}
 
 export type ReadFileResult =
   | { kind: 'text'; content: string; encoding: 'utf-8'; size: number; mtime: number }
@@ -64,6 +79,15 @@ export interface ViewerApi {
   onFileChanged(listener: (event: FileChangedEvent) => void): () => void;
   openDefault(root: string, relPath: string): Promise<void>;
   reveal(root: string, relPath: string): Promise<void>;
+  /** Local history of a file, newest first. */
+  listSnapshots(root: string, relPath: string): Promise<SnapshotInfo[]>;
+  /** Content of one snapshot, or null when it is gone. */
+  readSnapshot(root: string, relPath: string, id: string): Promise<string | null>;
+  /**
+   * Writes a snapshot back through the guarded write (same mtime check as `writeFile`). The content
+   * on disk right before is kept as a new snapshot.
+   */
+  restoreSnapshot(root: string, relPath: string, id: string, expectedMtime: number | null): Promise<WriteFileResult>;
 }
 
 /** Limits shared between main and UI. */

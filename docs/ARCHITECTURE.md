@@ -58,6 +58,19 @@ preview (marked and DOMPurify) and the diff tabs used by the IDE bridge. `viewer
 the autosave decisions (debounced save, never while a banner waits for the user) and the type to
 edit key test; saves of one file are queued so each sends the mtime the previous one produced.
 
+Local history (`viewer/history.ts`, `renderer/src/viewer/HistoryMenu.tsx`) keeps copies of text
+files independent of git. `writeFile` takes hooks: before a guarded write the content on disk is
+stored as a `save` snapshot (throttled to one per file per 5 minutes unless the newest snapshot came
+from an outside change or the change is large; a restore always keeps one). The watcher of an open
+file also reports to history: when the disk content no longer matches what ARcode last knew (read
+when the file was opened, or written by a save), the known content becomes an `external` snapshot;
+ARcode's own writes are recognised by content and by a writes-in-flight count, so they never show
+up as outside changes. Identical consecutive snapshots are skipped; text only, 1 MB cap, 50 per
+file, older than 14 days pruned at startup. Paths go through `files/paths.ts` and history checks
+again that a file is inside its root. List, read and restore are IPC calls; restore writes through
+the same guarded write. In the renderer the History button lists snapshots, and picking one shows
+it against the current text in `DiffView` with a Restore action.
+
 PDFs (`viewer/pdf.ts`, `viewer/pdfProtocol.ts`, `renderer/src/viewer/PdfView.tsx`) are shown by
 Chromium's built-in PDF viewer (project windows set `webPreferences.plugins: true`) in an iframe
 whose URL uses the privileged `arcode-pdf:` scheme (`arcode-pdf://doc/<relative path>?root=<root>&v=<mtime>`).
@@ -155,6 +168,7 @@ the enclosing git repository (ADR 0009).
 |---|---|---|
 | `~/Library/Application Support/ARcode/state.json` | yes | Recent projects, open windows, bounds, layout, terminal tabs, viewer tabs, recent files, settings (`autosave`). Atomic, debounced. |
 | `.../ARcode/paste/` | yes | Images pasted into the terminal composer; files older than 7 days removed at startup. |
+| `.../ARcode/history/<project hash>/<encoded path>/<timestamp>-<save or external>.txt` | yes | Local history snapshots of project text files (1 MB cap, 50 per file); older than 14 days removed at startup. |
 | `.../ARcode/usage/<sessionId>.json` | by the status line script | Live usage records; the script prunes them after 7 days. |
 | `.../ARcode/arcode-statusline.py` | yes | Installed copy of the status line script. |
 | `~/.claude/ide/<port>.lock` | yes | IDE bridge lock file (mode 0600), removed when the window closes. |

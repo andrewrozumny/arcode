@@ -12,6 +12,7 @@ import { OpenRequestRouter, pathsFromArgv } from './openRequests';
 import { captureScreens } from './screens';
 import { registerClaudeIpc, startLiveUsage } from './claude/ipc';
 import { registerFilesIpc } from './files/ipc';
+import { historyDir, LocalHistory } from './viewer/history';
 import { registerViewerIpc } from './viewer/ipc';
 import { handlePdfProtocol, registerPdfScheme } from './viewer/pdfProtocol';
 import { pasteDir, prunePastedImages } from './terminal/pasteImages';
@@ -42,7 +43,8 @@ void app.whenReady().then(() => {
   enterBackgroundMode();
   migrateLegacyUserData(app.getPath('appData'), app.getPath('userData'));
   registerFilesIpc(ipcMain);
-  registerViewerIpc(ipcMain);
+  const localHistory = new LocalHistory(historyDir(app.getPath('userData')));
+  registerViewerIpc(ipcMain, localHistory);
   registerClaudeIpc(ipcMain);
   const liveUsage = startLiveUsage(ipcMain);
   app.on('will-quit', () => liveUsage.stop());
@@ -90,6 +92,8 @@ void app.whenReady().then(() => {
 
   // Pasted images are only needed while the prompt that mentions them is fresh.
   void prunePastedImages(pasteDir(app.getPath('userData')));
+  // Local history keeps two weeks.
+  void localHistory.prune();
 
   if (process.env.ARCODE_SCREENS) captureScreens(process.env.ARCODE_SCREENS, windows, switcher);
 });
