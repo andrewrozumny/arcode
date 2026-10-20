@@ -12,6 +12,20 @@ import { HistoryMenu, snapshotAge, sourceLabel } from './HistoryMenu';
 import { DiffIcon, PencilIcon, SaveIcon } from './Icons';
 import { languageNameForPath } from './languages';
 import { MarkdownPreview } from './MarkdownPreview';
+import {
+  LIVE_PREVIEW_DELAY_MS,
+  SPLIT_MIN_WIDTH_PX,
+  buildAnchors,
+  clampFraction,
+  lineForTop,
+  loadMarkdownMode,
+  loadSplitFraction,
+  saveMarkdownMode,
+  saveSplitFraction,
+  topForLine,
+} from './markdownSplit';
+import type { Anchor, MarkdownMode } from './markdownSplit';
+import { Splitter } from '../layout/Splitter';
 import { extension } from './paths';
 import { Placeholder } from './Placeholder';
 import { ImageView } from './ImageView';
@@ -69,18 +83,75 @@ interface DiffState {
 
 const isMarkdown = (path: string): boolean => ['md', 'markdown', 'mdx'].includes(extension(path));
 
+function storage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Distance in px from the top of the editor's scroll content to the first line. */
+function docOffset(view: EditorView): number {
+  const scroller = view.scrollDOM;
+  return view.documentTop - scroller.getBoundingClientRect().top + scroller.scrollTop;
+}
+
+/** Fractional 1-based line at the top of the editor viewport. */
+function editorTopLine(view: EditorView): number {
+  const height = Math.max(0, view.scrollDOM.scrollTop - docOffset(view));
+  const block = view.lineBlockAtHeight(height);
+  const line = view.state.doc.lineAt(block.from).number;
+  return line + (block.height > 0 ? Math.min(1, Math.max(0, (height - block.top) / block.height)) : 0);
+}
+
+function scrollEditorToLine(view: EditorView, line: number): void {
+  const { doc } = view.state;
+  const whole = Math.min(doc.lines, Math.max(1, Math.floor(line)));
+  const block = view.lineBlockAt(doc.line(whole).from);
+  view.scrollDOM.scrollTop = docOffset(view) + block.top + (line - whole) * block.height;
+}
+
+/** Offsets of the preview's top-level blocks, tied to their source lines. */
+function previewAnchors(preview: HTMLElement, totalLines: number): Anchor[] {
+  const base = preview.getBoundingClientRect().top - preview.scrollTop;
+  const blocks = [...preview.querySelectorAll<HTMLElement>('.v-md > [data-line]')].map((el) => ({
+    line: Number(el.dataset.line),
+    top: el.getBoundingClientRect().top - base,
+  }));
+  return buildAnchors(blocks, totalLines, preview.scrollHeight);
+}
+
+const atBottom = (el: HTMLElement): boolean => el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+
 export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
   { root, path, active, autosave, reveal, headDiff, onDirtyChange, onSelection, onOpenFile },
   ref,
 ) {
   const api = viewerApi();
   const md = isMarkdown(path);
+  const ext = extension(path);
   const [data, setData] = useState<ReadFileResult | null>(null);
   const [editing, setEditing] = useState(false);
-  const [mdMode, setMdMode] = useState<'preview' | 'source'>('preview');
+  const [initialMdMode] = useState<MarkdownMode>(() => (md ? loadMarkdownMode(storage(), ext) : 'preview'));
+  const [mdMode, setMdModeState] = useState<MarkdownMode>(initialMdMode);
   const [svgMode, setSvgMode] = useState<'image' | 'source'>('image');
   const [previewText, setPreviewText] = useState('');
-  const [editorShown, setEditorShown] = useState(!md);
+  const [editorShown, setEditorShown] = useState(!md || initialMdMode !== 'preview');
+  const [splitFraction, setSplitFraction] = useState(() => loadSplitFraction(storage()));
+  const [narrow, setNarrow] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const mdModeRef = useRef(mdMode);
+  const splitDragStart = useRef(0);
+  /** Re-aligns the live preview after it re-rendered; set while the split view is shown. */
+  const resyncPreview = useRef<() => void>(() => undefined);
+  const [previewTimer] = useState(() =>
+    debounced(() => {
+      const value = editorRef.current?.getValue();
+      if (value !== undefined) setPreviewText(value);
+    }, LIVE_PREVIEW_DELAY_MS),
+  );
   const [dirty, setDirty] = useState(false);
   const [diff, setDiff] = useState<DiffState | null>(null);
   const [banner, setBannerState] = useState<Banner | null>(null);
@@ -176,8 +247,9 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
       markDirty(doc.length !== savedRef.current.length || doc.toString() !== savedRef.current);
       if (autosaveRef.current && dirtyRef.current) timer.schedule();
       else timer.cancel();
+      if (mdModeRef.current === 'split') previewTimer.schedule();
     },
-    [markDirty, timer],
+    [markDirty, timer, previewTimer],
   );
 
   const writeText = useCallback(
@@ -259,8 +331,9 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
       window.removeEventListener('blur', flush);
       window.removeEventListener('beforeunload', flush);
       flush();
+      previewTimer.cancel();
     };
-  }, []);
+  }, [previewTimer]);
 
   const overwrite = useCallback(async () => {
     const latest = await api.readFile(root, path);
@@ -268,31 +341,131 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
     await save(mtime);
   }, [api, root, path, save]);
 
-  const showSource = useCallback(() => {
-    setEditorShown(true);
-    setMdMode('source');
-  }, []);
+  /** Switches the Markdown mode; `remember` stores it for this file type (a click on the switch). */
+  const changeMdMode = useCallback(
+    (mode: MarkdownMode, remember: boolean) => {
+      mdModeRef.current = mode;
+      if (mode !== 'preview') setEditorShown(true);
+      if (mode !== 'source') {
+        previewTimer.cancel();
+        setPreviewText(editorRef.current?.getValue() ?? savedRef.current);
+      }
+      setMdModeState(mode);
+      if (remember) saveMarkdownMode(storage(), ext, mode);
+    },
+    [ext, previewTimer],
+  );
+
+  /** Makes the editor visible: Preview turns into Source, Split stays as it is. */
+  const ensureEditor = useCallback(() => {
+    if (mdModeRef.current === 'preview') changeMdMode('source', false);
+  }, [changeMdMode]);
 
   const toggleEdit = useCallback(() => {
     if (data?.kind !== 'text') return;
-    if (md && mdMode === 'preview') showSource();
+    if (md) ensureEditor();
     if (editing) autosaveNow();
     setEditing(!editing);
     window.requestAnimationFrame(() => editorRef.current?.focus());
-  }, [data, md, mdMode, showSource, editing, autosaveNow]);
-
-  const setPreviewMode = useCallback(() => {
-    setPreviewText(editorRef.current?.getValue() ?? savedRef.current);
-    setMdMode('preview');
-  }, []);
+  }, [data, md, ensureEditor, editing, autosaveNow]);
 
   const revealLine = useCallback(
     (line: number, column?: number) => {
-      if (md) showSource();
+      if (md) ensureEditor();
       setDiff(null);
       window.requestAnimationFrame(() => editorRef.current?.reveal(line, column));
     },
-    [md, showSource],
+    [md, ensureEditor],
+  );
+
+  // The viewer width decides between side by side and stacked.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width > 0) setNarrow(entry.contentRect.width < SPLIT_MIN_WIDTH_PX);
+    });
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [data]);
+
+  const splitShown = data?.kind === 'text' && md && mdMode === 'split' && !diff;
+
+  // Approximate scroll sync: the pane the user last touched drives the other one.
+  useEffect(() => {
+    if (!splitShown) {
+      resyncPreview.current = () => undefined;
+      return;
+    }
+    const view = editorRef.current?.getView();
+    const preview = previewScrollRef.current;
+    if (!view || !preview) return;
+    const editorScroller = view.scrollDOM;
+    let driver: 'editor' | 'preview' = 'editor';
+    let frame = 0;
+
+    const fromEditor = (): void => {
+      if (atBottom(editorScroller) && editorScroller.scrollTop > 0) {
+        preview.scrollTop = preview.scrollHeight;
+        return;
+      }
+      const anchors = previewAnchors(preview, view.state.doc.lines);
+      preview.scrollTop = topForLine(anchors, editorTopLine(view));
+    };
+    const fromPreview = (): void => {
+      if (atBottom(preview) && preview.scrollTop > 0) {
+        editorScroller.scrollTop = editorScroller.scrollHeight;
+        return;
+      }
+      const anchors = previewAnchors(preview, view.state.doc.lines);
+      scrollEditorToLine(view, lineForTop(anchors, preview.scrollTop));
+    };
+    const schedule = (run: () => void): void => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(run);
+    };
+    const onEditorScroll = (): void => {
+      if (driver === 'editor') schedule(fromEditor);
+    };
+    const onPreviewScroll = (): void => {
+      if (driver === 'preview') schedule(fromPreview);
+    };
+    const driveFromEditor = (): void => {
+      driver = 'editor';
+    };
+    const driveFromPreview = (): void => {
+      driver = 'preview';
+    };
+
+    const editorDriveEvents = ['wheel', 'pointerdown', 'keydown'] as const;
+    const previewDriveEvents = ['wheel', 'pointerdown', 'keydown'] as const;
+    editorScroller.addEventListener('scroll', onEditorScroll, { passive: true });
+    preview.addEventListener('scroll', onPreviewScroll, { passive: true });
+    for (const type of editorDriveEvents) view.dom.addEventListener(type, driveFromEditor, { passive: true });
+    for (const type of previewDriveEvents) preview.addEventListener(type, driveFromPreview, { passive: true });
+    resyncPreview.current = () => {
+      if (driver === 'editor') schedule(fromEditor);
+    };
+    schedule(fromEditor);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resyncPreview.current = () => undefined;
+      editorScroller.removeEventListener('scroll', onEditorScroll);
+      preview.removeEventListener('scroll', onPreviewScroll);
+      for (const type of editorDriveEvents) view.dom.removeEventListener(type, driveFromEditor);
+      for (const type of previewDriveEvents) preview.removeEventListener(type, driveFromPreview);
+    };
+  }, [splitShown, narrow]);
+
+  const onSplitDrag = useCallback(
+    (delta: number) => {
+      const body = bodyRef.current;
+      if (!body) return;
+      const size = narrow ? body.clientHeight : body.clientWidth;
+      if (size > 0) setSplitFraction(clampFraction((splitDragStart.current + delta) / size));
+    },
+    [narrow],
   );
 
   useImperativeHandle(ref, () => ({
@@ -401,11 +574,23 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
             <button
               type="button"
               className={mdMode === 'preview' ? 'on' : ''}
-              onClick={setPreviewMode}
+              onClick={() => changeMdMode('preview', true)}
             >
               Preview
             </button>
-            <button type="button" className={mdMode === 'source' ? 'on' : ''} onClick={showSource}>
+            <button
+              type="button"
+              className={mdMode === 'split' ? 'on' : ''}
+              title={
+                narrow
+                  ? 'Editor with a live preview, stacked because the viewer is narrow'
+                  : 'Editor with a live preview side by side'
+              }
+              onClick={() => changeMdMode('split', true)}
+            >
+              Split
+            </button>
+            <button type="button" className={mdMode === 'source' ? 'on' : ''} onClick={() => changeMdMode('source', true)}>
               Source
             </button>
           </div>
@@ -532,18 +717,46 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
         </div>
       )}
 
-      <div className="v-body">
+      <div className="v-body" ref={bodyRef}>
         {text && editorShown && (
-          <div className="v-fill" hidden={editorHidden}>
-            <CodeEditor
-              ref={editorRef}
-              path={path}
-              initialValue={previewText}
-              readOnly={!editing}
-              onChange={onDocChange}
-              onTypeToEdit={() => setEditing(true)}
-              onSelection={(info) => active && onSelection(path, info)}
-            />
+          // The editor keeps its place in the tree in every mode, so switching never remounts it.
+          <div
+            className={splitShown ? `v-edit-area v-split${narrow ? ' v-split-stacked' : ''}` : 'v-edit-area'}
+            hidden={editorHidden}
+          >
+            <div className="v-fill" style={splitShown ? { flex: `0 0 ${splitFraction * 100}%` } : undefined}>
+              <CodeEditor
+                ref={editorRef}
+                path={path}
+                initialValue={previewText}
+                readOnly={!editing}
+                onChange={onDocChange}
+                onTypeToEdit={() => setEditing(true)}
+                onSelection={(info) => active && onSelection(path, info)}
+              />
+            </div>
+            {splitShown && (
+              <Splitter
+                orientation={narrow ? 'horizontal' : 'vertical'}
+                onDragStart={() => {
+                  const body = bodyRef.current;
+                  splitDragStart.current = splitFraction * (narrow ? (body?.clientHeight ?? 0) : (body?.clientWidth ?? 0));
+                }}
+                onDrag={onSplitDrag}
+                onDragEnd={() => saveSplitFraction(storage(), splitFraction)}
+              />
+            )}
+            {splitShown && (
+              <MarkdownPreview
+                ref={previewScrollRef}
+                source={previewText}
+                path={path}
+                root={root}
+                onOpenFile={onOpenFile}
+                live
+                onRendered={() => resyncPreview.current()}
+              />
+            )}
           </div>
         )}
         {showPreview && <MarkdownPreview source={previewText} path={path} root={root} onOpenFile={onOpenFile} />}

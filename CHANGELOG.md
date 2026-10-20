@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Markdown split view.** A third Split segment in the Markdown switch shows the editor and a live
+  preview side by side (re-rendered about 150 ms after typing stops, autosave unchanged), with a
+  resizable divider and approximate scroll sync in both directions through source line markers on
+  the rendered blocks. A narrow viewer stacks the preview under the editor. The chosen mode is
+  remembered per file type.
 - **Local history.** ARcode keeps its own copies of text files in the project, independent of git:
   before it saves a file (throttled to one per 5 minutes during autosave unless the change is large)
   and when an open file changes on disk from outside, for example when Claude Code edits it. The

@@ -190,9 +190,13 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
   the current file, then **Restore this version** writes it back after a confirmation; the content
   it replaces is kept as a new version, and unsaved edits are saved first. Only text files up to
   1 MB inside the project are kept, at most 50 versions per file, for 14 days.
-- **Markdown:** `.md` files open in a rendered preview with a Preview / Source switch. Relative
+- **Markdown:** `.md` files open in a rendered preview with a Preview / Split / Source switch. Relative
   links open in the viewer; relative images are loaded from the project. Remote images are not
-  loaded.
+  loaded. **Split** puts the editor on the left and a live preview on the right that follows your
+  typing (autosave works as in Source). Drag the divider to resize. Scrolling either side scrolls
+  the other to the matching block, approximately. When the viewer is narrower than about 900 px
+  the preview moves under the editor instead. The mode you pick is remembered per file type
+  (`.md`, `.markdown`, `.mdx`) for files you open next.
 - **SVG:** switch between Image and Source.
 - **Images:** zoom with Cmd+= and Cmd+- (or pinch, or Cmd+scroll), Cmd+0 or Shift+1 to fit,
   Shift+0 for actual size. Hold Space and drag to pan, or Shift+drag (or the zoom-to-selection

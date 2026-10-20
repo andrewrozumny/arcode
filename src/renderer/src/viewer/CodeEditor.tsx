@@ -32,6 +32,8 @@ export interface CodeEditorHandle {
   reveal(line: number, column?: number): void;
   openGotoLine(): void;
   getSelection(): SelectionInfo;
+  /** The live CodeMirror view (for scroll sync); null before mount and after unmount. */
+  getView(): EditorView | null;
 }
 
 interface Props {
@@ -223,6 +225,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
         ? selectionOf(view)
         : { start: { line: 0, character: 0 }, end: { line: 0, character: 0 }, text: null };
     },
+    getView: () => viewRef.current,
   }));
 
   return <div ref={hostRef} className="v-cm" />;
