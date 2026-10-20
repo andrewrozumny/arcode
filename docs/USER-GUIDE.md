@@ -238,15 +238,25 @@ window showed) as a readable conversation, live.
 ![Claude feed](screenshots/feed.png)
 
 - Your prompts and Claude's answers are rendered as Markdown with highlighted code; file references
-  are links that open in the viewer.
+  are links that open in the viewer. Line breaks show as in the terminal, numbered lines and `•`
+  bullets read as lists, long paths and links wrap, and wide tables scroll sideways in their own box.
 - Tool calls are short rows that expand into diffs, command output and other details.
 - Task lists, agent runs, questions and plans appear as cards.
 - A working indicator shows the current step, or what Claude is waiting for.
+- **Answer from the feed.** While Claude waits on a question, a plan or a permission in a Claude
+  tab of this window, the card's options are buttons. A single question with one choice is sent
+  with one click; otherwise pick an answer per question and press **Send answers**. Single-choice
+  questions also take a typed answer. Plan approvals and permissions show the options the terminal
+  shows; options that need text (feedback for Claude) pick the option and move you to the terminal
+  to type it. ARcode types the same keys you would, so the terminal shows the result as usual.
+  Typed answers to multi-choice questions, or a prompt you already started answering in the
+  terminal, are left to the terminal: **Open terminal** takes you there.
 - Thinking, system reminders, hook records and similar noise are hidden.
 - **Load earlier messages** at the top reads further back. Each message has a copy button; image
   attachments show as thumbnails you can enlarge.
 
 The feed only reads the session transcript under `~/.claude/projects`; it never writes to it.
+Answers go to the Claude tab's terminal as key presses, never into Claude Code's files.
 
 ## Claude panel
 

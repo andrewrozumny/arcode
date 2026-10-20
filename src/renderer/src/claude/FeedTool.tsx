@@ -10,6 +10,8 @@ import { phraseText, toolGroupLabel, toolPhrase } from './feedTools';
 import type { ToolItem, ToolPhrase } from './feedTools';
 import { Chevron, Icon, Spinner } from './FeedIcons';
 import { CodeBlock } from './FeedMarkdown';
+import { NO_PROMPT } from './useTerminalPrompt';
+import type { PromptControl } from './useTerminalPrompt';
 
 /** What every tool row and card needs besides its own item. */
 export interface FeedContextValue {
@@ -17,9 +19,20 @@ export interface FeedContextValue {
   results: Record<string, FeedToolResult>;
   notices: Map<string, FeedTaskNotice>;
   activity: SessionActivity;
+  /** Plan text per ExitPlanMode call (its input, its result or the plan file written before it). */
+  plans: Map<string, string>;
+  /** Answering the prompt Claude waits on from the feed. */
+  prompt: PromptControl;
 }
 
-export const FeedContext = createContext<FeedContextValue>({ root: '', results: {}, notices: new Map(), activity: 'unknown' });
+export const FeedContext = createContext<FeedContextValue>({
+  root: '',
+  results: {},
+  notices: new Map(),
+  activity: 'unknown',
+  plans: new Map(),
+  prompt: NO_PROMPT,
+});
 
 export function useFeedContext(): FeedContextValue {
   return useContext(FeedContext);

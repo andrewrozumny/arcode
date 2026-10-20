@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedChunk, FeedItem } from '@shared/claude';
-import { DIVIDER_GAP_MS, MAX_ITEMS, MAX_LOADED_ITEMS, applyChunk, canLoadEarlier, emptyFeed, endsMidTurn, groupFeed, lastPromptAt, runningCall, mergeChunk, runState, taskList, taskNotices } from './feedModel';
+import { DIVIDER_GAP_MS, MAX_ITEMS, MAX_LOADED_ITEMS, applyChunk, canLoadEarlier, emptyFeed, endsMidTurn, groupFeed, lastPromptAt, pendingPrompt, planTexts, runningCall, mergeChunk, runState, taskList, taskNotices } from './feedModel';
 
 const text = (id: string, offset: number, kind: 'user' | 'assistant' = 'assistant'): FeedItem =>
   kind === 'user' ? { kind, id, at: null, offset, text: id, images: 0 } : { kind, id, at: null, offset, text: id };
@@ -238,5 +238,33 @@ describe('current activity', () => {
     expect(runningCall(items, {}, new Map(), 'busy')?.id).toBe('t2');
     expect(runningCall([...items, text('a', 3)], {}, new Map(), 'busy')).toBeNull();
     expect(lastPromptAt(items)).toBe('2026-10-14T10:00:00.000Z');
+  });
+});
+
+describe('prompts', () => {
+  const withDetail = (id: string, offset: number, detail: NonNullable<Extract<FeedItem, { kind: 'tool' }>['detail']>): FeedItem => ({ ...tool(id, offset), detail });
+  const done = { toolUseId: 'x', text: '', isError: false };
+  const question = withDetail('q', 2, { type: 'question', questions: [{ question: 'Which?', header: null, multiSelect: false, options: [] }] });
+  const notice: FeedItem = { kind: 'notice', id: 'n', at: null, offset: 3, text: 'Agent done', task: { toolUseId: 'x', status: 'completed', result: null } };
+
+  it('finds the question or plan Claude waits on: the latest call, without a result, while waiting', () => {
+    expect(pendingPrompt([text('u', 0, 'user'), question], {}, 'waiting')?.id).toBe('q');
+    expect(pendingPrompt([question, notice], {}, 'waiting')?.id).toBe('q');
+    expect(pendingPrompt([question], {}, 'busy')).toBeNull();
+    expect(pendingPrompt([question], { q: done }, 'waiting')).toBeNull();
+    expect(pendingPrompt([question, text('a', 4)], {}, 'waiting')).toBeNull();
+    expect(pendingPrompt([question, tool('t', 4)], {}, 'waiting')).toBeNull();
+  });
+
+  it('takes the plan text from the input, the result or the plan file written before the call', () => {
+    const file = withDetail('w', 1, { type: 'write', path: '/home/me/.claude/plans/quiet-plan.md', content: '# From the file' });
+    const empty = withDetail('p', 2, { type: 'plan', plan: '' });
+    const own = withDetail('p2', 3, { type: 'plan', plan: '# Own input' });
+    expect(planTexts([file, empty], {}).get('p')).toBe('# From the file');
+    expect(planTexts([file, empty], { p: { ...done, plan: '# Approved' } }).get('p')).toBe('# Approved');
+    expect(planTexts([file, own], {}).get('p2')).toBe('# Own input');
+    // A file is used once: a later plan call without input has no text.
+    expect(planTexts([file, empty, withDetail('p3', 4, { type: 'plan', plan: '' })], {}).has('p3')).toBe(false);
+    expect(planTexts([withDetail('w2', 1, { type: 'write', path: '/repo/notes.md', content: 'x' }), empty], {}).has('p')).toBe(false);
   });
 });

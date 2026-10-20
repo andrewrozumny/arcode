@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Answer Claude from the feed.** Question cards (AskUserQuestion), plan approvals and permission
+  prompts have buttons while Claude waits on them; ARcode types the matching keys into the Claude
+  tab's terminal. Typed answers work for single-choice questions; anything else falls back to the
+  terminal with one click.
+- Plan cards show the plan Claude Code wrote to its plan file when ExitPlanMode has no input.
+
+### Fixed
+
+- **Feed formatting.** Line breaks in Claude's replies are kept as in the terminal; numbered lists
+  that start after 1 right under a label, and `•` bullets, render as lists instead of one run-on
+  paragraph; long inline code, paths and links wrap instead of overflowing the column; wide tables
+  scroll in their own box.
+
 ## [0.2.0] - 2026-10-21
 
 ### Changed
