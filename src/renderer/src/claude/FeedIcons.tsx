@@ -1,8 +1,68 @@
 import type { ReactNode } from 'react';
 import type { ToolIcon } from './feedTools';
 
-/** 16x16 stroke icons of the Claude feed, drawn in the current text colour. */
-const PATHS: Record<ToolIcon | 'copy' | 'check' | 'image' | 'spark' | 'clock', ReactNode> = {
+type PanelIcon = 'overview' | 'chat' | 'gauge' | 'gate' | 'file' | 'plug' | 'hook' | 'play' | 'plus' | 'refresh' | 'alert' | 'info';
+
+/** 16x16 stroke icons of the Claude feed and the Claude panel, drawn in the current text colour. */
+const PATHS: Record<ToolIcon | PanelIcon | 'copy' | 'check' | 'image' | 'spark' | 'clock', ReactNode> = {
+  overview: (
+    <>
+      <rect x="2" y="2" width="5" height="5" rx="1" />
+      <rect x="9" y="2" width="5" height="5" rx="1" />
+      <rect x="2" y="9" width="5" height="5" rx="1" />
+      <rect x="9" y="9" width="5" height="5" rx="1" />
+    </>
+  ),
+  chat: <path d="M2.5 3.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H7l-3 2.75V11a1.5 1.5 0 0 1-1.5-1.5z" />,
+  gauge: (
+    <>
+      <path d="M2.25 11.5a5.75 5.75 0 1 1 11.5 0" />
+      <path d="M8 11.5l2.75-3.5" />
+    </>
+  ),
+  gate: (
+    <>
+      <path d="M8 1.75l5.25 2v4c0 3.1-2.2 5.4-5.25 6.5-3.05-1.1-5.25-3.4-5.25-6.5v-4z" />
+      <path d="M5.75 8l1.5 1.5 3-3" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M4 1.75h5.25L12.5 5v9.25H4z" />
+      <path d="M9 1.75V5.25h3.5" />
+    </>
+  ),
+  plug: (
+    <path d="M2.5 5h3a1.5 1.5 0 1 1 3 0h3v3a1.5 1.5 0 1 1 0 3v2.75h-8.5V11a1.5 1.5 0 1 0 0-3H2.5z" />
+  ),
+  hook: (
+    <>
+      <path d="M8 1.75v7.5a2.75 2.75 0 0 1-5.5 0v-1" />
+      <path d="M1 9.75l1.5-1.5 1.5 1.5" />
+      <circle cx="8" cy="1.75" r="0.5" />
+      <path d="M10.5 4.5h3M10.5 7.5h3" />
+    </>
+  ),
+  play: <path d="M5 3.25v9.5l7.5-4.75z" />,
+  plus: <path d="M8 3v10M3 8h10" />,
+  refresh: (
+    <>
+      <path d="M13 8a5 5 0 1 1-1.5-3.55" />
+      <path d="M13 2.5v3h-3" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M8 2l6.25 11H1.75z" />
+      <path d="M8 6.5v3M8 11.5v.1" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M8 7.25v4M8 5v.1" />
+    </>
+  ),
   read: (
     <>
       <path d="M4 1.75h5.25L12.5 5v9.25H4z" />

@@ -319,6 +319,7 @@ export function TerminalPane({
 
   // The Claude panel asks for a resumed session through the bus.
   useEffect(() => bus.on('resumeClaude', ({ sessionId, name }) => void resumeClaude(sessionId, name)), [resumeClaude]);
+  useEffect(() => bus.on('newClaude', () => void newClaude()), [newClaude]);
 
   // Initial tabs.
   useEffect(() => {

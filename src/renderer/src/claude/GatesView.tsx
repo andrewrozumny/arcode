@@ -46,7 +46,7 @@ export function GatesView({ root }: { root: string }) {
               {gate.missing.length === 0 ? (
                 <span className="cl-badge ok">ready</span>
               ) : (
-                <span className="cl-badge bad">missing script: {gate.missing.join(', ')}</span>
+                <span className="cl-badge error">missing script: {gate.missing.join(', ')}</span>
               )}
             </div>
             <div className="cl-desc">{gate.explanation}</div>
@@ -66,7 +66,7 @@ export function GatesView({ root }: { root: string }) {
                 <div className="cl-path">{area.folder}</div>
               </div>
               {area.testFiles === 0 ? (
-                <span className="cl-badge bad">NO TESTS</span>
+                <span className="cl-badge error">NO TESTS</span>
               ) : (
                 <span className="cl-badge ok">
                   {area.testFiles} {area.testFiles === 1 ? 'file' : 'files'}, ~{area.tests} tests

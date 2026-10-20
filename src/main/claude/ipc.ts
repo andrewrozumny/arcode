@@ -9,7 +9,8 @@ import { listAgents } from './agents';
 import { feedRequest, readFeed } from './feed';
 import { readGatesOverview } from './gates';
 import { listHooks } from './hooks';
-import { listMcp } from './mcp';
+import { listMcp, listMcpConfigured } from './mcp';
+import { readConfigFile } from './configFile';
 import { listMemory } from './memory';
 import { listPlugins } from './plugins';
 import { listSessions } from './sessions';
@@ -72,6 +73,10 @@ export function registerClaudeIpc(ipcMain: IpcMain): void {
   byRoot(ClaudeChannel.Skills, listSkills);
   byRoot(ClaudeChannel.Plugins, listPlugins);
   byRoot(ClaudeChannel.Mcp, listMcp);
+  byRoot(ClaudeChannel.McpConfigured, listMcpConfigured);
+  ipcMain.handle(ClaudeChannel.ReadConfigFile, async (_e, root: unknown, path: unknown) =>
+    readConfigFile(await projectRoot(root), text(path, 'path'), homedir()),
+  );
   byRoot(ClaudeChannel.Usage, (root, home) => summarizeUsage(root, home));
   byRoot(ClaudeChannel.Agents, listAgents);
   byRoot(ClaudeChannel.Hooks, listHooks);
