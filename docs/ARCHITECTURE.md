@@ -62,6 +62,9 @@ saves. All paths go through `files/paths.ts`. The renderer side is CodeMirror pl
 preview (marked and DOMPurify) and the diff tabs used by the IDE bridge. `viewer/autosave.ts` holds
 the autosave decisions (debounced save, never while a banner waits for the user) and the type to
 edit key test; saves of one file are queued so each sends the mtime the previous one produced.
+`viewer/markdownSplit.ts` backs the Markdown split view: `data-line` markers on top-level rendered
+blocks (`markedWithLines` in `markdown.ts`), the line to offset anchors used for scroll sync and
+the remembered mode in localStorage.
 
 Local history (`viewer/history.ts`, `renderer/src/viewer/HistoryMenu.tsx`) keeps copies of text
 files independent of git. `writeFile` takes hooks: before a guarded write the content on disk is

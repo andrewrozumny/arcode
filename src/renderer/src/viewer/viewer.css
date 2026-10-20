@@ -336,6 +336,34 @@
 .v-fill[hidden] {
   display: none;
 }
+.v-edit-area {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.v-edit-area[hidden] {
+  display: none;
+}
+
+/* Markdown split view: editor left, live preview right (stacked when the viewer is narrow) */
+.v-split {
+  flex-direction: row;
+}
+.v-split > .v-fill {
+  min-width: 0;
+}
+.v-split > .v-md-scroll {
+  flex: 1;
+  min-width: 0;
+}
+.v-split .v-md {
+  padding: 16px 24px 48px;
+}
+.v-split.v-split-stacked {
+  flex-direction: column;
+}
 .v-cm,
 .v-diff {
   height: 100%;
