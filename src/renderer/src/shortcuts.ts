@@ -19,7 +19,8 @@ export type ShortcutAction =
   | 'nextTab'
   | 'prevTab'
   | 'atMention'
-  | 'newClaude';
+  | 'newClaude'
+  | 'jumpWaiting';
 
 export interface ShortcutKey {
   /** KeyboardEvent.code, layout independent ("KeyP", "BracketRight"). */
@@ -43,6 +44,8 @@ export function resolveShortcut(key: ShortcutKey, zone: FocusZone): ShortcutActi
   if (code === 'KeyF' && shift && !alt) return 'findInFiles';
   // Cmd+E is edit mode here, so Recent Files (JetBrains Cmd+E) takes Cmd+Shift+E.
   if (code === 'KeyE' && shift && !alt) return 'recentFiles';
+  // Terminal > Jump to Waiting Claude Tab; handled here so it works in the terminal and the editor alike.
+  if (code === 'KeyJ' && shift && !alt) return 'jumpWaiting';
 
   if (zone === 'terminal') return null;
 

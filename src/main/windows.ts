@@ -135,7 +135,10 @@ export class WindowManager {
     entry.ideReady = entry.ide
       .start()
       .catch((error: unknown) => console.error('[arcode] IDE bridge failed to start', error));
-    attachTerminalWindow(win, entry.ptys);
+    attachTerminalWindow(win, entry.ptys, {
+      project: baseName(root),
+      notificationSound: () => this.state.notificationSound(),
+    });
     const contentsId = win.webContents.id;
     this.byRoot.set(root, entry);
     this.byContents.set(contentsId, entry);

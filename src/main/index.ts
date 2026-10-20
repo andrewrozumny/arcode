@@ -60,6 +60,11 @@ void app.whenReady().then(() => {
         const settings = state.editorSettings();
         for (const win of BrowserWindow.getAllWindows()) win.webContents.send(AppChannel.SettingsChanged, settings);
       },
+      notificationSound: () => state.notificationSound(),
+      setNotificationSound: (on) => {
+        state.setNotificationSound(on);
+        refreshMenu();
+      },
     });
   const windows = new WindowManager(state, refreshMenu);
   handlePdfProtocol(() => windows.roots());

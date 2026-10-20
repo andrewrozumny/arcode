@@ -212,7 +212,11 @@ Other features:
 - **Font size:** Cmd+= / Cmd+- / Cmd+0.
 - **Clear:** Cmd+K. Cmd+C copies when text is selected and sends Ctrl+C otherwise.
 - **Status dot:** each tab shows whether its Claude session is working or waiting for you; the
-  tooltip says what it waits for.
+  tooltip says what it waits for. A tab that waits for you gets a pulsing coral dot and a coral
+  title until you answer.
+- **Jump to a waiting tab** (Cmd+Shift+J, or Terminal > Jump to Waiting Claude Tab): selects the
+  next tab of this window where Claude waits for you, showing the terminal if it is hidden. Press it
+  again to cycle through all waiting tabs. When none waits, a short hint says so.
 - **Restore after restart:** tabs, their names and the composer state are saved per project. After
   a restart, shell tabs start fresh shells; a Claude tab whose session has a transcript asks
   whether to **Continue previous session** (`claude --resume <id>`) or start a **New session**.
@@ -372,9 +376,14 @@ each run stays in its terminal tab.
 
 When a Claude session in one of a window's terminals starts waiting for you (a permission prompt,
 a question, the end of a turn) and that window is not focused, ARcode shows one macOS notification
-per waiting period. Clicking it focuses the window. The Dock icon shows a badge with the number of
-waiting tabs you are not looking at. Allow notifications for ARcode in System Settings >
-Notifications if they do not appear.
+per waiting period. The notification is titled with the project name, names the terminal tab and
+says what Claude is waiting for, so several waiting sessions stay apart in Notification Center.
+Clicking it brings the window forward, shows the terminal if it is hidden and selects that exact tab.
+The Dock icon shows a badge with the number of waiting tabs you are not looking at. Allow
+notifications for ARcode in System Settings > Notifications if they do not appear.
+
+Notifications are silent by default. Terminal > Notification Sound plays the macOS notification
+sound with them; the setting is saved in `state.json`.
 
 ## Project registry (optional)
 
@@ -400,6 +409,7 @@ database the switcher shows recent projects only.
 | Cmd+Shift+F | Find in files (works in the terminal too; Esc returns to the tree) |
 | Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
+| Cmd+Shift+J | Jump to the next terminal tab where Claude waits for you (works in the terminal too) |
 | Cmd+T | New shell tab |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab (terminal or viewer, depending on focus) |

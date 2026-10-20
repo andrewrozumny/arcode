@@ -12,6 +12,8 @@ export const TerminalChannel = {
   ClaudeSnapshot: 'terminal:claudeSnapshot',
   ClaudeStatus: 'terminal:claudeStatus',
   Attention: 'terminal:attention',
+  TabTitles: 'terminal:tabTitles',
+  FocusPty: 'terminal:focusPty',
 } as const;
 
 /** Status values of a Claude Code process as written to ~/.claude/sessions/<pid>.json, plus `ended`. */
@@ -43,6 +45,29 @@ export interface AttentionRequest {
   waiting: number;
 }
 
+/** Title of the terminal tab a pty belongs to, so a notification can name the tab. */
+export interface TabTitle {
+  ptyId: PtyId;
+  title: string;
+}
+
+/** Most tab titles main keeps per window, and the longest title it keeps. */
+export const MAX_TAB_TITLES = 100;
+export const MAX_TAB_TITLE_LENGTH = 200;
+
+/** Turns untrusted tab titles from a renderer into a ptyId to title map (bad entries are dropped). */
+export function sanitizeTabTitles(value: unknown): Map<PtyId, string> {
+  const titles = new Map<PtyId, string>();
+  if (!Array.isArray(value)) return titles;
+  for (const raw of value.slice(0, MAX_TAB_TITLES)) {
+    if (!isRecord(raw) || typeof raw.ptyId !== 'number' || !Number.isInteger(raw.ptyId)) continue;
+    if (typeof raw.title !== 'string') continue;
+    const title = raw.title.trim().slice(0, MAX_TAB_TITLE_LENGTH);
+    if (title) titles.set(raw.ptyId, title);
+  }
+  return titles;
+}
+
 /** Terminal-specific part of the API exposed to the renderer as `window.acode.terminal`. */
 export interface TerminalApi {
   /**
@@ -61,6 +86,10 @@ export interface TerminalApi {
   onClaudeStatus(listener: (event: ClaudeStatusEvent) => void): () => void;
   /** Dock bounce and badge for tabs waiting for the user while the window is in the background. */
   attention(request: AttentionRequest): void;
+  /** Titles of the tabs that have a pty, used to name the tab in a notification. */
+  tabTitles(titles: TabTitle[]): void;
+  /** A notification was clicked: show and focus the terminal tab of this pty. */
+  onFocusPty(listener: (ptyId: PtyId) => void): () => void;
   /** Absolute path of a dropped File object. */
   pathForFile(file: File): string;
 }

@@ -190,4 +190,16 @@ describe('viewer tabs, recent files and autosave', () => {
     expect(readStateFile(file).settings.autosave).toBe(false);
     expect(new StateStore(file, 0).editorSettings()).toEqual({ autosave: false });
   });
+
+  it('keeps the notification sound off by default, validates it and persists the toggle', () => {
+    const store = new StateStore(file, 0);
+    expect(store.notificationSound()).toBe(false);
+    store.setNotificationSound(true);
+    store.flush();
+    expect(readStateFile(file).settings.notificationSound).toBe(true);
+    expect(new StateStore(file, 0).notificationSound()).toBe(true);
+    expect(migrateState({ settings: { notificationSound: false } }).settings.notificationSound).toBe(false);
+    expect(migrateState({ settings: { notificationSound: 'on' } }).settings.notificationSound).toBeUndefined();
+    expect(migrateState({ settings: { notificationSound: 1 } }).settings).toEqual({});
+  });
 });

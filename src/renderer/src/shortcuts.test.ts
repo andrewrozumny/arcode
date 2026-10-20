@@ -33,6 +33,17 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('KeyE'), 'other')).toBe('toggleEdit');
   });
 
+  it('jumps to the waiting Claude tab on Cmd+Shift+J from anywhere', () => {
+    const jump = key('KeyJ', { shiftKey: true });
+    for (const zone of ['terminal', 'viewer', 'tree', 'other'] as const) {
+      expect(resolveShortcut(jump, zone)).toBe('jumpWaiting');
+    }
+    expect(resolveShortcut(key('KeyJ'), 'terminal')).toBeNull();
+    expect(resolveShortcut(key('KeyJ', { shiftKey: true, altKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('KeyJ', { shiftKey: true, ctrlKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('KeyJ', { shiftKey: true, metaKey: false }), 'viewer')).toBeNull();
+  });
+
   it('leaves other keys in the terminal alone', () => {
     expect(resolveShortcut(key('KeyT', { shiftKey: true }), 'terminal')).toBeNull();
     expect(resolveShortcut(key('KeyS'), 'terminal')).toBeNull();

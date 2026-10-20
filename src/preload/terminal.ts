@@ -1,5 +1,6 @@
 import { ipcRenderer, webUtils } from 'electron';
 import { TerminalChannel } from '@shared/terminal';
+import type { PtyId } from '@shared/ipc';
 import type { ClaudeStatusEvent, TerminalApi } from '@shared/terminal';
 import { subscribe } from './subscribe';
 
@@ -13,5 +14,7 @@ export const terminalApi: TerminalApi = {
   claudeSnapshot: () => ipcRenderer.invoke(TerminalChannel.ClaudeSnapshot),
   onClaudeStatus: (listener) => subscribe<[ClaudeStatusEvent]>(TerminalChannel.ClaudeStatus, listener),
   attention: (request) => ipcRenderer.send(TerminalChannel.Attention, request),
+  tabTitles: (titles) => ipcRenderer.send(TerminalChannel.TabTitles, titles),
+  onFocusPty: (listener) => subscribe<[PtyId]>(TerminalChannel.FocusPty, listener),
   pathForFile: (file) => webUtils.getPathForFile(file),
 };

@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Find the Claude tab that waits for you.** Clicking a "Claude is waiting" notification brings the
+  window forward, shows the terminal and selects that exact tab. Cmd+Shift+J (Terminal > Jump to
+  Waiting Claude Tab) cycles through the waiting tabs of the window, with a short hint when none
+  waits. Waiting tabs get a pulsing coral dot. Notifications name the project and the tab and say
+  what Claude waits for. Terminal > Notification Sound (off by default) plays a sound with them.
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;

@@ -25,6 +25,8 @@ import { Viewer } from './viewer/Viewer';
 import type { ActiveInfo, ViewerHandle } from './viewer/types';
 
 const context: WindowContext = window.acode.app.context();
+/** How long the "no Claude tab is waiting" hint stays up. */
+const HINT_MS = 1800;
 
 export function App() {
   if (context.view === 'palette') return <ProjectPalette home={context.home} />;
@@ -63,6 +65,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const { files: gitStatus, branch } = useGitStatus(projectRoot);
   const ide = useIdeBridge(viewerRef);
   const { onTabsChange, usage, badgeModel, running, feedSessionId } = useHeaderClaude(projectRoot);
+  const [hint, setHint] = useState<{ text: string; nonce: number } | null>(null);
 
   useEffect(() => {
     document.title = baseName(projectRoot);
@@ -78,6 +81,33 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     });
   }, [projectRoot]);
 
+  /** Cmd+Shift+J: the next tab where Claude waits, or a short hint when none does. */
+  const jumpToWaiting = useCallback(() => {
+    const terminal = terminalRef.current;
+    if (terminal?.jumpToWaiting()) {
+      // Shows the dock when it is hidden.
+      bus.emit('focusPanel', { panel: 'terminal' });
+      return;
+    }
+    setHint((prev) => ({ text: 'No Claude tab is waiting', nonce: (prev?.nonce ?? 0) + 1 }));
+  }, []);
+
+  useEffect(() => {
+    if (!hint) return;
+    const timer = window.setTimeout(() => setHint(null), HINT_MS);
+    return () => window.clearTimeout(timer);
+  }, [hint]);
+
+  // A clicked "Claude is waiting" notification names the pty: show the dock and select its tab.
+  useEffect(
+    () =>
+      window.acode.terminal.onFocusPty((ptyId) => {
+        bus.emit('focusPanel', { panel: 'terminal' });
+        bus.emit('focusPty', { ptyId });
+      }),
+    [],
+  );
+
   // Menu tab commands, routed by focus. Inside the terminal the pane handles Cmd+T/W and
   // Cmd+Shift+]/[ on keydown, so these only arrive from menu clicks or from other panels.
   useEffect(() => {
@@ -91,11 +121,12 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         if (focusZone() === 'terminal') terminalRef.current?.stepTab(step);
         else viewerRef.current?.stepTab(step);
       }),
+      window.acode.menu.onJumpWaiting(jumpToWaiting),
     ];
     return () => {
       for (const off of offs) off();
     };
-  }, []);
+  }, [jumpToWaiting]);
 
   // Panels talk through the bus; the viewer and tree are wired here.
   useEffect(() => {
@@ -179,6 +210,9 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
           bus.emit('focusPanel', { panel: 'terminal' });
           terminalRef.current?.newClaude();
           break;
+        case 'jumpWaiting':
+          jumpToWaiting();
+          break;
         case 'atMention': {
           const info = activeInfo.current;
           if (!info) break;
@@ -190,7 +224,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [openFind]);
+  }, [openFind, jumpToWaiting]);
 
   /** Gate buttons. The terminal runs `scripts/gates.sh <target>` in a new tab (see the `runGate` listener). */
   const onRunGate = useCallback((target: GateTarget) => {
@@ -266,6 +300,11 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
+      {hint && (
+        <div key={hint.nonce} className="app-hint" role="status">
+          {hint.text}
+        </div>
+      )}
     </div>
   );
 }
