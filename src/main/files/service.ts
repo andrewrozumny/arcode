@@ -23,7 +23,7 @@ export function compareEntries(a: Pick<DirEntry, 'name' | 'kind'>, b: Pick<DirEn
 }
 
 /** One `git check-ignore` call for a batch of project-relative paths. Returns null when git is unavailable. */
-async function gitCheckIgnore(root: string, paths: string[]): Promise<Set<string> | null> {
+export async function gitCheckIgnore(root: string, paths: string[]): Promise<Set<string> | null> {
   if (paths.length === 0) return new Set();
   try {
     const result = await runGit(root, ['check-ignore', '--stdin', '-z'], paths.join('\0') + '\0');

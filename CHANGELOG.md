@@ -15,6 +15,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   History button in the file header lists versions with their age; picking one shows a diff against
   the current file with a Restore action. Text files up to 1 MB, 50 versions per file, kept 14 days
   under `<userData>/history`.
+- **Local history for files that are not open.** Outside changes to any project text file are kept
+  too, not only to files open in a tab. The previous content comes from a bounded in-memory cache
+  (about 64 MB) or, the first time a file is seen changing, from its HEAD version, so the first
+  Claude Code edit of a committed file can be undone. Gitignored files are skipped, one version per
+  file per 10 seconds, and bulk changes of more than 100 files (checkout, rebase) are skipped and
+  logged once.
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;

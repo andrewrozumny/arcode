@@ -74,8 +74,13 @@ export function grepQuery(value: unknown): GrepQuery {
 /** The running Find in files query of each window (by WebContents id); a new one aborts it. */
 const greps = new Map<number, AbortController>();
 
+export interface FilesIpcOptions {
+  /** Called with every watcher batch that names changed project paths (local history of closed files). */
+  onProjectChange?(root: string, paths: string[]): void;
+}
+
 /** Registers all `files:*` handlers. */
-export function registerFilesIpc(ipcMain: IpcMain): void {
+export function registerFilesIpc(ipcMain: IpcMain, options: FilesIpcOptions = {}): void {
   ipcMain.handle(FilesChannel.Grep, async (event, rawRoot: unknown, rawQuery: unknown) => {
     const id = event.sender.id;
     greps.get(id)?.abort();
@@ -114,6 +119,7 @@ export function registerFilesIpc(ipcMain: IpcMain): void {
           return;
         }
         if (batch.structural || batch.git) invalidateIndex(root);
+        if (batch.paths.length > 0) options.onProjectChange?.(root, batch.paths);
         if (batch.paths.length > 0) {
           const payload: FilesChangedEvent = { root, paths: batch.paths };
           sender.send(FilesChannel.Changed, payload);
