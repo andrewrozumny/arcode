@@ -233,7 +233,19 @@ the project folder.
 
 Other features:
 
-- **Rename** a tab by double-clicking it. Middle-click closes a tab.
+- **Rename** a tab by double-clicking it. Middle-click closes a tab. Right-click a tab for Move to
+  Other Side, Rename and Close Tab.
+- **Split terminal** (Cmd+\, the split button next to **+ Claude**, or Terminal > Split Right):
+  opens a shell in a second column on the right, so Claude can run on the left and a shell or a gate
+  on the right. Each column has its own tab strip and active tab; drag the divider between them to
+  resize. Right-click a tab and pick **Move to Other Side** to move it between columns (it keeps
+  running). Closing the last tab of a column goes back to one column. When the dock is already
+  split, Cmd+\ moves focus to the other column.
+- **Focused column:** click a column to focus it; its strip shows a thin accent line on top. New
+  tabs (Cmd+T, Ctrl+Esc, the header Gate buttons), Cmd+W, Cmd+Shift+] / [, Cmd+F, the composer and
+  paste act on the active tab of the focused column. The **+ Shell** and **+ Claude** buttons add
+  to their own column. Jumping to a waiting tab and clicking a notification select the tab in
+  whichever column it sits.
 - **File links:** paths in the output, such as `src/app.ts:42` or Claude Code's `Read(src/app.ts)`,
   are clickable and open the file at that line in the viewer. Web links open in your browser.
 - **Composer** (Cmd+Shift+Enter): a multi-line text box under the terminal. Cmd+Enter sends the
@@ -256,7 +268,9 @@ Other features:
 - **Jump to a waiting tab** (Cmd+Shift+J, or Terminal > Jump to Waiting Claude Tab): selects the
   next tab of this window where Claude waits for you, showing the terminal if it is hidden. Press it
   again to cycle through all waiting tabs. When none waits, a short hint says so.
-- **Restore after restart:** tabs, their names and the composer state are saved per project. After
+- **Restore after restart:** tabs, their names, the split (which tabs sit on which side and the
+  divider position) and the composer state are saved per project. Gate tabs are not saved, so a
+  column that held only gates comes back as one column. After
   a restart, shell tabs start fresh shells; a Claude tab whose session has a transcript asks
   whether to **Continue previous session** (`claude --resume <id>`) or start a **New session**.
 
@@ -465,6 +479,7 @@ database the switcher shows recent projects only.
 | Ctrl+Esc | New Claude tab |
 | Cmd+Shift+J | Jump to the next terminal tab where Claude waits for you (works in the terminal too) |
 | Cmd+T | New shell tab |
+| Cmd+\ | Split the terminal into two columns, or focus the other column when it is split |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab (terminal or viewer, depending on focus) |
 

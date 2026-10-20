@@ -53,6 +53,18 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('KeyJ', { shiftKey: true, metaKey: false }), 'viewer')).toBeNull();
   });
 
+  it('splits the terminal dock on Cmd+\\ from anywhere', () => {
+    for (const zone of ['terminal', 'viewer', 'tree', 'other'] as const) {
+      expect(resolveShortcut(key('Backslash'), zone)).toBe('splitTerminal');
+    }
+    expect(resolveShortcut(key('Backslash', { shiftKey: true }), 'terminal')).toBeNull();
+    expect(resolveShortcut(key('Backslash', { altKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('Backslash', { ctrlKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('Backslash', { metaKey: false }), 'viewer')).toBeNull();
+    // Cmd+D stays the editor's duplicate line.
+    expect(resolveShortcut(key('KeyD'), 'viewer')).toBeNull();
+  });
+
   it('leaves other keys in the terminal alone', () => {
     expect(resolveShortcut(key('KeyT', { shiftKey: true }), 'terminal')).toBeNull();
     expect(resolveShortcut(key('KeyS'), 'terminal')).toBeNull();

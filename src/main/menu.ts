@@ -93,6 +93,9 @@ export function buildMenu(actions: MenuActions): void {
         { label: 'Next Tab', accelerator: 'CmdOrCtrl+Shift+]', click: step(1) },
         { label: 'Previous Tab', accelerator: 'CmdOrCtrl+Shift+[', click: step(-1) },
         { type: 'separator' },
+        // Like Jump to Waiting, the page handles the key (shortcuts.ts); the item is for clicks and discovery.
+        { label: 'Split Right', accelerator: 'CmdOrCtrl+\\', click: send(IpcChannel.MenuSplitTerminal) },
+        { type: 'separator' },
         // The page handles the key itself (shortcuts.ts); the item is for clicks and discovery.
         { label: 'Jump to Waiting Claude Tab', accelerator: 'CmdOrCtrl+Shift+J', click: send(IpcChannel.MenuJumpWaiting) },
         {

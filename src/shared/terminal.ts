@@ -102,16 +102,54 @@ export interface PersistedTab {
   claude?: { sessionId: string; name: string };
 }
 
+/** Second dock column: which saved tabs sit on the right and how wide the left column is. */
+export interface TerminalSplitState {
+  /** Ids of the tabs shown in the right column (a subset of `tabs`, in strip order). */
+  rightTabIds: string[];
+  /** Active tab of the right column. */
+  rightActiveTabId: string | null;
+  /** Width of the left column as a fraction of the dock width. */
+  ratio: number;
+}
+
 /** Terminal tabs of one project window, saved per project and restored on the next start. */
 export interface TerminalPaneState {
   tabs: PersistedTab[];
+  /** Active tab of the left column (the only column when the dock is not split). */
   activeTabId: string | null;
   composerOpen: boolean;
+  /** Present only while the dock is split into two columns. Older state has none and loads as one column. */
+  split?: TerminalSplitState;
+}
+
+/** Bounds and default of the split ratio, so neither column can be dragged out of sight. */
+export const SPLIT_RATIO_MIN = 0.15;
+export const SPLIT_RATIO_MAX = 0.85;
+export const SPLIT_RATIO_DEFAULT = 0.5;
+
+/** Clamps a split ratio into the allowed range; anything that is not a finite number gives the default. */
+export function clampSplitRatio(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return SPLIT_RATIO_DEFAULT;
+  return Math.min(SPLIT_RATIO_MAX, Math.max(SPLIT_RATIO_MIN, value));
+}
+
+/**
+ * Validates the saved split against the tabs that survived sanitizing. Unknown and duplicate ids are
+ * dropped; a split that leaves either column empty is no split at all.
+ */
+function sanitizeSplit(value: unknown, tabs: readonly PersistedTab[]): TerminalSplitState | undefined {
+  if (!isRecord(value) || !Array.isArray(value.rightTabIds)) return undefined;
+  const known = new Set(tabs.map((t) => t.id));
+  const wanted = new Set(value.rightTabIds.filter((id): id is string => typeof id === 'string' && known.has(id)));
+  const rightTabIds = tabs.filter((t) => wanted.has(t.id)).map((t) => t.id);
+  if (rightTabIds.length === 0 || rightTabIds.length === tabs.length) return undefined;
+  const rightActiveTabId =
+    typeof value.rightActiveTabId === 'string' && wanted.has(value.rightActiveTabId) ? value.rightActiveTabId : null;
+  return { rightTabIds, rightActiveTabId, ratio: clampSplitRatio(value.ratio) };
 }
 
 const MAX_SAVED_TABS = 50;
 const ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
-
 
 /** Turns untrusted saved data into a valid pane state; undefined when nothing usable is left. */
 export function sanitizeTerminalState(value: unknown): TerminalPaneState | undefined {
@@ -134,7 +172,13 @@ export function sanitizeTerminalState(value: unknown): TerminalPaneState | undef
       });
     }
   }
+  const split = sanitizeSplit(value.split, tabs);
+  const right = new Set(split?.rightTabIds ?? []);
   const activeTabId =
-    typeof value.activeTabId === 'string' && tabs.some((t) => t.id === value.activeTabId) ? value.activeTabId : null;
-  return { tabs, activeTabId, composerOpen: value.composerOpen === true };
+    typeof value.activeTabId === 'string' &&
+    !right.has(value.activeTabId) &&
+    tabs.some((t) => t.id === value.activeTabId)
+      ? value.activeTabId
+      : null;
+  return { tabs, activeTabId, composerOpen: value.composerOpen === true, ...(split ? { split } : {}) };
 }

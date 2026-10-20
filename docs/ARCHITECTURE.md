@@ -107,7 +107,11 @@ nested `claude` uses the subscription and starts as a top-level session. The ren
 xterm.js (WebGL, Unicode 11, search, file links, OSC title and status). `terminal/sessions.ts`
 watches Claude Code's process registry (`~/.claude/sessions/<pid>.json`), maps each process to the
 pty whose shell started it, and reads the session model from the transcript tail. Images pasted
-into the composer are saved under `<userData>/paste` and pruned after seven days.
+into the composer are saved under `<userData>/paste` and pruned after seven days. The dock can
+split into two columns: `terminal/split.ts` is the pure model (column per tab, active tab per
+column, focused column) and every tab cell stays a child of one CSS grid, so moving a tab between
+columns only changes its grid column and the xterm session survives. The split is saved as
+`TerminalPaneState.split` (validated by `sanitizeTerminalState`; state without it loads as one column).
 
 **IDE bridge** (`main/ide`, `ideHost.ts`, `renderer/src/ide`). Each project window runs a
 WebSocket MCP server on 127.0.0.1 with a random auth token and a lock file in `~/.claude/ide`, the

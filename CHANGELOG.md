@@ -9,6 +9,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Split terminal.** Cmd+\ (Terminal > Split Right, or the split button in the tab strip) opens a
+  shell in a second dock column, for example Claude on the left and a shell or gates on the right.
+  Each column has its own tab strip and active tab, with the existing divider between them. Right
+  click a tab for Move to Other Side; closing the last tab of a column returns to one column.
+  Keyboard commands, the composer, search, new tabs and gates act on the focused column, and jumping
+  to a waiting tab finds it in either column. The split and its ratio are saved per project with the
+  tabs; older saved state loads as one column.
 - **Open past sessions in the feed.** **Open** next to Resume in the Claude panel's Sessions list
   and Overview opens a session read-only in a closable viewer tab; the pinned Claude feed keeps
   following the active Claude tab. Sessions are titled by the name Claude Code saved for them
@@ -19,7 +26,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Tokens and time per turn.** Each finished turn in the feed gets a muted chip such as
   `12.4k in · 1.1k out · 38 s` (cache reads and writes in the tooltip), and a thin strip at the top
   of the feed shows the session total.
-
 - **Markdown split view.** A third Split segment in the Markdown switch shows the editor and a live
   preview side by side (re-rendered about 150 ms after typing stops, autosave unchanged), with a
   resizable divider and approximate scroll sync in both directions through source line markers on

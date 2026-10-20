@@ -21,7 +21,8 @@ export type ShortcutAction =
   | 'prevTab'
   | 'atMention'
   | 'newClaude'
-  | 'jumpWaiting';
+  | 'jumpWaiting'
+  | 'splitTerminal';
 
 export interface ShortcutKey {
   /** KeyboardEvent.code, layout independent ("KeyP", "BracketRight"). */
@@ -50,6 +51,8 @@ export function resolveShortcut(key: ShortcutKey, zone: FocusZone): ShortcutActi
   if (code === 'KeyE' && shift && !alt) return 'recentFiles';
   // Terminal > Jump to Waiting Claude Tab; handled here so it works in the terminal and the editor alike.
   if (code === 'KeyJ' && shift && !alt) return 'jumpWaiting';
+  // Terminal > Split Right. Cmd+D is the editor's duplicate line, Cmd+\ is free in the editor keymaps.
+  if (code === 'Backslash' && !shift && !alt) return 'splitTerminal';
 
   if (zone === 'terminal') return null;
 

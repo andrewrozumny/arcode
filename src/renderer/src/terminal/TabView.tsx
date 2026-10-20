@@ -18,6 +18,7 @@ export interface SessionHostProps {
 
 export interface TabViewProps {
   tab: TerminalTab;
+  /** The active tab of its column, i.e. on screen. */
   active: boolean;
   sessions: Map<string, TerminalSession>;
   startCommands: Map<string, StartCommand>;
@@ -79,11 +80,10 @@ export function TabView({ tab, active, sessions, startCommands, fontSize, propsR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabId, kind]);
 
+  // Coming on screen refits; focus is the pane's call, since with two columns a tab can become
+  // visible in the column that does not have focus.
   useEffect(() => {
-    if (!active) return;
-    const session = sessions.get(tabId);
-    session?.refit();
-    session?.focus();
+    if (active) sessions.get(tabId)?.refit();
   }, [active, sessions, tabId]);
 
   // Runs the choice the user made for a restored Claude tab; the shell has been running since the tab opened.
@@ -103,8 +103,11 @@ export function TabView({ tab, active, sessions, startCommands, fontSize, propsR
     session.focus();
   };
 
+  // Every cell stays a child of the same grid, so moving a tab to the other column only changes its
+  // grid column: React keeps the element and the terminal session survives the move.
+  const column = tab.column === 1 ? 1 : 0;
   return (
-    <>
+    <div className={active ? 'tp-cell active' : 'tp-cell'} data-column={column} style={{ gridColumn: column === 1 ? 3 : 1 }}>
       <div ref={hostRef} className={active ? 'tp-host active' : 'tp-host'} />
       {active && tab.resumeChoice && (
         <div className="tp-resume" role="group" aria-label="Previous Claude session">
@@ -117,6 +120,6 @@ export function TabView({ tab, active, sessions, startCommands, fontSize, propsR
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }

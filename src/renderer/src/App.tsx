@@ -95,6 +95,12 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     setHint((prev) => ({ text: 'No Claude tab is waiting', nonce: (prev?.nonce ?? 0) + 1 }));
   }, []);
 
+  /** Cmd+\: a second terminal column (or focus to the other one); shows the dock when it is hidden. */
+  const splitTerminal = useCallback(() => {
+    bus.emit('focusPanel', { panel: 'terminal' });
+    terminalRef.current?.splitRight();
+  }, []);
+
   useEffect(() => {
     if (!hint) return;
     const timer = window.setTimeout(() => setHint(null), HINT_MS);
@@ -125,11 +131,12 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         else viewerRef.current?.stepTab(step);
       }),
       window.acode.menu.onJumpWaiting(jumpToWaiting),
+      window.acode.menu.onSplitTerminal(splitTerminal),
     ];
     return () => {
       for (const off of offs) off();
     };
-  }, [jumpToWaiting]);
+  }, [jumpToWaiting, splitTerminal]);
 
   // Panels talk through the bus; the viewer and tree are wired here.
   useEffect(() => {
@@ -235,6 +242,9 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         case 'jumpWaiting':
           jumpToWaiting();
           break;
+        case 'splitTerminal':
+          splitTerminal();
+          break;
         case 'atMention': {
           const info = activeInfo.current;
           if (!info) break;
@@ -246,7 +256,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [openFind, openChanges, jumpToWaiting]);
+  }, [openFind, openChanges, jumpToWaiting, splitTerminal]);
 
   /** Gate buttons. The terminal runs `scripts/gates.sh <target>` in a new tab (see the `runGate` listener). */
   const onRunGate = useCallback((target: GateTarget) => {

@@ -19,6 +19,8 @@ export interface TerminalTab {
   id: string;
   kind: TabKind;
   title: string;
+  /** Dock column: 1 is the right column of a split dock; absent means the left (or only) column. */
+  column?: 0 | 1 | undefined;
   ptyId?: PtyId;
   claude?: ClaudeTabInfo;
   gate?: { target: string; state: GateState };

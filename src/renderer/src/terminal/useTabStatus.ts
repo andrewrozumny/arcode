@@ -39,9 +39,9 @@ export function useClaudeStatus(
 
 /**
  * Tells main how many tabs wait for the user and are not being looked at, for the dock badge.
- * The active tab of a focused window does not count.
+ * The visible tabs of a focused window (the active tab of each dock column) do not count.
  */
-export function useAttentionBadge(tabs: readonly TerminalTab[], activeId: string | null): void {
+export function useAttentionBadge(tabs: readonly TerminalTab[], visibleIds: readonly (string | null)[]): void {
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   useEffect(() => {
     const onFocus = (): void => setWindowFocused(true);
@@ -54,10 +54,11 @@ export function useAttentionBadge(tabs: readonly TerminalTab[], activeId: string
     };
   }, []);
 
-  const waitingCount = useMemo(
-    () => tabs.filter((t) => t.claudeStatus === 'waiting' && !(t.id === activeId && windowFocused)).length,
-    [tabs, activeId, windowFocused],
-  );
+  const visibleKey = visibleIds.join('\n');
+  const waitingCount = useMemo(() => {
+    const visible = new Set(visibleKey.split('\n'));
+    return tabs.filter((t) => t.claudeStatus === 'waiting' && !(visible.has(t.id) && windowFocused)).length;
+  }, [tabs, visibleKey, windowFocused]);
   useEffect(() => {
     terminalApi().attention({ waiting: waitingCount });
   }, [waitingCount]);

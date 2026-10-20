@@ -153,6 +153,7 @@ first start.
 | Cmd+Shift+E | Recent files |
 | Cmd+T / Cmd+W | New tab / close tab |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab |
+| Cmd+\ | Split the terminal into two columns / focus the other column |
 | Cmd+Shift+T | Reopen closed tab |
 | Ctrl+Esc | New Claude tab |
 | Cmd+Shift+J | Jump to the next Claude tab waiting for you |

@@ -18,6 +18,7 @@ export const IpcChannel = {
   MenuCloseTab: 'menu:close-tab',
   MenuSelectTab: 'menu:select-tab',
   MenuJumpWaiting: 'menu:jump-waiting',
+  MenuSplitTerminal: 'menu:split-terminal',
   AppReady: 'app:first-render',
 } as const;
 
@@ -76,6 +77,8 @@ export interface AcodeApi {
     onSelectTab(listener: (step: TabStep) => void): () => void;
     /** Terminal > Jump to Waiting Claude Tab (Cmd+Shift+J). */
     onJumpWaiting(listener: () => void): () => void;
+    /** Terminal > Split Right (Cmd+\): a second dock column, or focus to the other one. */
+    onSplitTerminal(listener: () => void): () => void;
   };
   /** Tells main that the first terminal frame of this window is on screen (startup timing). */
   firstRender(): void;

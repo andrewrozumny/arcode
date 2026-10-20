@@ -128,6 +128,26 @@ describe('terminal tabs', () => {
     });
   });
 
+  it('keeps a saved split and drops right ids of tabs that did not survive', () => {
+    const state = migrateState({
+      projects: {
+        '/p': {
+          terminal: {
+            tabs: [claude, { id: 'tab-2', kind: 'shell', title: 'Shell' }, { id: 'tab-3', kind: 'gate', title: 'Gate' }],
+            activeTabId: 'tab-1',
+            composerOpen: false,
+            split: { rightTabIds: ['tab-2', 'tab-3'], rightActiveTabId: 'tab-2', ratio: 0.4 },
+          },
+        },
+      },
+    });
+    expect(state.projects['/p']?.terminal?.split).toEqual({
+      rightTabIds: ['tab-2'],
+      rightActiveTabId: 'tab-2',
+      ratio: 0.4,
+    });
+  });
+
   it('stores and returns the tabs of a project', () => {
     const store = new StateStore(file, 0);
     store.setTerminal('/p', { tabs: [claude], activeTabId: 'tab-1', composerOpen: false });

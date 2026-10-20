@@ -1,14 +1,34 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import type { KeyboardEvent, Ref } from 'react';
+import type { FocusEvent, KeyboardEvent, Ref } from 'react';
+import { SPLIT_RATIO_DEFAULT, clampSplitRatio } from '@shared/terminal';
 import { bus } from './bus';
 import { resolveKey } from './keys';
 import type { PaneCommand } from './keys';
+import { Splitter } from './layout/Splitter';
 import type { TerminalSession } from './terminalSession';
 import { Composer } from './terminal/Composer';
 import { SearchBar } from './terminal/SearchBar';
 import { terminalApi } from './terminal/api';
 import { claudeNewCommand, claudeResumeCommand, gateCommand, gateTitle } from './terminal/commands';
 import { FONT_DEFAULT, FONT_MAX, FONT_MIN, loadFontSize, saveFontSize } from './terminal/fontSize';
+import {
+  EMPTY_VIEW,
+  activateTab,
+  applySavedSplit,
+  canMoveTab,
+  columnOf,
+  displayOrder,
+  focusColumn,
+  focusedTabId,
+  isSplit,
+  moveTab,
+  normalize,
+  placeTab,
+  removeTab,
+  stepTab as stepInColumn,
+  tabsIn,
+} from './terminal/split';
+import type { Column, SplitView } from './terminal/split';
 import { TabStrip } from './terminal/TabStrip';
 import { TabView } from './terminal/TabView';
 import { useAttentionBadge, useClaudeStatus, useTabTitlesReport } from './terminal/useTabStatus';
@@ -22,9 +42,9 @@ export { EMPTY_PANE_STATE } from './terminal/types';
 
 /** Imperative API for the window header and for persistence. */
 export interface TerminalPaneHandle {
-  /** Opens a shell tab and returns its id. */
+  /** Opens a shell tab in the focused column and returns its id. */
   newShell(): string;
-  /** Opens a Claude tab (new session) and returns its id. */
+  /** Opens a Claude tab (new session) in the focused column and returns its id. */
   newClaude(name?: string): string;
   /** Opens a Claude tab resuming a past session, or focuses the tab that already runs it. */
   resumeClaude(sessionId: string, name?: string): string;
@@ -36,13 +56,18 @@ export interface TerminalPaneHandle {
   getState(): TerminalPaneState;
   toggleComposer(): void;
   focus(): void;
-  /** Activates the next (+1) or previous (-1) tab. */
+  /** Activates the next (+1) or previous (-1) tab of the focused column. */
   stepTab(step: number): void;
-  /** Closes the active tab, asking first when a process is still running in it. */
+  /**
+   * Cmd+\: opens a shell in a new right column when the dock has one column, otherwise moves
+   * focus to the other column.
+   */
+  splitRight(): void;
+  /** Closes the active tab of the focused column, asking first when a process is still running in it. */
   closeActiveTab(): void;
   /**
-   * Activates and focuses the next tab where Claude waits for the user (cycling in strip order).
-   * False when no tab waits.
+   * Activates and focuses the next tab where Claude waits for the user (cycling in strip order,
+   * left column first). False when no tab waits.
    */
   jumpToWaiting(): boolean;
 }
@@ -59,7 +84,7 @@ export interface TerminalPaneProps {
   onOpenFile?: (path: string, line?: number, endLine?: number) => void;
   /** Called whenever the persistable state changes. */
   onStateChange?: (state: TerminalPaneState) => void;
-  /** Called when tabs change in any way (title, status, pty id). */
+  /** Called when tabs change in any way (title, status, pty id). The active tab is the focused column's. */
   onTabsChange?: (tabs: readonly TerminalTab[], activeTabId: string | null) => void;
   /** Listen to the application menu's New/Close/Next/Previous tab events. Default true. */
   menuEvents?: boolean;
@@ -76,7 +101,10 @@ function uniqueTitle(base: string, tabs: readonly TerminalTab[]): string {
   for (let n = 2; ; n++) if (!used.has(`${base} ${n}`)) return `${base} ${n}`;
 }
 
-/** Docked terminal with shell, Claude and gate tabs. */
+/** Grid column of a dock column: the splitter sits in grid column 2 between them. */
+const gridColumn = (column: Column): number => (column === 1 ? 3 : 1);
+
+/** Docked terminal with shell, Claude and gate tabs, in one column or split into two. */
 export function TerminalPane({
   projectRoot,
   ref,
@@ -91,15 +119,20 @@ export function TerminalPane({
   onFirstRender,
 }: TerminalPaneProps) {
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [view, setView] = useState<SplitView>(EMPTY_VIEW);
+  const [ratio, setRatio] = useState(SPLIT_RATIO_DEFAULT);
   const [composerOpen, setComposerOpen] = useState(initialState?.composerOpen ?? false);
   const [searchFor, setSearchFor] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(loadFontSize);
+  const activeId = focusedTabId(view);
 
   // Refs hold the source of truth so the imperative API sees changes made in the same tick.
   const tabsRef = useRef<TerminalTab[]>([]);
-  const activeRef = useRef<string | null>(null);
+  const viewRef = useRef<SplitView>(EMPTY_VIEW);
+  const ratioRef = useRef(SPLIT_RATIO_DEFAULT);
   const composerRef = useRef(composerOpen);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const dragStart = useRef<{ ratio: number; width: number } | null>(null);
   const [sessions] = useState(() => new Map<string, TerminalSession>());
   const [startCommands] = useState(() => new Map<string, StartCommand>());
   const propsRef = useRef({ projectRoot, extraEnv, onOpenFile, onFirstRender });
@@ -111,43 +144,58 @@ export function TerminalPane({
     propsRef.current = { projectRoot, extraEnv, onOpenFile, onFirstRender };
   });
 
-  const commitTabs = useCallback((next: TerminalTab[]) => {
-    tabsRef.current = next;
-    setTabs(next);
+  /** Commits tabs and columns together, after restoring the split invariants. */
+  const commit = useCallback((nextTabs: readonly TerminalTab[], nextView: SplitView) => {
+    const result = normalize(nextTabs, nextView);
+    tabsRef.current = result.tabs;
+    viewRef.current = result.view;
+    setTabs(result.tabs);
+    setView(result.view);
   }, []);
 
-  const commitActive = useCallback((id: string | null) => {
-    activeRef.current = id;
-    setActiveId(id);
-  }, []);
+  /** Makes a tab the active one of its column and gives that column focus. */
+  const commitActive = useCallback(
+    (id: string) => {
+      const result = activateTab(tabsRef.current, viewRef.current, id);
+      commit(result.tabs, result.view);
+    },
+    [commit],
+  );
 
   const patchTab = useCallback(
     (id: string, patch: Partial<TerminalTab>) => {
       if (!tabsRef.current.some((t) => t.id === id)) return;
-      commitTabs(tabsRef.current.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+      commit(
+        tabsRef.current.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        viewRef.current,
+      );
     },
-    [commitTabs],
+    [commit],
   );
 
   const focusActive = useCallback(() => {
-    const id = activeRef.current;
+    const id = focusedTabId(viewRef.current);
     if (id) sessions.get(id)?.focus();
   }, [sessions]);
 
+  /** Adds a tab to a column (default: the focused one) and activates it there. */
   const addTab = useCallback(
-    (tab: TerminalTab, start?: StartCommand): string => {
+    (tab: TerminalTab, start?: StartCommand, column?: Column): string => {
       if (start) startCommands.set(tab.id, start);
-      commitTabs([...tabsRef.current, tab]);
-      commitActive(tab.id);
+      const result = placeTab(tabsRef.current, viewRef.current, tab, column ?? viewRef.current.focused);
+      commit(result.tabs, result.view);
       return tab.id;
     },
-    [commitActive, commitTabs, startCommands],
+    [commit, startCommands],
   );
 
-  const newShell = useCallback((): string => {
-    const id = crypto.randomUUID();
-    return addTab({ id, kind: 'shell', title: uniqueTitle('Shell', tabsRef.current) });
-  }, [addTab]);
+  const newShell = useCallback(
+    (column?: Column): string => {
+      const id = crypto.randomUUID();
+      return addTab({ id, kind: 'shell', title: uniqueTitle('Shell', tabsRef.current) }, undefined, column);
+    },
+    [addTab],
+  );
 
   const claudeTab = useCallback(
     (id: string, title: string, sessionId: string, resumed: boolean): { tab: TerminalTab; start: StartCommand } => {
@@ -169,11 +217,11 @@ export function TerminalPane({
   );
 
   const newClaude = useCallback(
-    (name?: string): string => {
+    (name?: string, column?: Column): string => {
       const id = crypto.randomUUID();
       const title = name?.trim() ? name.trim() : uniqueTitle('Claude', tabsRef.current);
       const { tab, start } = claudeTab(id, title, crypto.randomUUID(), false);
-      return addTab(tab, start);
+      return addTab(tab, start, column);
     },
     [addTab, claudeTab],
   );
@@ -196,7 +244,7 @@ export function TerminalPane({
   );
 
   const runGate = useCallback(
-    (target: string): string => {
+    (target: string, column?: Column): string => {
       const id = crypto.randomUUID();
       const tab: TerminalTab = {
         id,
@@ -204,7 +252,7 @@ export function TerminalPane({
         title: uniqueTitle(gateTitle(target), tabsRef.current),
         gate: { target, state: 'running' },
       };
-      return addTab(tab, () => Promise.resolve(gateCommand(target)));
+      return addTab(tab, () => Promise.resolve(gateCommand(target)), column);
     },
     [addTab],
   );
@@ -222,33 +270,59 @@ export function TerminalPane({
         }
         if (busy && !window.confirm(`A process is still running in "${tab.title}". Close the tab anyway?`)) return;
       }
-      const current = tabsRef.current;
-      const index = current.findIndex((t) => t.id === id);
-      if (index < 0) return;
+      if (!tabsRef.current.some((t) => t.id === id)) return;
       sessions.get(id)?.dispose();
       sessions.delete(id);
       startCommands.delete(id);
-      const remaining = current.filter((t) => t.id !== id);
-      if (remaining.length === 0) {
-        commitTabs(remaining);
-        newShell();
-        return;
-      }
-      commitTabs(remaining);
-      if (activeRef.current === id) commitActive(remaining[Math.min(index, remaining.length - 1)]?.id ?? null);
+      // Closing the last tab of a column collapses the dock back to one column.
+      const result = removeTab(tabsRef.current, viewRef.current, id);
+      commit(result.tabs, result.view);
+      if (result.tabs.length === 0) newShell(0);
     },
-    [commitActive, commitTabs, newShell, sessions, startCommands],
+    [commit, newShell, sessions, startCommands],
   );
 
   const stepTab = useCallback(
     (step: number) => {
-      const current = tabsRef.current;
-      if (current.length === 0) return;
-      const index = current.findIndex((t) => t.id === activeRef.current);
-      const target = current[(index + step + current.length) % current.length];
-      if (target) commitActive(target.id);
+      const result = stepInColumn(tabsRef.current, viewRef.current, step);
+      commit(result.tabs, result.view);
     },
-    [commitActive],
+    [commit],
+  );
+
+  /** Context menu "Move to Other Side": the tab keeps its session and lands at the end of the other strip. */
+  const moveToOtherSide = useCallback(
+    (id: string) => {
+      if (!canMoveTab(tabsRef.current)) return;
+      const result = moveTab(tabsRef.current, viewRef.current, id);
+      commit(result.tabs, result.view);
+      requestAnimationFrame(() => {
+        const session = sessions.get(id);
+        session?.refit();
+        session?.focus();
+      });
+    },
+    [commit, sessions],
+  );
+
+  const splitRight = useCallback(() => {
+    if (isSplit(tabsRef.current)) {
+      const other: Column = viewRef.current.focused === 0 ? 1 : 0;
+      const result = focusColumn(tabsRef.current, viewRef.current, other);
+      commit(result.tabs, result.view);
+      requestAnimationFrame(focusActive);
+      return;
+    }
+    newShell(1);
+  }, [commit, focusActive, newShell]);
+
+  const onFocusColumn = useCallback(
+    (column: Column) => {
+      if (viewRef.current.focused === column || !isSplit(tabsRef.current)) return;
+      const result = focusColumn(tabsRef.current, viewRef.current, column);
+      commit(result.tabs, result.view);
+    },
+    [commit],
   );
 
   const restore = useCallback(
@@ -266,21 +340,24 @@ export function TerminalPane({
           restored.push({ id: saved.id, kind: 'shell', title: saved.title });
         }
       }
-      commitTabs(restored);
       setComposerOpen(state.composerOpen);
       composerRef.current = state.composerOpen;
-      if (restored.length === 0) {
-        newShell();
-        return;
-      }
-      commitActive(restored.find((t) => t.id === state.activeTabId)?.id ?? restored[0]?.id ?? null);
+      const nextRatio = clampSplitRatio(state.split?.ratio);
+      ratioRef.current = nextRatio;
+      setRatio(nextRatio);
+      // State saved before the split existed has no `split` and loads as one column.
+      const placed = applySavedSplit(restored, state.activeTabId, state.split);
+      commit(placed.tabs, placed.view);
+      if (restored.length === 0) newShell(0);
     },
-    [claudeTab, commitActive, commitTabs, newShell, sessions, startCommands],
+    [claudeTab, commit, newShell, sessions, startCommands],
   );
 
   const getState = useCallback((): TerminalPaneState => {
     const persisted: PersistedTab[] = [];
+    const right = new Set<string>();
     for (const tab of tabsRef.current) {
+      if (columnOf(tab) === 1) right.add(tab.id);
       if (tab.kind === 'shell') persisted.push({ id: tab.id, kind: 'shell', title: tab.title });
       else if (tab.kind === 'claude' && tab.claude) {
         persisted.push({
@@ -291,8 +368,20 @@ export function TerminalPane({
         });
       }
     }
-    const active = persisted.find((t) => t.id === activeRef.current)?.id ?? null;
-    return { tabs: persisted, activeTabId: active, composerOpen: composerRef.current };
+    const saved = new Set(persisted.map((t) => t.id));
+    const [leftActive, rightActive] = viewRef.current.active;
+    const known = (id: string | null): string | null => (id !== null && saved.has(id) ? id : null);
+    const state: TerminalPaneState = {
+      tabs: persisted,
+      activeTabId: known(leftActive),
+      composerOpen: composerRef.current,
+    };
+    // Gate tabs are not saved, so a column that holds only gates does not survive as a split.
+    const rightTabIds = persisted.filter((t) => right.has(t.id)).map((t) => t.id);
+    if (rightTabIds.length > 0 && rightTabIds.length < persisted.length) {
+      state.split = { rightTabIds, rightActiveTabId: known(rightActive), ratio: ratioRef.current };
+    }
+    return state;
   }, []);
 
   const toggleComposer = useCallback(() => {
@@ -303,11 +392,13 @@ export function TerminalPane({
   }, [focusActive]);
 
   const closeActiveTab = useCallback(() => {
-    if (activeRef.current) void closeTab(activeRef.current);
+    const id = focusedTabId(viewRef.current);
+    if (id) void closeTab(id);
   }, [closeTab]);
 
   const jumpToWaiting = useCallback((): boolean => {
-    const id = nextWaitingTab(tabsRef.current, activeRef.current);
+    // Strip order across both columns: the left strip, then the right one.
+    const id = nextWaitingTab(displayOrder(tabsRef.current), focusedTabId(viewRef.current));
     if (!id) return false;
     commitActive(id);
     // The dock may have just been shown; focus once it is laid out.
@@ -318,15 +409,16 @@ export function TerminalPane({
   useImperativeHandle(
     ref,
     () => ({
-      newShell,
-      newClaude,
+      newShell: () => newShell(),
+      newClaude: (name?: string) => newClaude(name),
       resumeClaude,
-      runGate,
+      runGate: (target: string) => runGate(target),
       restore,
       getState,
       toggleComposer,
       focus: focusActive,
       stepTab,
+      splitRight,
       closeActiveTab,
       jumpToWaiting,
     }),
@@ -340,6 +432,7 @@ export function TerminalPane({
       toggleComposer,
       focusActive,
       stepTab,
+      splitRight,
       closeActiveTab,
       jumpToWaiting,
     ],
@@ -349,7 +442,7 @@ export function TerminalPane({
   useEffect(() => bus.on('resumeClaude', ({ sessionId, name }) => void resumeClaude(sessionId, name)), [resumeClaude]);
   useEffect(() => bus.on('newClaude', () => void newClaude()), [newClaude]);
 
-  // The Claude feed sends the user to the tab whose prompt needs typing.
+  // The Claude feed sends the user to the tab whose prompt needs typing, in whichever column it sits.
   useEffect(
     () =>
       bus.on('focusPty', ({ ptyId }) => {
@@ -377,19 +470,17 @@ export function TerminalPane({
   useEffect(() => {
     if (!menuEvents) return;
     const offNew = window.acode.menu.onNewTab(() => void newShell());
-    const offClose = window.acode.menu.onCloseTab(() => {
-      if (activeRef.current) void closeTab(activeRef.current);
-    });
+    const offClose = window.acode.menu.onCloseTab(closeActiveTab);
     const offSelect = window.acode.menu.onSelectTab(stepTab);
     return () => {
       offNew();
       offClose();
       offSelect();
     };
-  }, [menuEvents, newShell, closeTab, stepTab]);
+  }, [menuEvents, newShell, closeActiveTab, stepTab]);
 
   useClaudeStatus(tabsRef, patchTab);
-  useAttentionBadge(tabs, activeId);
+  useAttentionBadge(tabs, view.active);
   useTabTitlesReport(tabs);
 
   // Persistable state and generic change notifications.
@@ -401,7 +492,7 @@ export function TerminalPane({
     if (json === lastStateJson.current) return;
     lastStateJson.current = json;
     onStateChange?.(state);
-  }, [tabs, activeId, composerOpen, getState, onStateChange, onTabsChange]);
+  }, [tabs, activeId, view, ratio, composerOpen, getState, onStateChange, onTabsChange]);
 
   // Font size applies to every session and is remembered.
   useEffect(() => {
@@ -409,7 +500,7 @@ export function TerminalPane({
     for (const session of sessions.values()) session.setFontSize(fontSize);
   }, [fontSize, sessions]);
 
-  // Switching tabs gives the terminal focus and closes the search bar of the previous one.
+  // Switching tabs or columns gives the terminal of the focused column focus.
   useEffect(() => {
     const session = activeId ? sessions.get(activeId) : undefined;
     session?.refit();
@@ -432,10 +523,10 @@ export function TerminalPane({
           stepTab(-1);
           break;
         case 'closeTab':
-          if (activeRef.current) void closeTab(activeRef.current);
+          closeActiveTab();
           break;
         case 'find':
-          setSearchFor(activeRef.current);
+          setSearchFor(focusedTabId(viewRef.current));
           break;
         case 'toggleComposer':
           toggleComposer();
@@ -451,7 +542,7 @@ export function TerminalPane({
           break;
       }
     },
-    [closeTab, newClaude, newShell, stepTab, toggleComposer],
+    [closeActiveTab, newClaude, newShell, stepTab, toggleComposer],
   );
 
   // Pane-level shortcuts. Events from the terminal textarea bubble up to here after xterm declined them.
@@ -463,13 +554,33 @@ export function TerminalPane({
     runCommand(action.command);
   };
 
+  // Focus moving into a column's terminal (a click in it) makes it the focused column. Strip clicks are
+  // handled by the strip itself, so a rename field there keeps its focus.
+  const onFocusCapture = (event: FocusEvent<HTMLDivElement>): void => {
+    const owner = (event.target as Element).closest<HTMLElement>('.tp-cell[data-column]');
+    if (owner) onFocusColumn(owner.dataset.column === '1' ? 1 : 0);
+  };
+
+  const onSplitDragStart = (): void => {
+    dragStart.current = { ratio: ratioRef.current, width: rootRef.current?.getBoundingClientRect().width ?? 0 };
+  };
+  const onSplitDrag = (delta: number): void => {
+    const start = dragStart.current;
+    if (!start || start.width <= 0) return;
+    const next = clampSplitRatio(start.ratio + delta / start.width);
+    ratioRef.current = next;
+    setRatio(next);
+  };
+  const onSplitDragEnd = (): void => {
+    dragStart.current = null;
+  };
+
   const handleFirstRender = useCallback(() => {
     if (reportedFirstRender.current) return;
     reportedFirstRender.current = true;
     requestAnimationFrame(() => propsRef.current.onFirstRender?.());
   }, []);
 
-  const activeSession = activeId ? sessions.get(activeId) : undefined;
   const commitRename = (id: string, value: string): void => {
     const title = value.trim();
     const tab = tabsRef.current.find((t) => t.id === id);
@@ -477,60 +588,91 @@ export function TerminalPane({
     requestAnimationFrame(focusActive);
   };
 
+  const split = isSplit(tabs);
+  const canMove = canMoveTab(tabs);
+  const columns: Column[] = split ? [0, 1] : [0];
+  const searchTab = searchFor !== null && view.active.includes(searchFor) ? tabs.find((t) => t.id === searchFor) : undefined;
+  const searchSession = searchTab ? sessions.get(searchTab.id) : undefined;
+  const gridTemplateColumns = split
+    ? `minmax(0, ${ratio}fr) var(--splitter-size, 1px) minmax(0, ${1 - ratio}fr)`
+    : 'minmax(0, 1fr)';
+
   return (
-    <div className="tp-root" onKeyDown={onKeyDown}>
-      <TabStrip
-        tabs={tabs}
-        activeId={activeId}
-        onActivate={commitActive}
-        onClose={(id) => void closeTab(id)}
-        onRename={commitRename}
-        onRenameCancel={() => requestAnimationFrame(focusActive)}
-        hideActions={hideActions}
-        hideGate={hideGate}
-        composerOpen={composerOpen}
-        onNewShell={() => newShell()}
-        onNewClaude={() => newClaude()}
-        onRunGate={(target) => runGate(target)}
-        onToggleComposer={toggleComposer}
-      />
+    <div
+      ref={rootRef}
+      className={split ? 'tp-root split' : 'tp-root'}
+      style={{ gridTemplateColumns }}
+      onKeyDown={onKeyDown}
+      onFocusCapture={onFocusCapture}
+    >
+      {columns.map((column) => (
+        <TabStrip
+          key={column}
+          column={column}
+          split={split}
+          focused={view.focused === column}
+          tabs={split ? tabsIn(tabs, column) : tabs}
+          activeId={view.active[column]}
+          onActivate={commitActive}
+          onClose={(id) => void closeTab(id)}
+          onRename={commitRename}
+          onRenameCancel={() => requestAnimationFrame(focusActive)}
+          hideActions={hideActions}
+          hideGate={hideGate}
+          composerOpen={composerOpen}
+          showComposer={column === columns.length - 1}
+          canMove={canMove}
+          onMove={moveToOtherSide}
+          onSplit={splitRight}
+          onFocusColumn={() => onFocusColumn(column)}
+          onNewShell={() => newShell(column)}
+          onNewClaude={() => newClaude(undefined, column)}
+          onRunGate={(target) => runGate(target, column)}
+          onToggleComposer={toggleComposer}
+        />
+      ))}
+      {split && <div className="tp-strip-divider" aria-hidden="true" />}
       {composerOpen && (
         <Composer
           projectRoot={projectRoot}
           autoFocus
           onEscape={focusActive}
           onSend={(text) => {
-            const session = activeId ? sessions.get(activeId) : undefined;
+            const id = focusedTabId(viewRef.current);
+            const session = id ? sessions.get(id) : undefined;
             session?.sendPasted(text, true);
             session?.focus();
           }}
         />
       )}
-      <div className="tp-terminals">
-        {tabs.map((tab) => (
-          <TabView
-            key={tab.id}
-            tab={tab}
-            active={tab.id === activeId}
-            sessions={sessions}
-            startCommands={startCommands}
-            fontSize={fontSize}
-            propsRef={propsRef}
-            patchTab={patchTab}
-            onStarted={handleFirstRender}
-          />
-        ))}
-        {searchFor !== null && searchFor === activeId && activeSession && (
+      {split && (
+        <Splitter orientation="vertical" onDragStart={onSplitDragStart} onDrag={onSplitDrag} onDragEnd={onSplitDragEnd} />
+      )}
+      {tabs.map((tab) => (
+        <TabView
+          key={tab.id}
+          tab={tab}
+          active={view.active[columnOf(tab)] === tab.id}
+          sessions={sessions}
+          startCommands={startCommands}
+          fontSize={fontSize}
+          propsRef={propsRef}
+          patchTab={patchTab}
+          onStarted={handleFirstRender}
+        />
+      ))}
+      {searchTab && searchSession && (
+        <div className="tp-overlay" style={{ gridColumn: gridColumn(columnOf(searchTab)) }}>
           <SearchBar
-            key={activeId}
-            session={activeSession}
+            key={searchTab.id}
+            session={searchSession}
             onClose={() => {
               setSearchFor(null);
               focusActive();
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

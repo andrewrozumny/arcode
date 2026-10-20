@@ -68,6 +68,7 @@ const api: AcodeApi & AcodeAppApi = {
     onCloseTab: (listener) => subscribe<[]>(IpcChannel.MenuCloseTab, listener),
     onSelectTab: (listener) => subscribe<[TabStep]>(IpcChannel.MenuSelectTab, listener),
     onJumpWaiting: (listener) => subscribe<[]>(IpcChannel.MenuJumpWaiting, listener),
+    onSplitTerminal: (listener) => subscribe<[]>(IpcChannel.MenuSplitTerminal, listener),
   },
   firstRender: () => ipcRenderer.send(IpcChannel.AppReady),
   files: filesApi,
