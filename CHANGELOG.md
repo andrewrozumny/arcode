@@ -9,6 +9,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Autosave.** Edited files are saved about a second after the last change, when the window loses
+  focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
+  Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;
+  File > Autosave turns it off. Cmd+S still saves at once.
+- **Type to edit.** Typing a character in a read-only file switches to edit mode and inserts it.
+- **Viewer tabs are restored** per project after a restart (file tabs and the active one; files
+  deleted since are skipped, diff and panel tabs are not kept).
+- **Recent files.** ARcode remembers the last 30 files opened per project. Cmd+P with an empty
+  query lists them first; Cmd+Shift+E opens the palette with recent files only.
 - **Cmd+D duplicates** the line or the selection in edit mode, Ctrl+G adds the next occurrence, as in
   JetBrains IDEs. Several cursors (Cmd+click), column selection (Alt+drag), Cmd+Shift+Up/Down to
   move a line, auto-closed brackets and quotes.

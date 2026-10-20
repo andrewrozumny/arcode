@@ -13,6 +13,8 @@ import { isRecord } from '@shared/guards';
 import type { PanelLayout } from '@shared/app';
 import { sanitizeTerminalState } from '@shared/terminal';
 import type { TerminalPaneState } from '@shared/terminal';
+import { DEFAULT_EDITOR_SETTINGS, sanitizeRecentFiles, sanitizeViewerTabs, updateRecentFiles } from '@shared/editorState';
+import type { EditorSettings, ViewerTabsState } from '@shared/editorState';
 
 export const STATE_VERSION = 1;
 export const MAX_RECENT = 30;
@@ -35,11 +37,17 @@ export interface ProjectState {
   layout?: PanelLayout;
   /** Terminal tabs at the last change, restored when the project opens again. */
   terminal?: TerminalPaneState;
+  /** Viewer file tabs at the last change, restored when the project opens again. */
+  viewerTabs?: ViewerTabsState;
+  /** Recently opened files, project-relative, most recent first. */
+  recentFiles?: string[];
 }
 
 export interface Settings {
   /** Path to a local SQLite project registry (table `projects`); empty disables it. */
   projectRegistryDb?: string;
+  /** Save edited files automatically. Missing means on. */
+  autosave?: boolean;
 }
 
 export interface AppState {
@@ -111,11 +119,18 @@ export function migrateState(raw: unknown): AppState {
       if (layout) project.layout = layout;
       const terminal = sanitizeTerminalState(value.terminal);
       if (terminal) project.terminal = terminal;
+      const viewerTabs = sanitizeViewerTabs(value.viewerTabs);
+      if (viewerTabs && viewerTabs.files.length > 0) project.viewerTabs = viewerTabs;
+      const recentFiles = sanitizeRecentFiles(value.recentFiles);
+      if (recentFiles.length > 0) project.recentFiles = recentFiles;
       state.projects[root] = project;
     }
   }
   if (isRecord(raw.settings) && typeof raw.settings.projectRegistryDb === 'string') {
     state.settings.projectRegistryDb = raw.settings.projectRegistryDb;
+  }
+  if (isRecord(raw.settings) && typeof raw.settings.autosave === 'boolean') {
+    state.settings.autosave = raw.settings.autosave;
   }
   return state;
 }
@@ -204,6 +219,42 @@ export class StateStore {
     const clean = sanitizeTerminalState(terminal);
     if (!clean) return;
     this.state.projects[root] = { ...this.project(root), terminal: clean };
+    this.schedule();
+  }
+
+  viewerTabs(root: string): ViewerTabsState | undefined {
+    return this.project(root).viewerTabs;
+  }
+
+  setViewerTabs(root: string, tabs: unknown): void {
+    const clean = sanitizeViewerTabs(tabs);
+    if (!clean) return;
+    const project: ProjectState = { ...this.project(root), viewerTabs: clean };
+    if (clean.files.length === 0) delete project.viewerTabs;
+    this.state.projects[root] = project;
+    this.schedule();
+  }
+
+  recentFiles(root: string): string[] {
+    return this.project(root).recentFiles ?? [];
+  }
+
+  addRecentFile(root: string, path: string): void {
+    const [clean] = sanitizeRecentFiles([path]);
+    if (!clean) return;
+    const current = this.recentFiles(root);
+    if (current[0] === clean) return;
+    this.state.projects[root] = { ...this.project(root), recentFiles: updateRecentFiles(current, clean) };
+    this.schedule();
+  }
+
+  /** Editor settings with defaults applied. */
+  editorSettings(): EditorSettings {
+    return { autosave: this.state.settings.autosave ?? DEFAULT_EDITOR_SETTINGS.autosave };
+  }
+
+  setAutosave(on: boolean): void {
+    this.state.settings.autosave = on;
     this.schedule();
   }
 

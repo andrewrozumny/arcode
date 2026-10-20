@@ -2,6 +2,7 @@
  * Channels and types for windows, projects and layout. Shared by main, preload and renderer.
  * Terminal channels live in ./ipc.ts.
  */
+import type { EditorSettings, ViewerTabsState } from './editorState';
 import type { TerminalPaneState } from './terminal';
 
 export const AppChannel = {
@@ -15,6 +16,18 @@ export const AppChannel = {
   TerminalStateGet: 'app:terminal-state-get',
   /** renderer -> main (send): persist terminal tabs for a project root. */
   TerminalStateSet: 'app:terminal-state-set',
+  /** renderer -> main (invoke): saved viewer file tabs for a project root (missing files dropped). */
+  ViewerTabsGet: 'app:viewer-tabs-get',
+  /** renderer -> main (send): persist viewer file tabs for a project root. */
+  ViewerTabsSet: 'app:viewer-tabs-set',
+  /** renderer -> main (invoke): recently opened files of a project root that still exist. */
+  RecentFilesGet: 'app:recent-files-get',
+  /** renderer -> main (send): a file of a project root was opened or brought to front. */
+  RecentFilesAdd: 'app:recent-files-add',
+  /** renderer -> main (invoke): editor settings. */
+  SettingsGet: 'app:settings-get',
+  /** main -> renderer: editor settings changed (menu toggle). */
+  SettingsChanged: 'app:settings-changed',
   /** renderer -> main (invoke): recent projects and registry projects. */
   ProjectsList: 'projects:list',
   /** renderer -> main (send): open (or focus) a project window. */
@@ -159,5 +172,15 @@ export interface AcodeAppApi {
     /** Saved terminal tabs of the project, null when there are none. */
     getTerminal(root: string): Promise<TerminalPaneState | null>;
     setTerminal(root: string, state: TerminalPaneState): void;
+    /** Saved viewer file tabs of the project (files that no longer exist dropped), null when none. */
+    getViewerTabs(root: string): Promise<ViewerTabsState | null>;
+    setViewerTabs(root: string, state: ViewerTabsState): void;
+    /** Recently opened files (project-relative, most recent first) that still exist. */
+    getRecentFiles(root: string): Promise<string[]>;
+    addRecentFile(root: string, path: string): void;
+  };
+  settings: {
+    get(): Promise<EditorSettings>;
+    onChange(listener: (settings: EditorSettings) => void): () => void;
   };
 }

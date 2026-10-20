@@ -18,6 +18,7 @@ import {
 import type { DecorationSet } from '@codemirror/view';
 import { classHighlighter } from '@lezer/highlight';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { isTypeToEditKey } from './autosave';
 import { duplicateLineOrSelection } from './duplicate';
 import { loadLanguage } from './languages';
 import { viewerTheme } from './theme';
@@ -40,6 +41,11 @@ interface Props {
   readOnly: boolean;
   onChange?: (view: EditorView) => void;
   onSelection?: (info: SelectionInfo) => void;
+  /**
+   * Typing a printable character while read-only: the editor turns editable at once, inserts the
+   * character and calls this so the owner switches to edit mode. Without it, read-only stays read-only.
+   */
+  onTypeToEdit?: () => void;
 }
 
 const flashEffect = StateEffect.define<number | null>();
@@ -74,7 +80,7 @@ export function selectionOf(view: EditorView): SelectionInfo {
 }
 
 export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEditor(
-  { path, initialValue, readOnly, onChange, onSelection },
+  { path, initialValue, readOnly, onChange, onSelection, onTypeToEdit },
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -83,11 +89,13 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
   const langComp = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
   const onSelectionRef = useRef(onSelection);
+  const onTypeToEditRef = useRef(onTypeToEdit);
   const initialRef = useRef({ value: initialValue, readOnly });
 
   useEffect(() => {
     onChangeRef.current = onChange;
     onSelectionRef.current = onSelection;
+    onTypeToEditRef.current = onTypeToEdit;
   });
 
   useEffect(() => {
@@ -134,6 +142,17 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
             ...searchKeymap,
             ...foldKeymap,
           ]),
+          EditorView.domEventHandlers({
+            keydown: (event, view) => {
+              const typeToEdit = onTypeToEditRef.current;
+              if (!typeToEdit || !view.state.readOnly || !isTypeToEditKey(event)) return false;
+              event.preventDefault();
+              view.dispatch({ effects: readOnlyComp.current.reconfigure(EditorState.readOnly.of(false)) });
+              view.dispatch({ ...view.state.replaceSelection(event.key), scrollIntoView: true, userEvent: 'input.type' });
+              typeToEdit();
+              return true;
+            },
+          }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) onChangeRef.current?.(update.view);
             if (update.selectionSet || update.docChanged) {

@@ -2,6 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import type { ReadFileResult } from '@shared/viewer';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { viewerApi } from './api';
+import { AUTOSAVE_DELAY_MS, canAutosave, debounced } from './autosave';
 import { CodeEditor } from './CodeEditor';
 import type { CodeEditorHandle } from './CodeEditor';
 import { DiffView } from './DiffView';
@@ -21,6 +22,11 @@ export interface FilePaneHandle {
   reveal(line: number, column?: number): void;
   focus(): void;
   isDirty(): boolean;
+  /**
+   * Called before the tab closes. Starts a save when autosave may write and returns true; false
+   * when unsaved edits would be lost (autosave off, or a banner waits for a decision).
+   */
+  saveBeforeClose(): boolean;
 }
 
 export interface RevealRequest {
@@ -33,6 +39,8 @@ interface Props {
   root: string;
   path: string;
   active: boolean;
+  /** The Autosave setting. */
+  autosave: boolean;
   reveal: RevealRequest | null;
   onDirtyChange: (path: string, dirty: boolean) => void;
   /** Selection of the pane; null for panes without a text cursor. Only called while active. */
@@ -56,7 +64,7 @@ interface DiffState {
 const isMarkdown = (path: string): boolean => ['md', 'markdown', 'mdx'].includes(extension(path));
 
 export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
-  { root, path, active, reveal, onDirtyChange, onSelection, onOpenFile },
+  { root, path, active, autosave, reveal, onDirtyChange, onSelection, onOpenFile },
   ref,
 ) {
   const api = viewerApi();
@@ -69,12 +77,29 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
   const [editorShown, setEditorShown] = useState(!md);
   const [dirty, setDirty] = useState(false);
   const [diff, setDiff] = useState<DiffState | null>(null);
-  const [banner, setBanner] = useState<Banner | null>(null);
+  const [banner, setBannerState] = useState<Banner | null>(null);
   const editorRef = useRef<CodeEditorHandle>(null);
   const mtimeRef = useRef<number | null>(null);
   const savedRef = useRef('');
   const dirtyRef = useRef(false);
+  const bannerRef = useRef<Banner | null>(null);
   const appliedReveal = useRef(0);
+  /** Last editor view seen by onDocChange: its state outlives the editor, so a save on unmount still has the text. */
+  const lastViewRef = useRef<EditorView | null>(null);
+  /** Saves run one after another so each one sends the mtime the previous one produced. */
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const savesInFlight = useRef(0);
+  /** A disk change reported while our own save was in flight; looked at again once it is done. */
+  const deferredChange = useRef<{ mtime: number | null } | null>(null);
+  const autosaveRef = useRef(autosave);
+  const autosaveNowRef = useRef<() => void>(() => undefined);
+  const onDiskChangeRef = useRef<(mtime: number | null) => void>(() => undefined);
+  const [timer] = useState(() => debounced(() => autosaveNowRef.current(), AUTOSAVE_DELAY_MS));
+
+  const setBanner = useCallback((value: Banner | null) => {
+    bannerRef.current = value;
+    setBannerState(value);
+  }, []);
 
   const markDirty = useCallback(
     (value: boolean) => {
@@ -99,7 +124,7 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
     setData(result);
     setBanner(null);
     markDirty(false);
-  }, [api, root, path, markDirty]);
+  }, [api, root, path, markDirty, setBanner]);
 
   useEffect(() => {
     void load();
@@ -109,47 +134,127 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
     void api.watchFile(root, path);
     const off = api.onFileChanged((event) => {
       if (event.root !== root || event.relPath !== path) return;
-      if (event.mtime === null) setBanner({ type: 'deleted' });
-      else if (event.mtime === mtimeRef.current) return;
-      else if (dirtyRef.current) setBanner({ type: 'external' });
-      else void load();
+      // Our own write may be reported before its result arrives with the new mtime.
+      if (savesInFlight.current > 0) {
+        deferredChange.current = { mtime: event.mtime };
+        return;
+      }
+      onDiskChangeRef.current(event.mtime);
     });
     return () => {
       off();
       void api.unwatchFile(root, path);
     };
-  }, [api, root, path, load]);
+  }, [api, root, path]);
+
+  const onDiskChange = useCallback(
+    (mtime: number | null) => {
+      if (mtime === null) setBanner({ type: 'deleted' });
+      else if (mtime === mtimeRef.current) return;
+      else if (dirtyRef.current) setBanner({ type: 'external' });
+      else void load();
+    },
+    [load, setBanner],
+  );
+
+
+  const currentText = useCallback(
+    (): string | null => editorRef.current?.getValue() ?? lastViewRef.current?.state.doc.toString() ?? null,
+    [],
+  );
 
   const onDocChange = useCallback(
     (view: EditorView) => {
+      lastViewRef.current = view;
       const doc = view.state.doc;
       markDirty(doc.length !== savedRef.current.length || doc.toString() !== savedRef.current);
+      if (autosaveRef.current && dirtyRef.current) timer.schedule();
+      else timer.cancel();
     },
-    [markDirty],
+    [markDirty, timer],
+  );
+
+  const writeText = useCallback(
+    async (text: string, expectedOverride: number | null | undefined) => {
+      // A save queued behind another may find the text already on disk.
+      if (expectedOverride === undefined && text === savedRef.current) return;
+      const expected = expectedOverride === undefined ? mtimeRef.current : expectedOverride;
+      savesInFlight.current += 1;
+      try {
+        const result = await api.writeFile(root, path, text, expected);
+        if (result.ok) {
+          mtimeRef.current = result.mtime;
+          savedRef.current = text;
+          setPreviewText(text);
+          setBanner(null);
+          const now = currentText();
+          markDirty(now !== null && now !== text);
+        } else if (result.reason === 'conflict') {
+          setBanner({ type: 'conflict' });
+        } else {
+          setBanner({ type: 'error', message: result.message });
+        }
+      } finally {
+        savesInFlight.current -= 1;
+        const deferred = deferredChange.current;
+        if (savesInFlight.current === 0 && deferred) {
+          deferredChange.current = null;
+          onDiskChangeRef.current(deferred.mtime);
+        }
+      }
+    },
+    [api, root, path, markDirty, setBanner, currentText],
   );
 
   const save = useCallback(
-    async (expectedOverride?: number | null) => {
-      const editor = editorRef.current;
-      if (!editor) return;
-      if (!dirtyRef.current && expectedOverride === undefined) return;
-      const text = editor.getValue();
-      const expected = expectedOverride === undefined ? mtimeRef.current : expectedOverride;
-      const result = await api.writeFile(root, path, text, expected);
-      if (result.ok) {
-        mtimeRef.current = result.mtime;
-        savedRef.current = text;
-        setPreviewText(text);
-        setBanner(null);
-        markDirty(editor.getValue() !== text);
-      } else if (result.reason === 'conflict') {
-        setBanner({ type: 'conflict' });
-      } else {
-        setBanner({ type: 'error', message: result.message });
-      }
+    (expectedOverride?: number | null): Promise<void> => {
+      timer.cancel();
+      if (!dirtyRef.current && expectedOverride === undefined) return saveQueue.current;
+      // Taken now, so a save started right before the tab closes still has the text.
+      const text = currentText();
+      if (text === null) return saveQueue.current;
+      const run = saveQueue.current.then(() => writeText(text, expectedOverride));
+      saveQueue.current = run.catch(() => undefined);
+      return run;
     },
-    [api, root, path, markDirty],
+    [timer, writeText, currentText],
   );
+
+  /** Saves now when autosave may write; otherwise does nothing. */
+  const autosaveNow = useCallback(() => {
+    timer.cancel();
+    if (canAutosave({ enabled: autosaveRef.current, dirty: dirtyRef.current, banner: bannerRef.current !== null })) {
+      void save();
+    }
+  }, [save, timer]);
+
+  useEffect(() => {
+    autosaveRef.current = autosave;
+    autosaveNowRef.current = autosaveNow;
+    onDiskChangeRef.current = onDiskChange;
+  });
+
+  // Turning autosave on with edits pending saves them; turning it off cancels a pending save.
+  useEffect(() => {
+    if (autosave) autosaveNowRef.current();
+    else timer.cancel();
+  }, [autosave, timer]);
+
+  // Leaving the tab, the window losing focus and closing the window or tab all save.
+  useEffect(() => {
+    if (!active) autosaveNowRef.current();
+  }, [active]);
+
+  useEffect(() => {
+    const flush = (): void => autosaveNowRef.current();
+    window.addEventListener('blur', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('blur', flush);
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+  }, []);
 
   const overwrite = useCallback(async () => {
     const latest = await api.readFile(root, path);
@@ -165,9 +270,10 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
   const toggleEdit = useCallback(() => {
     if (data?.kind !== 'text') return;
     if (md && mdMode === 'preview') showSource();
-    setEditing((value) => !value);
+    if (editing) autosaveNow();
+    setEditing(!editing);
     window.requestAnimationFrame(() => editorRef.current?.focus());
-  }, [data, md, mdMode, showSource]);
+  }, [data, md, mdMode, showSource, editing, autosaveNow]);
 
   const setPreviewMode = useCallback(() => {
     setPreviewText(editorRef.current?.getValue() ?? savedRef.current);
@@ -189,6 +295,12 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
     reveal: revealLine,
     focus: () => editorRef.current?.focus(),
     isDirty: () => dirtyRef.current,
+    saveBeforeClose: () => {
+      if (!dirtyRef.current) return true;
+      if (!canAutosave({ enabled: autosaveRef.current, dirty: true, banner: bannerRef.current !== null })) return false;
+      void save();
+      return true;
+    },
   }));
 
   // Apply a reveal request once the editor exists.
@@ -352,6 +464,7 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
               initialValue={previewText}
               readOnly={!editing}
               onChange={onDocChange}
+              onTypeToEdit={() => setEditing(true)}
               onSelection={(info) => active && onSelection(path, info)}
             />
           </div>

@@ -14,6 +14,7 @@ import { expandHome, isDirectory, readRegistry } from './registry';
 import type { StateStore } from './state';
 import type { WindowManager } from './windows';
 import { contextFor, loadRenderer, PRELOAD_PATH, WINDOW_BACKGROUND } from './renderer';
+import { existingFiles } from './viewer/existing';
 
 /**
  * Path of the local project registry database. Taken from the ARCODE_PROJECT_REGISTRY_DB
@@ -138,7 +139,7 @@ export class ProjectSwitcher {
   }
 }
 
-/** Registers the project switcher, layout and saved-terminal channels. */
+/** Registers the project switcher, layout, saved terminal and viewer tabs, recent files and settings channels. */
 export function registerProjectsIpc(ipcMain: IpcMain, switcher: ProjectSwitcher, windows: WindowManager, state: StateStore): void {
   ipcMain.handle(AppChannel.ProjectsList, () => switcher.list());
   ipcMain.on(AppChannel.ProjectsOpen, (_event, root: unknown) => {
@@ -165,4 +166,20 @@ export function registerProjectsIpc(ipcMain: IpcMain, switcher: ProjectSwitcher,
   ipcMain.on(AppChannel.TerminalStateSet, (_event, root: unknown, terminal: unknown) => {
     if (isText(root) && root) state.setTerminal(root, terminal);
   });
+  ipcMain.handle(AppChannel.ViewerTabsGet, async (_event, root: unknown) => {
+    const saved = isText(root) && root ? state.viewerTabs(root) : undefined;
+    if (!isText(root) || !saved) return null;
+    const files = await existingFiles(root, saved.files);
+    return { files, active: saved.active !== null && files.includes(saved.active) ? saved.active : null };
+  });
+  ipcMain.on(AppChannel.ViewerTabsSet, (_event, root: unknown, tabs: unknown) => {
+    if (isText(root) && root) state.setViewerTabs(root, tabs);
+  });
+  ipcMain.handle(AppChannel.RecentFilesGet, (_event, root: unknown) =>
+    isText(root) && root ? existingFiles(root, state.recentFiles(root)) : [],
+  );
+  ipcMain.on(AppChannel.RecentFilesAdd, (_event, root: unknown, path: unknown) => {
+    if (isText(root) && root && isText(path)) state.addRecentFile(root, path);
+  });
+  ipcMain.handle(AppChannel.SettingsGet, () => state.editorSettings());
 }

@@ -1,5 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { DEFAULT_EDITOR_SETTINGS } from '@shared/editorState';
+import type { ViewerTabsState } from '@shared/editorState';
 import logoUrl from '../../../../design/empty-mark.svg';
 import { ClaudePanel } from '../claude/ClaudePanel';
 import { FeedView } from '../claude/FeedView';
@@ -28,12 +30,15 @@ const FEED_ID = 'claude:feed';
 const FEED_TAB: TabModel = { id: FEED_ID, kind: 'feed', path: 'Claude' };
 
 const ZERO = { line: 0, character: 0 };
+/** Delay before the open tabs are written to state.json. */
+const TABS_SAVE_DELAY_MS = 300;
 
 const HINTS: [string, string][] = [
   ['Cmd+F', 'Find in file'],
   ['Cmd+L', 'Go to line'],
   ['Cmd+E', 'Toggle edit mode'],
   ['Cmd+S', 'Save'],
+  ['Cmd+Shift+E', 'Recent files'],
   ['Cmd+W', 'Close tab'],
   ['Cmd+Shift+T', 'Reopen closed tab'],
 ];
@@ -64,6 +69,11 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
   const activeId = tabs.some((t) => t.id === selectedId) ? selectedId : FEED_ID;
   const [dirtyMap, setDirtyMap] = useState<Record<string, boolean>>({});
   const [reveal, setReveal] = useState<(RevealRequest & { id: string }) | null>(null);
+  const [autosave, setAutosave] = useState(DEFAULT_EDITOR_SETTINGS.autosave);
+  /** Saved tabs were read (or there were none); only then are changes written back. */
+  const restored = useRef(false);
+  const pendingTabs = useRef<ViewerTabsState | null>(null);
+  const tabsTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const tabsRef = useRef(tabs);
   const activeRef = useRef(activeId);
@@ -131,7 +141,11 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
         return true;
       }
       if (tab.kind === 'file') {
-        if (dirtyRef.current[id] && !window.confirm(`Discard unsaved changes in ${basename(tab.path)}?`)) {
+        if (
+          dirtyRef.current[id] &&
+          !panes.current.get(id)?.saveBeforeClose() &&
+          !window.confirm(`Discard unsaved changes in ${basename(tab.path)}?`)
+        ) {
           return false;
         }
         closedStack.current.push(tab.path);
@@ -226,6 +240,72 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
     stepTab,
   }));
 
+  useEffect(() => {
+    void window.acode.settings
+      .get()
+      .then((settings) => setAutosave(settings.autosave))
+      .catch(() => undefined);
+    return window.acode.settings.onChange((settings) => setAutosave(settings.autosave));
+  }, []);
+
+  // Reopen the file tabs of the last session behind the pinned feed, before any opened since.
+  useEffect(() => {
+    let cancelled = false;
+    void window.acode.layout
+      .getViewerTabs(projectRoot)
+      .catch(() => null)
+      .then((saved) => {
+        if (cancelled) return;
+        restored.current = true;
+        if (!saved || saved.files.length === 0) return;
+        setTabs((prev) => {
+          const restoredTabs: TabModel[] = saved.files
+            .map((path): TabModel => ({ id: fileId(path), kind: 'file', path }))
+            .filter((tab) => !prev.some((t) => t.id === tab.id));
+          return [...prev.filter((t) => t.kind === 'feed'), ...restoredTabs, ...prev.filter((t) => t.kind !== 'feed')];
+        });
+        const active = saved.active;
+        if (active !== null) setSelectedId((prev) => (prev === FEED_ID ? fileId(active) : prev));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectRoot]);
+
+  const flushTabs = useCallback(() => {
+    if (tabsTimer.current) clearTimeout(tabsTimer.current);
+    tabsTimer.current = undefined;
+    if (pendingTabs.current) window.acode.layout.setViewerTabs(projectRoot, pendingTabs.current);
+    pendingTabs.current = null;
+  }, [projectRoot]);
+
+  // Persist file tabs (not diff, feed or panel tabs) and the active one, debounced.
+  useEffect(() => {
+    if (!restored.current) return;
+    const active = tabs.find((t) => t.id === activeId);
+    pendingTabs.current = {
+      files: tabs.filter((t) => t.kind === 'file').map((t) => t.path),
+      active: active?.kind === 'file' ? active.path : null,
+    };
+    if (tabsTimer.current) clearTimeout(tabsTimer.current);
+    tabsTimer.current = setTimeout(flushTabs, TABS_SAVE_DELAY_MS);
+  }, [tabs, activeId, flushTabs]);
+
+  useEffect(() => {
+    window.addEventListener('beforeunload', flushTabs);
+    return () => {
+      window.removeEventListener('beforeunload', flushTabs);
+      flushTabs();
+    };
+  }, [flushTabs]);
+
+  // The file in front goes to the top of the project's recent files.
+  const activeTab = tabs.find((t) => t.id === activeId);
+  const activeFile = activeTab?.kind === 'file' ? activeTab.path : null;
+  useEffect(() => {
+    if (activeFile) window.acode.layout.addRecentFile(projectRoot, activeFile);
+  }, [activeFile, projectRoot]);
+
   // Pending diffs must never hang when the viewer goes away.
   useEffect(() => {
     const pending = resolvers.current;
@@ -305,6 +385,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
                 root={projectRoot}
                 path={tab.path}
                 active={tab.id === activeId}
+                autosave={autosave}
                 reveal={reveal?.id === tab.id ? reveal : null}
                 onDirtyChange={reportDirty}
                 onSelection={reportSelection}

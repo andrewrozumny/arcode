@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { enterBackgroundMode } from './background';
 import { migrateLegacyUserData } from './legacy';
+import { AppChannel } from '@shared/app';
 import { buildMenu } from './menu';
 import { ProjectSwitcher, registerProjectsIpc } from './projects';
 import { isDirectory } from './registry';
@@ -52,6 +53,13 @@ void app.whenReady().then(() => {
       openFolder: () => void switcher.openFolder(BrowserWindow.getFocusedWindow() ?? undefined),
       openRecent: (root) => switcher.open(root),
       recent: () => state.get().recent.map((r) => r.root),
+      autosave: () => state.editorSettings().autosave,
+      setAutosave: (on) => {
+        state.setAutosave(on);
+        refreshMenu();
+        const settings = state.editorSettings();
+        for (const win of BrowserWindow.getAllWindows()) win.webContents.send(AppChannel.SettingsChanged, settings);
+      },
     });
   const windows = new WindowManager(state, refreshMenu);
   handlePdfProtocol(() => windows.roots());
