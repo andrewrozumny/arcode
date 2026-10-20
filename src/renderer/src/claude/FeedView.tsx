@@ -4,7 +4,22 @@ import type { FeedItem } from '@shared/claude';
 import { ToolCard } from './FeedCards';
 import { Icon } from './FeedIcons';
 import { FeedMarkdown } from './FeedMarkdown';
-import { canLoadEarlier, endsMidTurn, groupFeed, lastPromptAt, runningCall, taskList, taskNotices } from './feedModel';
+import {
+  agentActivity,
+  canLoadEarlier,
+  compactTokens,
+  endsMidTurn,
+  groupFeed,
+  lastPromptAt,
+  runningCall,
+  taskList,
+  taskNotices,
+  turnLabel,
+  turnStats,
+  usageTooltip,
+  usageTotals,
+} from './feedModel';
+import type { TurnStats } from './feedModel';
 import { FeedContext, ToolGroup } from './FeedTool';
 import type { FeedContextValue } from './FeedTool';
 import { phraseText, toolPhrase } from './feedTools';
@@ -181,28 +196,45 @@ function Working({ label, waiting, since }: { label: string | null; waiting: str
   );
 }
 
+/** Muted line under a finished turn: tokens and time, the cache split in the tooltip. */
+function TurnChip({ stats }: { stats: TurnStats }) {
+  return (
+    <div className="fd-turn" title={usageTooltip(stats)}>
+      <span>{turnLabel(stats)}</span>
+    </div>
+  );
+}
+
 interface Props {
   projectRoot: string;
   /** Session to show: the active Claude tab's, or the last one this window showed. */
   sessionId: string | null;
+  /** Shows this subagent of the session instead of the session itself. */
+  agentId?: string | null;
   /** True while the feed tab is the visible viewer tab; live reads pause otherwise. */
   visible: boolean;
   /** Shown under the empty-state text when there is no session. */
   empty?: ReactNode;
+  /** True for the pinned feed of the session live in this window; read-only tabs pass false. */
+  interactive?: boolean;
 }
 
-/** The pinned "Claude" viewer tab: a readable live view of the active Claude session. */
-export function FeedView({ projectRoot, sessionId, visible, empty }: Props) {
-  const { state, loadEarlier, loadingEarlier } = useFeed(sessionId, visible);
-  const status = useSessionActivity(sessionId);
+/**
+ * A readable view of one Claude session transcript: the pinned "Claude" viewer tab follows the
+ * active Claude session; closable tabs show a past session or a subagent read-only.
+ */
+export function FeedView({ projectRoot, sessionId, agentId = null, visible, empty, interactive = false }: Props) {
+  const { state, loadEarlier, loadingEarlier } = useFeed(sessionId, visible, agentId);
+  const parent = useSessionActivity(sessionId);
+  const status = agentId ? { activity: agentActivity(state?.ended ?? null, parent.activity), waitingFor: null } : parent;
   const items = state?.items;
   const results = state?.results;
-  const blocks = useMemo(() => groupFeed(items ?? []), [items]);
+  const usage = state?.usage;
   const notices = useMemo(() => taskNotices(items ?? []), [items]);
   const tasks = useMemo(() => taskList(items ?? [], results ?? {}), [items, results]);
   const context = useMemo<FeedContextValue>(
-    () => ({ root: projectRoot, results: results ?? {}, notices, activity: status.activity }),
-    [projectRoot, results, notices, status.activity],
+    () => ({ root: projectRoot, results: results ?? {}, notices, activity: status.activity, sessionId, interactive }),
+    [projectRoot, results, notices, status.activity, sessionId, interactive],
   );
 
   // Relative times under messages refresh twice a minute.
@@ -214,6 +246,9 @@ export function FeedView({ projectRoot, sessionId, visible, empty }: Props) {
 
   // Mid-turn: the live process says so, or (before its first status) the transcript ends mid-turn.
   const working = status.activity === 'busy' || status.activity === 'waiting' || (status.activity === 'unknown' && endsMidTurn(items ?? []));
+  const turns = useMemo(() => turnStats(items ?? [], usage ?? [], !working), [items, usage, working]);
+  const blocks = useMemo(() => groupFeed(items ?? [], turns), [items, turns]);
+  const totals = useMemo(() => usageTotals(usage ?? []), [usage]);
   const running = useMemo(
     () => (working && items && results ? runningCall(items, results, notices, status.activity) : null),
     [working, items, results, notices, status.activity],
@@ -281,9 +316,25 @@ export function FeedView({ projectRoot, sessionId, visible, empty }: Props) {
   else if (!state.found) message = <p className="fd-empty-text">Waiting for the session's first message…</p>;
   else if (!showList) message = <p className="fd-empty-text">No messages yet.</p>;
 
+  const partial = Boolean(state && state.start > 0);
   return (
     <div className="fd-root">
       {!message && <img className="fd-logo" src={logoUrl} alt="" draggable={false} />}
+      {!message && (totals.calls > 0 || !interactive) && (
+        <div className="fd-head">
+          {!interactive && <span className="fd-head-label">{agentId ? 'Subagent transcript · read-only' : 'Read-only'}</span>}
+          {totals.calls > 0 && (
+            <span
+              className="fd-head-usage"
+              title={`${partial ? 'Loaded part of the transcript. ' : ''}${usageTooltip(totals)}`}
+            >
+              {agentId ? 'Agent' : 'Session'}
+              {partial ? ' (loaded)' : ''}: {compactTokens(totals.input)} in · {compactTokens(totals.output)} out
+              {totals.cacheRead > 0 ? ` · ${compactTokens(totals.cacheRead)} cached` : ''}
+            </span>
+          )}
+        </div>
+      )}
       {message ? (
         <div className="fd-empty">{message}</div>
       ) : (
@@ -301,6 +352,8 @@ export function FeedView({ projectRoot, sessionId, visible, empty }: Props) {
                     return <ToolGroup key={block.id} items={block.items} />;
                   case 'card':
                     return <ToolCard key={block.item.id} item={block.item} tasks={tasks} />;
+                  case 'turn':
+                    return <TurnChip key={block.id} stats={block.stats} />;
                   case 'divider':
                     return (
                       <div key={block.id} className="fd-divider">

@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import type { SubagentInfo } from '@shared/claude';
 import { mapLimit } from '../concurrency';
 import { isRecord, readJsonAsync, stringOrNull } from './common';
+import { endsTurn } from './feedParse';
 import { findSubagentsDir, parseJsonLine, parseJsonLines, readSlice, readTail } from './transcripts';
 
 const HEAD_BYTES = 16 * 1024;
@@ -27,18 +28,6 @@ export interface TranscriptFacts {
   closed: boolean;
   /** Timestamp of the last user or assistant record in the tail. */
   lastAt: string | null;
-}
-
-/**
- * Whether a user or assistant record ends the agent's turn. Claude Code closes most subagents with
- * the result of their hand-back tool (`toolEndsTurn`), not with an end_turn assistant message.
- */
-function endsTurn(record: Record<string, unknown>): boolean {
-  if (record.type === 'assistant') return isRecord(record.message) && record.message.stop_reason === 'end_turn';
-  if (record.toolEndsTurn === true) return true;
-  const content = isRecord(record.message) ? record.message.content : null;
-  const texts = typeof content === 'string' ? [content] : Array.isArray(content) ? content.map((c) => (isRecord(c) ? c.text : null)) : [];
-  return texts.some((t) => typeof t === 'string' && t.startsWith('[Request interrupted by user'));
 }
 
 /** Facts from the head (start time) and tail (model, closing turn) of a subagent transcript. */
@@ -161,6 +150,7 @@ async function readSubagent(
     startedAt: facts.startedAt,
     lastActivityAt: new Date(mtimeMs).toISOString(),
     running: open && !notified,
+    toolUseId: stringOrNull(metaRecord.toolUseId),
   };
 }
 

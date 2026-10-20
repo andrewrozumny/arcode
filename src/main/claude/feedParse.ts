@@ -6,9 +6,13 @@
  * assistant text, one line per tool call (results are paired by tool_use id), and a few muted
  * notices (an agent finished, the conversation was compacted, an interrupt).
  * Hidden: thinking, attachments, meta and injected user entries, system reminders, hook and
- * classifier records, shell output of `!` commands and every sidechain (subagent) record.
+ * classifier records, shell output of `!` commands and every sidechain (subagent) record, except
+ * when a subagent's own transcript is parsed (`sidechain: true`).
+ *
+ * Token usage of each assistant API call is collected beside the items (`usage`), so the renderer
+ * can sum it per turn without another read.
  */
-import type { FeedHunk, FeedItem, FeedQuestion, FeedTaskNotice, FeedTodo, FeedToolDetail, FeedToolResult } from '@shared/claude';
+import type { FeedHunk, FeedItem, FeedUsage, FeedQuestion, FeedTaskNotice, FeedTodo, FeedToolDetail, FeedToolResult } from '@shared/claude';
 import { isRecord } from '@shared/guards';
 
 /**
@@ -37,6 +41,18 @@ export interface FeedLine {
 export interface ParsedFeed {
   items: FeedItem[];
   results: FeedToolResult[];
+  usage: FeedUsage[];
+  /** Whether the last user or assistant record parsed ends a turn; null before any. */
+  ended: boolean | null;
+}
+
+export function emptyParsed(): ParsedFeed {
+  return { items: [], results: [], usage: [], ended: null };
+}
+
+export interface ParseOptions {
+  /** Keep sidechain records: true when the file is a subagent's own transcript. */
+  sidechain?: boolean;
 }
 
 /** Wrappers Claude Code or the IDE bridge add to user text; never something the user typed. */
@@ -416,9 +432,49 @@ function systemItem(record: Record<string, unknown>, base: ItemBase): FeedItem |
   }
 }
 
+/**
+ * Whether a user or assistant record ends the agent's turn. Claude Code closes most subagents with
+ * the result of their hand-back tool (`toolEndsTurn`), not with an end_turn assistant message.
+ */
+export function endsTurn(record: Record<string, unknown>): boolean {
+  if (record.type === 'assistant') return isRecord(record.message) && record.message.stop_reason === 'end_turn';
+  if (record.toolEndsTurn === true) return true;
+  const content = isRecord(record.message) ? record.message.content : null;
+  const texts = typeof content === 'string' ? [content] : Array.isArray(content) ? content.map((c) => (isRecord(c) ? c.text : null)) : [];
+  return texts.some((t) => typeof t === 'string' && t.startsWith('[Request interrupted by user'));
+}
+
+function count(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/** Usage of an assistant record's API call; null for records without usage and synthetic ones. */
+export function recordUsage(record: Record<string, unknown>, offset: number): FeedUsage | null {
+  const message = isRecord(record.message) ? record.message : null;
+  if (!message || message.model === '<synthetic>' || !isRecord(message.usage)) return null;
+  const usage = message.usage;
+  const id = typeof message.id === 'string' && message.id ? message.id : typeof record.uuid === 'string' ? record.uuid : `@${offset}`;
+  return {
+    messageId: id,
+    at: typeof record.timestamp === 'string' ? record.timestamp : null,
+    offset,
+    input: count(usage.input_tokens),
+    output: count(usage.output_tokens),
+    cacheRead: count(usage.cache_read_input_tokens),
+    cacheWrite: count(usage.cache_creation_input_tokens),
+  };
+}
+
 /** Appends the feed items and tool results of one record; `offset` (its byte offset) names records without a uuid. */
-export function parseFeedRecord(record: Record<string, unknown>, offset: number, out: ParsedFeed, names: ToolNames = new Map()): void {
-  if (record.isSidechain === true) return;
+export function parseFeedRecord(
+  record: Record<string, unknown>,
+  offset: number,
+  out: ParsedFeed,
+  names: ToolNames = new Map(),
+  options: ParseOptions = {},
+): void {
+  if (record.isSidechain === true && options.sidechain !== true) return;
+  if (record.type === 'user' || record.type === 'assistant') out.ended = endsTurn(record);
   const uuid = typeof record.uuid === 'string' ? record.uuid : `@${offset}`;
   const at = typeof record.timestamp === 'string' ? record.timestamp : null;
   const cwd = typeof record.cwd === 'string' ? record.cwd : null;
@@ -431,6 +487,8 @@ export function parseFeedRecord(record: Record<string, unknown>, offset: number,
       return;
     }
     case 'assistant': {
+      const usage = recordUsage(record, offset);
+      if (usage) out.usage.push(usage);
       if (!message || !Array.isArray(message.content)) return;
       message.content.forEach((block: unknown, index: number) => {
         if (!isRecord(block)) return;
@@ -477,8 +535,8 @@ export function parseFeedRecord(record: Record<string, unknown>, offset: number,
 }
 
 /** Feed items of transcript lines in file order. Lines that are not JSON objects are skipped. */
-export function parseFeedLines(lines: readonly FeedLine[]): ParsedFeed {
-  const out: ParsedFeed = { items: [], results: [] };
+export function parseFeedLines(lines: readonly FeedLine[], options: ParseOptions = {}): ParsedFeed {
+  const out = emptyParsed();
   const names: ToolNames = new Map();
   for (const line of lines) {
     if (!line.text.trim()) continue;
@@ -488,7 +546,7 @@ export function parseFeedLines(lines: readonly FeedLine[]): ParsedFeed {
     } catch {
       continue;
     }
-    if (isRecord(record)) parseFeedRecord(record, line.offset, out, names);
+    if (isRecord(record)) parseFeedRecord(record, line.offset, out, names, options);
   }
   return out;
 }

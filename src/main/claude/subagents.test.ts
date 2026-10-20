@@ -74,7 +74,7 @@ describe('listSubagents', () => {
       {
         id: 'live1',
         lines: [user('2026-10-09T09:05:00.000Z'), assistant('claude-opus-5-5', null, '2026-10-09T09:05:01.000Z')],
-        meta: { agentType: 'fork', description: 'Still working', model: 'inherit' },
+        meta: { agentType: 'fork', description: 'Still working', model: 'inherit', toolUseId: 'toolu_live' },
         ageMs: 5_000,
       },
       {
@@ -89,8 +89,8 @@ describe('listSubagents', () => {
       ['done1', false],
       ['stale1', false],
     ]);
-    expect(list[0]).toMatchObject({ label: 'Still working', agentType: 'fork', model: 'claude-opus-5-5', startedAt: '2026-10-09T09:05:00.000Z' });
-    expect(list[2]).toMatchObject({ label: null, agentType: null });
+    expect(list[0]).toMatchObject({ label: 'Still working', agentType: 'fork', model: 'claude-opus-5-5', startedAt: '2026-10-09T09:05:00.000Z', toolUseId: 'toolu_live' });
+    expect(list[2]).toMatchObject({ label: null, agentType: null, toolUseId: null });
   });
 
   it('marks agents the parent was notified about as stopped unless they ran again afterwards', async () => {

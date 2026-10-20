@@ -8,7 +8,7 @@ export interface TabItem {
   title: string;
   /** Muted folder hint shown when two tabs share a name. */
   hint: string;
-  kind: 'file' | 'diff' | 'claude' | 'feed';
+  kind: 'file' | 'diff' | 'claude' | 'feed' | 'session';
   /** Pinned tabs have no close button and ignore middle-click. */
   pinned: boolean;
   dirty: boolean;
@@ -93,7 +93,7 @@ export function TabBar({
             role="tab"
             aria-selected={tab.id === activeId}
             className={`v-tab${tab.id === activeId ? ' active' : ''}${tab.git ? ` git-${tab.git}` : ''}${
-              tab.kind === 'diff' ? ' diff' : tab.kind === 'claude' ? ' claude' : tab.kind === 'feed' ? ' feed' : ''
+              tab.kind === 'diff' ? ' diff' : tab.kind === 'claude' ? ' claude' : tab.kind === 'feed' ? ' feed' : tab.kind === 'session' ? ' session' : ''
             }`}
             title={tab.title}
             onMouseDown={(event: MouseEvent) => {

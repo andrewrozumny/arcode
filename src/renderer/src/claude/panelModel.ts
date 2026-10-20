@@ -73,8 +73,18 @@ export function hookSettingsPath(scope: HookInfo['scope'], root: string, home: s
   return scope === 'local' ? `${base}/.claude/settings.local.json` : `${base}/.claude/settings.json`;
 }
 
-export function sessionTitle(session: Pick<SessionSummary, 'firstPrompt'>): string {
-  return session.firstPrompt ?? 'Untitled session';
+/** The title Claude Code saved for the session (a `/rename` or its own), else the first prompt. */
+export function sessionTitle(session: Pick<SessionSummary, 'firstPrompt'> & Partial<Pick<SessionSummary, 'title'>>): string {
+  return session.title ?? session.firstPrompt ?? 'Untitled session';
+}
+
+/** Most characters of a feed tab's title. */
+export const FEED_TAB_CHARS = 40;
+
+/** A session or agent title cut to fit a viewer tab: `Fix the login bug on the settings…`. */
+export function feedTabTitle(text: string, max = FEED_TAB_CHARS): string {
+  const flat = text.replace(/\s+/g, ' ').trim() || 'Untitled session';
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
 }
 
 export interface SessionBucket {

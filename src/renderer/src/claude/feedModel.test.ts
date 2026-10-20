@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { FeedChunk, FeedItem } from '@shared/claude';
+import type { FeedChunk, FeedItem, FeedUsage } from '@shared/claude';
+import { agentActivity, compactTokens, turnDuration, turnLabel, turnStats, usageTotals } from './feedModel';
 import { DIVIDER_GAP_MS, MAX_ITEMS, MAX_LOADED_ITEMS, applyChunk, canLoadEarlier, emptyFeed, endsMidTurn, groupFeed, lastPromptAt, runningCall, mergeChunk, runState, taskList, taskNotices } from './feedModel';
 
 const text = (id: string, offset: number, kind: 'user' | 'assistant' = 'assistant'): FeedItem =>
@@ -17,7 +18,7 @@ const tool = (id: string, offset: number, summary = `Bash: ${id}`): Extract<Feed
 });
 
 function chunk(start: number, end: number, items: FeedItem[], extra: Partial<FeedChunk> = {}): FeedChunk {
-  return { found: true, size: end, start, end, reset: false, items, results: [], ...extra };
+  return { found: true, size: end, start, end, reset: false, items, results: [], usage: [], ended: null, ...extra };
 }
 
 describe('mergeChunk', () => {
@@ -111,7 +112,7 @@ describe('mergeChunk', () => {
 describe('groupFeed', () => {
   it('groups consecutive tool calls between text items', () => {
     const blocks = groupFeed([text('u', 0, 'user'), tool('t1', 1), tool('t2', 2, 'Read src/a.ts'), text('a', 3), tool('t3', 4)]);
-    expect(blocks.map((b) => (b.type === 'tools' ? b.items.map((i) => i.id).join('+') : b.type === 'divider' ? '|' : b.item.id))).toEqual([
+    expect(blocks.map((b) => (b.type === 'tools' ? b.items.map((i) => i.id).join('+') : b.type === 'divider' ? '|' : b.type === 'turn' ? '#' : b.item.id))).toEqual([
       'u',
       't1+t2',
       'a',
@@ -238,5 +239,86 @@ describe('current activity', () => {
     expect(runningCall(items, {}, new Map(), 'busy')?.id).toBe('t2');
     expect(runningCall([...items, text('a', 3)], {}, new Map(), 'busy')).toBeNull();
     expect(lastPromptAt(items)).toBe('2026-10-14T10:00:00.000Z');
+  });
+});
+
+const at = (seconds: number): string => new Date(Date.UTC(2026, 9, 14, 10, 0, seconds)).toISOString();
+const timed = (item: FeedItem, seconds: number): FeedItem => ({ ...item, at: at(seconds) });
+const use = (messageId: string, offset: number, seconds: number, tokens: Partial<FeedUsage> = {}): FeedUsage => ({
+  messageId,
+  offset,
+  at: at(seconds),
+  input: 10,
+  output: 100,
+  cacheRead: 1000,
+  cacheWrite: 200,
+  ...tokens,
+});
+
+describe('turn usage', () => {
+  const items: FeedItem[] = [
+    timed(text('p1', 0, 'user'), 0),
+    timed(tool('t1', 10), 2),
+    timed(text('a1', 20), 5),
+    timed(text('p2', 30, 'user'), 60),
+    timed(text('a2', 40), 70),
+  ];
+  // m1 is streamed as two records (a tool call and later text); its usage counts once, at its max.
+  const usage = [use('m1', 10, 2, { output: 40 }), use('m1', 20, 5), use('m2', 40, 98, { input: 5, output: 7, cacheRead: 0, cacheWrite: 0 })];
+
+  it('sums the API calls of each turn under its last item, from the prompt to the last reply', () => {
+    const stats = turnStats(items, usage, true);
+    expect([...stats.keys()]).toEqual(['a1', 'a2']);
+    expect(stats.get('a1')).toEqual({ input: 210, output: 100, cacheRead: 1000, cacheWrite: 200, calls: 1, durationMs: 5000 });
+    expect(stats.get('a2')).toMatchObject({ input: 5, output: 7, calls: 1, durationMs: 38_000 });
+  });
+
+  it('leaves the last turn open while the session works on it, and skips turns without a loaded prompt', () => {
+    expect([...turnStats(items, usage, false).keys()]).toEqual(['a1']);
+    expect([...turnStats(items.slice(1), usage, true).keys()]).toEqual(['a2']);
+    expect(turnStats(items, [], true).size).toBe(0);
+  });
+
+  it('reports no duration when a timestamp is missing', () => {
+    const untimed = [text('p', 0, 'user'), text('a', 10)];
+    expect(turnStats(untimed, [{ ...use('m', 10, 0), at: null }], true).get('a')?.durationMs).toBeNull();
+  });
+
+  it('puts the chip after the last item of the turn', () => {
+    const blocks = groupFeed(items, turnStats(items, usage, true));
+    expect(blocks.map((b) => (b.type === 'turn' ? `#${b.id}` : b.type))).toEqual(['item', 'tools', 'item', '#turn:a1', 'item', 'item', '#turn:a2']);
+  });
+
+  it('totals the loaded range once per call', () => {
+    expect(usageTotals(usage)).toEqual({ input: 215, output: 107, cacheRead: 1000, cacheWrite: 200, calls: 2 });
+  });
+
+  it('formats tokens and time compactly', () => {
+    expect([830, 1100, 12_400, 99_960, 245_300, 999_700, 1_250_000].map(compactTokens)).toEqual(['830', '1.1k', '12.4k', '100k', '245k', '1M', '1.3M']);
+    expect([38_000, 252_000, 3_780_000].map(turnDuration)).toEqual(['38 s', '4 m 12 s', '1 h 3 m']);
+    expect(turnLabel({ input: 12_400, output: 1100, cacheRead: 0, cacheWrite: 0, calls: 3, durationMs: 38_000 })).toBe('12.4k in · 1.1k out · 38 s');
+    expect(turnLabel({ input: 12, output: 3, cacheRead: 0, cacheWrite: 0, calls: 1, durationMs: null })).toBe('12 in · 3 out');
+  });
+
+  it('keeps usage with merged chunks and drops it with trimmed items', () => {
+    let state = mergeChunk(emptyFeed('s'), chunk(100, 200, [text('b', 100)], { usage: [use('m2', 150, 0)], ended: false }), 'tail');
+    state = mergeChunk(state, chunk(200, 300, [text('c', 250)], { usage: [use('m3', 250, 0)], ended: true }), 'append');
+    expect(state.ended).toBe(true);
+    state = mergeChunk(state, chunk(300, 310, [], { results: [{ toolUseId: 'x', text: '', isError: false }] }), 'append');
+    expect(state.ended).toBe(true);
+    state = mergeChunk(state, chunk(0, 100, [text('a', 0)], { usage: [use('m1', 50, 0)] }), 'prepend');
+    expect(state.usage.map((u) => u.messageId)).toEqual(['m1', 'm2', 'm3']);
+    const many = Array.from({ length: MAX_ITEMS + 1 }, (_, i) => text(`i${i}`, i * 10));
+    const trimmed = mergeChunk(emptyFeed('s'), chunk(0, 99_999, many, { usage: [use('old', 0, 0), use('new', 20, 0)] }), 'tail');
+    expect(trimmed.usage.map((u) => u.messageId)).toEqual(['new']);
+  });
+});
+
+describe('agentActivity', () => {
+  it('ends with the transcript, else follows the parent process', () => {
+    expect(agentActivity(true, 'busy')).toBe('idle');
+    expect(agentActivity(false, 'idle')).toBe('busy');
+    expect(agentActivity(null, 'gone')).toBe('gone');
+    expect(agentActivity(null, 'unknown')).toBe('unknown');
   });
 });

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { listSessions, parseTranscript } from './sessions';
+import { listSessions, parseTranscript, pickTitle } from './sessions';
 
 const ID_OLD = '11111111-aaaa-4aaa-8aaa-111111111111';
 const ID_NEW = '22222222-bbbb-4bbb-8bbb-222222222222';
@@ -18,6 +18,7 @@ describe('parseTranscript', () => {
     const text = [user('Fix the login bug'), assistant('Sure'), user('thanks')].join('\n') + '\n';
     expect(parseTranscript(text)).toEqual({
       firstPrompt: 'Fix the login bug',
+      title: null,
       startedAt: '2026-10-08T10:00:00.000Z',
       messages: 3,
     });
@@ -42,7 +43,24 @@ describe('parseTranscript', () => {
   });
 
   it('ignores malformed lines and reports nulls for an empty transcript', () => {
-    expect(parseTranscript('not json\n\n')).toEqual({ firstPrompt: null, startedAt: null, messages: 0 });
+    expect(parseTranscript('not json\n\n')).toEqual({ firstPrompt: null, title: null, startedAt: null, messages: 0 });
+  });
+
+  it('prefers a /rename title over the generated title, and that over a summary record', () => {
+    const summary = JSON.stringify({ type: 'summary', summary: 'Old summary', leafUuid: 'x' });
+    const ai = (title: string): string => JSON.stringify({ type: 'ai-title', aiTitle: title, sessionId: 's' });
+    const custom = JSON.stringify({ type: 'custom-title', customTitle: '  My   name ', sessionId: 's' });
+    expect(parseTranscript([user('Fix it'), summary].join('\n')).title).toBe('Old summary');
+    expect(parseTranscript([summary, user('Fix it'), ai('First'), ai('Login bug fix')].join('\n')).title).toBe('Login bug fix');
+    const named = parseTranscript([user('Fix it'), ai('Login bug fix'), custom, summary].join('\n'));
+    expect(named).toMatchObject({ title: 'My name', firstPrompt: 'Fix it', messages: 1 });
+  });
+
+  it('ignores empty title records', () => {
+    const blank = JSON.stringify({ type: 'custom-title', customTitle: '   ' });
+    expect(parseTranscript([user('Fix it'), blank].join('\n')).title).toBeNull();
+    expect(pickTitle({})).toBeNull();
+    expect(pickTitle({ summary: 'S', 'ai-title': 'A' })).toBe('A');
   });
 });
 

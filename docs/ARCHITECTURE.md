@@ -107,7 +107,17 @@ byte ranges only: the first load reads backwards from the end until it has enoug
 live polls read the bytes appended since the last offset (whole lines only, a partial last line
 waits), and "load earlier" reads backwards from the oldest offset. The renderer merges chunks
 (`feedModel.ts`), polls once a second while the tab is visible and renders Markdown through the
-viewer pipeline, with code highlighting and file links that open in the viewer.
+viewer pipeline, with code highlighting and file links that open in the viewer. Assistant records
+also yield one `FeedUsage` entry each (message id, time, offset, input, output, cache read and
+write tokens) in the same byte-range read; the renderer dedupes them by message id and sums them per
+turn (prompt to next prompt, duration up to the last assistant record) and for the loaded range.
+A `FeedRequest` may name an `agentId`: main then reads
+`<session>/subagents/agent-<id>.jsonl` (found through `transcripts.ts`, ids checked against
+`AGENT_ID_PATTERN`) with sidechain records kept, and reports whether the latest turn record ends a
+turn so the renderer knows when the agent finished. Closable `session` viewer tabs (opened through
+the `openFeed` bus event from the Sessions list, Agent cards and the header subagent chip) render
+the same `FeedView` read-only; only the pinned feed is interactive. Session titles come from
+`custom-title`, `ai-title` and `summary` records, in that order, before the first prompt.
 
 **Live usage via status line** (`claude/statusline.ts`, `claude/usageLive.ts`,
 `resources/arcode-statusline.py`). Plan percentages exist only in Claude Code's status line input.

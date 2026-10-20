@@ -59,5 +59,5 @@ export function useHeaderClaude(projectRoot: string) {
     [claudeModel, usage, activeSessionId, clock],
   );
 
-  return { onTabsChange, usage, badgeModel, running, feedSessionId };
+  return { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId };
 }

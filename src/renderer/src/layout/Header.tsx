@@ -26,10 +26,12 @@ interface Props {
   usage?: LiveUsage | null;
   /** Running subagents of the active Claude session; the chip is hidden while empty. */
   subagents?: readonly SubagentInfo[] | undefined;
+  /** Session the subagents belong to, for their "Open transcript" entries. */
+  subagentSessionId?: string | null | undefined;
 }
 
 /** Window title bar: traffic lights on the left, project name and path, gate buttons. */
-export function Header({ projectRoot, home, onRunGate, onOpenProjects, ide, claudeModel, onOpenClaude, branch, usage, subagents }: Props) {
+export function Header({ projectRoot, home, onRunGate, onOpenProjects, ide, claudeModel, onOpenClaude, branch, usage, subagents, subagentSessionId }: Props) {
   const name = baseName(projectRoot);
   return (
     <header className="header">
@@ -45,7 +47,7 @@ export function Header({ projectRoot, home, onRunGate, onOpenProjects, ide, clau
         Claude
       </button>
       {claudeModel && <ModelBadge model={claudeModel} />}
-      {subagents && subagents.length > 0 && <AgentsChip agents={subagents} />}
+      {subagents && subagents.length > 0 && <AgentsChip agents={subagents} sessionId={subagentSessionId ?? null} />}
       {usage && <UsageBadge usage={usage} />}
       {ide && <IdeIndicator status={ide} />}
       <div className="gates" role="toolbar" aria-label="Quality gates">

@@ -30,6 +30,8 @@ function snippet(text: string): string {
 
 export interface ParsedTranscript {
   firstPrompt: string | null;
+  /** Saved title: the user's own name, else Claude Code's generated title, else a summary record. */
+  title: string | null;
   startedAt: string | null;
   messages: number;
 }
@@ -39,14 +41,41 @@ export interface ParsedTranscript {
  * meta and does not start with `<`: Claude Code writes slash commands and their output as user
  * entries wrapped in tags, and those are not what the user recognises the session by.
  */
+/**
+ * Title records Claude Code appends to a transcript, strongest first: `/rename` writes
+ * `custom-title`, Claude Code names sessions with `ai-title`, older versions wrote `summary`.
+ * The latest record of a kind wins (a session can be renamed).
+ */
+const TITLE_FIELDS = [
+  ['custom-title', 'customTitle'],
+  ['ai-title', 'aiTitle'],
+  ['summary', 'summary'],
+] as const;
+
+/** The title to show for a session from its title records (by kind); null when there is none. */
+export function pickTitle(titles: Partial<Record<string, string>>): string | null {
+  for (const [type] of TITLE_FIELDS) {
+    const title = titles[type];
+    if (title) return title;
+  }
+  return null;
+}
+
 export function parseTranscript(text: string): ParsedTranscript {
   let firstPrompt: string | null = null;
+  const titles: Partial<Record<string, string>> = {};
   let startedAt: string | null = null;
   let messages = 0;
   for (const line of text.split('\n')) {
     const record = parseJsonLine(line);
     if (!record) continue;
     if (startedAt === null && typeof record.timestamp === 'string') startedAt = record.timestamp;
+    const field = TITLE_FIELDS.find(([type]) => type === record.type)?.[1];
+    if (field) {
+      const value = record[field];
+      if (typeof value === 'string' && value.trim()) titles[record.type as string] = snippet(value);
+      continue;
+    }
     if (record.type !== 'user' && record.type !== 'assistant') continue;
     messages++;
     if (firstPrompt !== null || record.type !== 'user' || record.isMeta === true) continue;
@@ -56,7 +85,7 @@ export function parseTranscript(text: string): ParsedTranscript {
     if (trimmed === '' || trimmed.startsWith('<')) continue;
     firstPrompt = snippet(trimmed);
   }
-  return { firstPrompt, startedAt, messages };
+  return { firstPrompt, title: pickTitle(titles), startedAt, messages };
 }
 
 interface Candidate {
@@ -110,6 +139,7 @@ export async function listSessions(root: string, home: string): Promise<SessionS
       out.push({
         sessionId: candidate.id,
         firstPrompt: transcript.firstPrompt,
+        title: transcript.title,
         startedAt: transcript.startedAt,
         lastActiveAt: new Date(candidate.mtime).toISOString(),
         messages: transcript.messages,

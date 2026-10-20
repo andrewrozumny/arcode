@@ -6,6 +6,7 @@ import { runningAgents, sameList } from './subagents';
 const agent = (id: string, running: boolean, model: string | null = 'claude-opus-5-5'): SubagentInfo => ({
   id,
   label: id,
+  toolUseId: null,
   agentType: 'fork',
   model,
   modelName: null,

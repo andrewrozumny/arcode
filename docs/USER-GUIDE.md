@@ -244,7 +244,7 @@ What it gives you:
 | Item | Source | When it shows |
 |---|---|---|
 | Model badge (for example "Opus 5.5") | The active Claude tab's session transcript | While a Claude tab is active. |
-| Subagents chip | Subagent transcripts of the active session | While subagents are running; the tooltip lists name, model and age. |
+| Subagents chip | Subagent transcripts of the active session | While subagents are running; the tooltip lists name, model and age. Click it for a list with **Open transcript** per agent. |
 | Usage bars `ctx`, `5h`, `wk` | The opt-in status line | Context fill, 5-hour and weekly plan usage, once the status line is on and a reply has arrived. |
 | IDE indicator | The bridge | Number of connected Claude Code clients. |
 
@@ -288,6 +288,20 @@ window showed) as a readable conversation, live.
 - Thinking, system reminders, hook records and similar noise are hidden.
 - **Load earlier messages** at the top reads further back. Each message has a copy button; image
   attachments show as thumbnails you can enlarge.
+- **Cost and time per turn.** Under each finished turn a muted chip such as
+  `12.4k in · 1.1k out · 38 s` shows the tokens of the turn's API calls and the time from your
+  prompt to Claude's last reply. "in" counts input that was not read from the prompt cache (fresh
+  input plus tokens written to the cache); hover the chip for the cache split and the number of
+  calls. A thin strip at the top of the feed sums the loaded part of the transcript
+  ("(loaded)" when earlier messages are not loaded yet).
+- **Agent cards** have **Open transcript**, which opens the subagent's own conversation in a tab of
+  its own. It updates live while the agent runs.
+
+**Read-only feed tabs.** **Open** next to a session in the Claude panel (Sessions, or Recent
+sessions on the Overview) opens that session in a closable viewer tab titled by the session's name.
+These tabs, and subagent transcript tabs, are marked "Read-only" and never offer anything that would
+answer Claude; they keep updating while the session or agent is still running. The pinned **Claude**
+tab stays first and keeps following the active Claude tab.
 
 The feed only reads the session transcript under `~/.claude/projects`; it never writes to it.
 
@@ -314,12 +328,12 @@ section you opened. The reload button at the top right reads everything from dis
 - **Worth a look:** failing MCP servers and servers that need sign-in, a missing project
   CLAUDE.md, hooks that run automatically, and plan usage that is hidden because the status line
   is off. Click an entry to go to its section.
-- **Recent sessions** with Resume buttons.
+- **Recent sessions** with Open and Resume buttons.
 - **Search** at the top looks through skills, agents, plugins, MCP servers and hooks at once.
 
 | Section | What it shows |
 |---|---|
-| Sessions | Past Claude Code sessions of this project, grouped into Today, Yesterday, Earlier this week and Older. Each is titled by its first prompt, with relative age, message count and start time. **Resume** continues one in a new terminal tab; the copy button copies its session id. |
+| Sessions | Past Claude Code sessions of this project, grouped into Today, Yesterday, Earlier this week and Older. Each is titled by the name Claude Code saved for it (a `/rename`, else the title Claude Code generated, else an older summary record) or else its first prompt, with relative age, message count and start time. **Open** reads it in a read-only viewer tab, **Resume** continues it in a new terminal tab; the copy button copies its session id. |
 | Usage | Live 5-hour, weekly and context usage as bars (with the status line on), the status line switch, and token counts for the current session, today and the last 7 days, read from transcripts. Refreshes every 30 seconds. |
 | Gates | What each gate runs and, for projects with a `src/main`, `src/preload`, `src/shared` or `src/renderer/src` folder, an approximate count of tests per area. |
 | CLAUDE.md | The global, project and local CLAUDE.md files, with line counts and their text. Files that do not exist say what they are for and how to create them. Project files open in the viewer for editing. |

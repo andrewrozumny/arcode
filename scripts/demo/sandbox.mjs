@@ -12,7 +12,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { chmodSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const write = (path, text) => {
@@ -346,6 +346,8 @@ done
 if [ -n "$NEW" ] && [ "$NEW" != "$SID" ]; then
   DEMO="$(ls "$HOME"/.claude/projects/*/"$SID".jsonl | head -1)"
   mv "$DEMO" "$(dirname "$DEMO")/$NEW.jsonl"
+  # Subagent transcripts live in a folder named after the session.
+  if [ -d "\${DEMO%.jsonl}" ]; then mv "\${DEMO%.jsonl}" "$(dirname "$DEMO")/$NEW"; fi
   SID="$NEW"
 fi
 mkdir -p "$HOME/.claude/sessions"
@@ -377,7 +379,60 @@ echo "  \${D}? for shortcuts\${R}"
 while true; do sleep 3600; done
 `;
 
-export function buildSandbox(dir) {
+/**
+ * A background subagent of the demo session, still at work: the parent's Agent call and its
+ * launch result, plus the agent's own transcript and meta file. Opt-in (`buildSandbox(dir, {
+ * subagent: true })`) so the default screenshots stay the same.
+ */
+function addSubagent(projectDir, root, sessionId) {
+  const agentId = 'a3f9c1d2e4b5a6978';
+  const toolUseId = 'toolu_demo_agent';
+  // The parent's records continue the demo conversation's clock; the agent's own run just now.
+  const lines = readFileSync(join(projectDir, `${sessionId}.jsonl`), 'utf8').trim().split('\n');
+  const last = Date.parse(JSON.parse(lines[lines.length - 1]).timestamp);
+  const parentAt = (seconds) => new Date(last + seconds * 1000).toISOString();
+  const now = Date.now();
+  const at = (seconds) => new Date(now - 90_000 + seconds * 1000).toISOString();
+  const base = { cwd: root, sessionId, version: '2.1.0', gitBranch: 'main' };
+  const description = 'Find callers of listPasses';
+  const prompt = 'List every caller of listPasses in src/ and say which ones pass a minimum elevation.';
+  const parent = [
+    {
+      ...base,
+      type: 'assistant',
+      uuid: randomUUID(),
+      timestamp: parentAt(4),
+      isSidechain: false,
+      message: { id: 'msg_demo_agent', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description, subagent_type: 'Explore', prompt, run_in_background: true } }], usage: { input_tokens: 40, output_tokens: 120, cache_read_input_tokens: 24000, cache_creation_input_tokens: 600 } },
+    },
+    {
+      ...base,
+      type: 'user',
+      uuid: randomUUID(),
+      timestamp: parentAt(5),
+      isSidechain: false,
+      message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: `Async agent launched successfully.\nagentId: ${agentId}` }] },
+      toolUseResult: { isAsync: true, status: 'async_launched', agentId, description, resolvedModel: 'claude-haiku-5-5' },
+    },
+  ];
+  writeFileSync(join(projectDir, `${sessionId}.jsonl`), parent.map((r) => JSON.stringify(r)).join('\n') + '\n', { flag: 'a' });
+
+  const side = { ...base, isSidechain: true, agentId };
+  const usage = { input_tokens: 300, output_tokens: 90, cache_read_input_tokens: 8000, cache_creation_input_tokens: 400 };
+  const records = [
+    { ...side, type: 'user', uuid: randomUUID(), timestamp: at(2), message: { role: 'user', content: prompt } },
+    { ...side, type: 'assistant', uuid: randomUUID(), timestamp: at(6), message: { id: 'msg_agent_1', role: 'assistant', model: 'claude-haiku-5-5', content: [{ type: 'tool_use', id: 'toolu_agent_1', name: 'Grep', input: { pattern: 'listPasses', path: `${root}/src` } }], usage } },
+    { ...side, type: 'user', uuid: randomUUID(), timestamp: at(7), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_agent_1', content: 'src/server.ts\nsrc/passes.ts' }] }, toolUseResult: { numFiles: 2 } },
+    { ...side, type: 'assistant', uuid: randomUUID(), timestamp: at(12), message: { id: 'msg_agent_2', role: 'assistant', model: 'claude-haiku-5-5', content: [{ type: 'tool_use', id: 'toolu_agent_2', name: 'Read', input: { file_path: `${root}/src/server.ts` } }], usage } },
+    { ...side, type: 'user', uuid: randomUUID(), timestamp: at(13), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_agent_2', content: PROJECT_FILES['src/server.ts'] }] }, toolUseResult: { file: { numLines: 30, totalLines: 30 } } },
+    { ...side, type: 'assistant', uuid: randomUUID(), timestamp: at(20), message: { id: 'msg_agent_3', role: 'assistant', model: 'claude-haiku-5-5', content: [{ type: 'text', text: 'Two callers so far. `src/server.ts:19` passes `minElevation` from the query string; checking the tests next.' }], usage } },
+  ];
+  const dir = join(projectDir, sessionId, 'subagents');
+  write(join(dir, `agent-${agentId}.jsonl`), records.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  write(join(dir, `agent-${agentId}.meta.json`), JSON.stringify({ agentType: 'Explore', description, toolUseId, model: 'haiku' }));
+}
+
+export function buildSandbox(dir, options = {}) {
   rmSync(dir, { recursive: true, force: true });
   const home = join(dir, 'home');
   const root = join(home, 'code', 'orbit-api');
@@ -411,9 +466,12 @@ export function buildSandbox(dir) {
       { type: 'assistant', uuid: randomUUID(), sessionId: id, cwd: root, timestamp: at.toISOString(), message: { role: 'assistant', model: 'claude-sonnet-5-5', content: [{ type: 'text', text: 'Done.' }], usage: { input_tokens: 900, output_tokens: 300 } } },
     ];
     const file = join(claude, 'projects', slugOf(root), `${id}.jsonl`);
+    // With the subagent option the oldest session also carries a title Claude Code generated.
+    if (options.subagent && i === older.length - 1) lines.push({ type: 'ai-title', aiTitle: 'TLE cache refetch rules', sessionId: id });
     write(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
     utimesSync(file, at, at);
   });
+  if (options.subagent) addSubagent(join(claude, 'projects', slugOf(root)), root, sessionId);
   write(join(claude, 'CLAUDE.md'), '# Global notes\n\n- Prefer small commits with a clear message.\n- Ask before running anything that deploys.\n');
   write(join(claude, 'skills', 'changelog', 'SKILL.md'), '---\nname: changelog\ndescription: Write a changelog entry from the commits since the last tag.\n---\n');
   write(join(claude, 'skills', 'pr-summary', 'SKILL.md'), '---\nname: pr-summary\ndescription: Summarise the current branch as a pull request description.\n---\n');

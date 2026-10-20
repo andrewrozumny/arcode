@@ -12,10 +12,13 @@ import {
   searchAll,
   sessionBuckets,
   sessionTitle,
+  feedTabTitle,
+  FEED_TAB_CHARS,
 } from './panelModel';
 
 const session = (id: string, lastActiveAt: string, firstPrompt: string | null = id): SessionSummary => ({
   sessionId: id,
+  title: null,
   firstPrompt,
   startedAt: null,
   lastActiveAt,
@@ -70,6 +73,17 @@ describe('small helpers', () => {
   it('names sessions without a prompt', () => {
     expect(sessionTitle({ firstPrompt: null })).toBe('Untitled session');
     expect(sessionTitle({ firstPrompt: 'Fix it' })).toBe('Fix it');
+    expect(sessionTitle({ firstPrompt: 'Fix it', title: 'Login bug' })).toBe('Login bug');
+    expect(sessionTitle({ firstPrompt: null, title: null })).toBe('Untitled session');
+  });
+
+  it('cuts feed tab titles to fit a tab', () => {
+    expect(feedTabTitle('Fix  the\nbug')).toBe('Fix the bug');
+    expect(feedTabTitle('   ')).toBe('Untitled session');
+    const long = feedTabTitle('word '.repeat(20));
+    expect(long.length).toBe(FEED_TAB_CHARS);
+    expect(long.endsWith('…')).toBe(true);
+    expect(long).not.toContain(' …');
   });
 
   it('summarises scopes in a fixed order', () => {

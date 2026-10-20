@@ -208,6 +208,75 @@ body.resizing-horizontal * {
   color: var(--fg-muted);
   font-size: 11px;
   white-space: nowrap;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.agents-chip:hover,
+.agents-chip[aria-expanded='true'] {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+.agents-chip-wrap {
+  position: relative;
+  display: inline-flex;
+  -webkit-app-region: no-drag;
+}
+/* The chip's list: one row per running agent with "Open transcript". */
+.agents-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 300px;
+  max-width: 480px;
+  -webkit-app-region: no-drag;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+}
+.agents-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+.agents-menu-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.agents-menu-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agents-menu-meta {
+  flex: none;
+  color: var(--fg-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.agents-menu-open {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6c9fe6;
+  font: 12px var(--font-ui);
+  cursor: pointer;
+}
+.agents-menu-open:hover {
+  text-decoration: underline;
 }
 .agents-chip-dots {
   display: inline-flex;

@@ -4,6 +4,7 @@ import { bus } from '../bus';
 import { formatAge, formatCount, formatLocalTime } from '../format';
 import { Icon } from './FeedIcons';
 import { matchesQuery } from './model';
+import { openSessionFeed } from './openFeed';
 import { usePanel } from './panelData';
 import { sessionBuckets, sessionTitle } from './panelModel';
 import { CopyButton, EmptyState, NoMatches, Notice, Toolbar } from './ui';
@@ -28,7 +29,7 @@ export function useMinuteClock(): number {
   return now;
 }
 
-/** One past session: its first prompt as the title, when it was active, and a Resume button. */
+/** One past session: its title (saved or first prompt), when it was active, Open and Resume buttons. */
 export function SessionRow({ session, now, latest }: { session: SessionSummary; now: number; latest?: boolean }) {
   const started = session.startedAt ? `started ${formatLocalTime(session.startedAt)}` : null;
   return (
@@ -39,7 +40,7 @@ export function SessionRow({ session, now, latest }: { session: SessionSummary; 
         </span>
         <div className="cl-item-body">
           <div className="cl-item-title">
-            <span className={session.firstPrompt ? 'cl-name' : 'cl-name untitled'} title={session.firstPrompt ?? undefined}>
+            <span className={session.title || session.firstPrompt ? 'cl-name' : 'cl-name untitled'} title={session.firstPrompt ?? undefined}>
               {sessionTitle(session)}
             </span>
             {latest && <span className="cl-badge accent">Latest</span>}
@@ -58,6 +59,15 @@ export function SessionRow({ session, now, latest }: { session: SessionSummary; 
         </div>
         <div className="cl-item-actions">
           <CopyButton text={session.sessionId} label="Copy session id" />
+          <button
+            type="button"
+            className="cl-btn"
+            onClick={() => openSessionFeed(session.sessionId, sessionTitle(session))}
+            title="Read this session in a viewer tab"
+          >
+            <Icon name="chat" />
+            Open
+          </button>
           <button type="button" className="cl-btn resume" onClick={() => resumeSession(session)} title="Continue this session in a new Claude tab">
             <Icon name="play" />
             Resume
@@ -74,7 +84,7 @@ export function SessionsView() {
   const [query, setQuery] = useState('');
   const now = useMinuteClock();
   const list = sessions.data ?? [];
-  const visible = list.filter((s) => matchesQuery([s.firstPrompt, s.sessionId], query));
+  const visible = list.filter((s) => matchesQuery([s.title, s.firstPrompt, s.sessionId], query));
   const newest = list[0]?.sessionId;
 
   return (

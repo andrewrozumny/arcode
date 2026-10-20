@@ -62,7 +62,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const activeInfo = useRef<ActiveInfo | null>(null);
   const { files: gitStatus, branch } = useGitStatus(projectRoot);
   const ide = useIdeBridge(viewerRef);
-  const { onTabsChange, usage, badgeModel, running, feedSessionId } = useHeaderClaude(projectRoot);
+  const { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId } = useHeaderClaude(projectRoot);
 
   useEffect(() => {
     document.title = baseName(projectRoot);
@@ -101,6 +101,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   useEffect(() => {
     const offs = [
       bus.on('openFile', ({ path, line, column }) => viewerRef.current?.open(path, line, column)),
+      bus.on('openFeed', (request) => viewerRef.current?.openFeed(request)),
       bus.on('closeViewerTab', () => viewerRef.current?.closeActive()),
       bus.on('closeTerminalTab', () => terminalRef.current?.closeActiveTab()),
       bus.on('runGate', ({ target }) => {
@@ -213,6 +214,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         branch={branch}
         usage={usage}
         subagents={running}
+        subagentSessionId={activeSessionId}
       />
       {layout && (
         <Workspace

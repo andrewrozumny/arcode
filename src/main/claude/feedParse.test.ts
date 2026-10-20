@@ -8,6 +8,7 @@ import {
   FIELD_CHARS,
   THUMB_CHARS,
   classifyUserText,
+  emptyParsed,
   toolDetail,
   parseFeedLines,
   parseFeedRecord,
@@ -20,7 +21,7 @@ import type { FeedLine, ParsedFeed } from './feedParse';
 const CWD = '/repo';
 
 function parse(...records: Record<string, unknown>[]): ParsedFeed {
-  const out: ParsedFeed = { items: [], results: [] };
+  const out: ParsedFeed = emptyParsed();
   records.forEach((record, index) => parseFeedRecord(record, index * 100, out));
   return out;
 }
@@ -134,6 +135,47 @@ describe('assistant records', () => {
   });
 });
 
+describe('usage and turn ends', () => {
+  const usage = { input_tokens: 12, output_tokens: 340, cache_read_input_tokens: 90_000, cache_creation_input_tokens: 1500 };
+
+  it('collects the usage of each assistant record with its message id, time and offset', () => {
+    const out = parse(
+      user('go'),
+      assistant([{ type: 'text', text: 'hi' }], { message: { id: 'msg_1', role: 'assistant', model: 'claude-opus-5-5', usage, content: [{ type: 'text', text: 'hi' }] } }),
+      assistant([], { uuid: 'a-2', message: { role: 'assistant', model: '<synthetic>', usage, content: [] } }),
+      assistant([], { uuid: 'a-3', message: { role: 'assistant', content: [] } }),
+    );
+    expect(out.usage).toEqual([
+      { messageId: 'msg_1', at: '2026-10-14T10:00:01.000Z', offset: 100, input: 12, output: 340, cacheRead: 90_000, cacheWrite: 1500 },
+    ]);
+  });
+
+  it('names calls without a message id by their record and ignores bad numbers', () => {
+    const out = parse(assistant([], { message: { role: 'assistant', usage: { input_tokens: -3, output_tokens: 'x' }, content: [] } }));
+    expect(out.usage[0]).toMatchObject({ messageId: 'a-1', input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+  });
+
+  it('tells whether the last turn record ends a turn', () => {
+    const endTurn = assistant([{ type: 'text', text: 'done' }], { message: { role: 'assistant', stop_reason: 'end_turn', content: [{ type: 'text', text: 'done' }] } });
+    expect(parse(user('go')).ended).toBe(false);
+    expect(parse(user('go'), endTurn).ended).toBe(true);
+    expect(parse(endTurn, { type: 'attachment', uuid: 'x', attachment: { type: 'todo' } }).ended).toBe(true);
+    expect(parse(user([{ type: 'tool_result', tool_use_id: 't', content: 'ok' }], { toolEndsTurn: true })).ended).toBe(true);
+    expect(parse({ type: 'permission-mode' }).ended).toBeNull();
+  });
+
+  it('skips sidechain records unless the file is a subagent transcript', () => {
+    const lines: FeedLine[] = [
+      { offset: 0, text: JSON.stringify(user('agent prompt', { isSidechain: true })) },
+      { offset: 50, text: JSON.stringify(assistant([{ type: 'text', text: 'agent reply' }], { isSidechain: true, message: { id: 'm', role: 'assistant', usage, content: [{ type: 'text', text: 'agent reply' }] } })) },
+    ];
+    expect(parseFeedLines(lines).items).toEqual([]);
+    const agent = parseFeedLines(lines, { sidechain: true });
+    expect(kinds(agent.items)).toEqual(['user', 'assistant']);
+    expect(agent.usage.map((u) => u.messageId)).toEqual(['m']);
+  });
+});
+
 describe('other records', () => {
   it('shows queued prompts, compaction and task notices; hides the rest', () => {
     const { items } = parse(
@@ -208,7 +250,7 @@ describe('structured tool calls', () => {
   });
 
   it('reads the patch, counts and agent facts from toolUseResult', () => {
-    const out: ParsedFeed = { items: [], results: [] };
+    const out: ParsedFeed = emptyParsed();
     const names = new Map<string, string>();
     parseFeedRecord(assistant([{ type: 'tool_use', id: 'e1', name: 'Edit', input: { file_path: '/repo/a.ts', old_string: 'a', new_string: 'b' } }]), 0, out, names);
     parseFeedRecord(
@@ -236,7 +278,7 @@ describe('structured tool calls', () => {
   });
 
   it('cuts Read results short and keeps other results up to FIELD_CHARS', () => {
-    const out: ParsedFeed = { items: [], results: [] };
+    const out: ParsedFeed = emptyParsed();
     const names = new Map([['r', 'Read']]);
     parseFeedRecord(user([{ type: 'tool_result', tool_use_id: 'r', content: 'x'.repeat(5000) }]), 0, out, names);
     parseFeedRecord(user([{ type: 'tool_result', tool_use_id: 'b', content: 'y'.repeat(FIELD_CHARS + 50) }]), 1, out, names);
@@ -367,8 +409,34 @@ describe('readFeed', () => {
     expect((await readFeed({ sessionId: '99999999-0000-0000-0000-000000000000' }, home)).found).toBe(false);
   });
 
+  it('reads a subagent transcript of the session, sidechain records included', async () => {
+    const { home, file } = transcript();
+    const dir = join(file.slice(0, -'.jsonl'.length), 'subagents');
+    mkdirSync(dir, { recursive: true });
+    const agentLine = (record: Record<string, unknown>): string => line({ ...record, isSidechain: true, agentId: 'a1b2' });
+    writeFileSync(
+      join(dir, 'agent-a1b2.jsonl'),
+      agentLine(user('look around')) +
+        agentLine(assistant([{ type: 'text', text: 'found it' }], { message: { id: 'm1', role: 'assistant', stop_reason: 'end_turn', usage: { output_tokens: 9 }, content: [{ type: 'text', text: 'found it' }] } })),
+    );
+    const chunk = await readFeed({ sessionId, agentId: 'a1b2' }, home);
+    expect(chunk.found).toBe(true);
+    expect(kinds(chunk.items)).toEqual(['user', 'assistant']);
+    expect(chunk.usage).toEqual([expect.objectContaining({ messageId: 'm1', output: 9 })]);
+    expect(chunk.ended).toBe(true);
+    // The session's own feed is unaffected; unknown and malformed agent ids find nothing.
+    expect(kinds((await readFeed({ sessionId }, home)).items)).toEqual(['user', 'assistant']);
+    expect((await readFeed({ sessionId, agentId: 'nope' }, home)).found).toBe(false);
+    expect((await readFeed({ sessionId, agentId: '../../x' }, home)).found).toBe(false);
+  });
+
   it('checks requests from the renderer', () => {
     expect(feedRequest({ sessionId, from: 5 })).toEqual({ sessionId, from: 5 });
+    expect(feedRequest({ sessionId, agentId: 'a1b2_c-3', before: 9 })).toEqual({ sessionId, agentId: 'a1b2_c-3', before: 9 });
+    expect(() => feedRequest({ sessionId: '../../etc/passwd' })).toThrow('Invalid session id');
+    expect(() => feedRequest({ sessionId, agentId: '../agent' })).toThrow('Invalid agent id');
+    expect(() => feedRequest({ sessionId, agentId: 'a/b' })).toThrow('Invalid agent id');
+    expect(() => feedRequest({ sessionId, agentId: 7 })).toThrow();
     expect(() => feedRequest({ sessionId, from: -1 })).toThrow();
     expect(() => feedRequest({ sessionId, before: 1.5 })).toThrow();
     expect(() => feedRequest('x')).toThrow();

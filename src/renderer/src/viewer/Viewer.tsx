@@ -11,15 +11,17 @@ import type { FilePaneHandle, RevealRequest } from './FilePane';
 import { basename, dirname, gitKind, toAbsolute, toRelative } from './paths';
 import { TabBar } from './TabBar';
 import type { TabItem } from './TabBar';
-import type { DiffOutcome, DiffRequest, SelectionInfo, ViewerHandle, ViewerProps } from './types';
+import type { DiffOutcome, DiffRequest, FeedTabRequest, SelectionInfo, ViewerHandle, ViewerProps } from './types';
 import './viewer.css';
 
 interface TabModel {
   id: string;
-  kind: 'file' | 'diff' | 'claude' | 'feed';
-  /** Project-relative path (file tabs), the tab name (diff tabs) or the title (Claude tabs). */
+  /** `feed` is the pinned live feed; `session` a closable read-only feed of a session or subagent. */
+  kind: 'file' | 'diff' | 'claude' | 'feed' | 'session';
+  /** Project-relative path (file tabs), the tab name (diff tabs) or the title (Claude and session tabs). */
   path: string;
   request?: DiffRequest;
+  feed?: { sessionId: string; agentId: string | null };
 }
 
 const fileId = (path: string): string => `file:${path}`;
@@ -28,6 +30,7 @@ const CLAUDE_ID = 'claude:panel';
 /** The Claude feed: always the first tab, cannot be closed. */
 const FEED_ID = 'claude:feed';
 const FEED_TAB: TabModel = { id: FEED_ID, kind: 'feed', path: 'Claude' };
+const sessionTabId = (sessionId: string, agentId: string | null): string => `session:${sessionId}${agentId ? `/${agentId}` : ''}`;
 
 const ZERO = { line: 0, character: 0 };
 /** Delay before the open tabs are written to state.json. */
@@ -136,7 +139,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
       const tab = tabsRef.current.find((t) => t.id === id);
       // The feed is pinned: closing it is a no-op that does not stop "Close All".
       if (!tab || tab.kind === 'feed') return true;
-      if (tab.kind === 'claude') {
+      if (tab.kind === 'claude' || tab.kind === 'session') {
         removeTab(id);
         return true;
       }
@@ -193,6 +196,18 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
     setSelectedId(CLAUDE_ID);
   }, []);
 
+  /** Opens (or focuses) a read-only feed tab; titles are not paths, so they keep their slashes. */
+  const openFeed = useCallback((request: FeedTabRequest) => {
+    const agentId = request.agentId ?? null;
+    const id = sessionTabId(request.sessionId, agentId);
+    setTabs((prev) =>
+      prev.some((t) => t.id === id)
+        ? prev
+        : [...prev, { id, kind: 'session', path: request.title, feed: { sessionId: request.sessionId, agentId } }],
+    );
+    setSelectedId(id);
+  }, []);
+
   const closeActive = useCallback(() => {
     if (activeRef.current) closeById(activeRef.current);
   }, [closeById]);
@@ -219,6 +234,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
     open: openFile,
     openDiff,
     openClaude,
+    openFeed,
     closeTab: (tabName) => {
       settle(tabName, { result: 'closed' });
       removeTab(diffId(tabName));
@@ -330,7 +346,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
   for (const tab of tabs) nameCount.set(basename(tab.path), (nameCount.get(basename(tab.path)) ?? 0) + 1);
   const items: TabItem[] = tabs.map((tab) => ({
     id: tab.id,
-    title: basename(tab.path),
+    title: tab.kind === 'session' ? tab.path : basename(tab.path),
     hint: tab.kind === 'file' && (nameCount.get(basename(tab.path)) ?? 0) > 1 ? dirname(tab.path) : '',
     kind: tab.kind,
     pinned: tab.kind === 'feed',
@@ -366,7 +382,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
       />
       <div className="v-content">
         {/* The app mark in the corner of every tab; the feed and the Claude panel place their own. */}
-        {activeTab?.kind !== 'feed' && activeTab?.kind !== 'claude' && <img className="v-corner-logo" src={logoUrl} alt="" draggable={false} />}
+        {activeTab?.kind !== 'feed' && activeTab?.kind !== 'session' && activeTab?.kind !== 'claude' && <img className="v-corner-logo" src={logoUrl} alt="" draggable={false} />}
         {tabs.map((tab) => (
           <div key={tab.id} className={tab.id === activeId ? 'v-slot active' : 'v-slot'}>
             {tab.kind === 'feed' ? (
@@ -375,6 +391,15 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
                 sessionId={claudeSessionId ?? null}
                 visible={tab.id === activeId}
                 empty={<EmptyState />}
+                interactive
+              />
+            ) : tab.kind === 'session' && tab.feed ? (
+              <FeedView
+                projectRoot={projectRoot}
+                sessionId={tab.feed.sessionId}
+                agentId={tab.feed.agentId}
+                visible={tab.id === activeId}
+                interactive={false}
               />
             ) : tab.kind === 'claude' ? (
               <ClaudePanel projectRoot={projectRoot} />

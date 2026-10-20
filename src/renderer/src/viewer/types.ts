@@ -43,12 +43,21 @@ export interface ViewerProps {
   claudeSessionId?: string | null | undefined;
 }
 
+/** A read-only feed tab: a session, or one of its subagents when `agentId` is set. */
+export interface FeedTabRequest {
+  sessionId: string;
+  agentId?: string | undefined;
+  title: string;
+}
+
 export interface ViewerHandle {
   /** Opens a file (absolute or project-relative). `line` and `column` are 1-based. */
   open(path: string, line?: number, column?: number): void;
   openDiff(request: DiffRequest): Promise<DiffOutcome>;
   /** Opens (or focuses) the Claude panel tab: skills, plugins, MCP, agents, hooks, CLAUDE.md, usage. */
   openClaude(): void;
+  /** Opens (or focuses) a closable read-only feed tab next to the pinned feed. */
+  openFeed(request: FeedTabRequest): void;
   closeTab(tabName: string): void;
   closeAllDiffTabs(): void;
   closeActive(): void;

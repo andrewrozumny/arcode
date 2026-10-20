@@ -17,6 +17,13 @@ export function isSessionId(value: unknown): value is string {
   return typeof value === 'string' && SESSION_ID_PATTERN.test(value);
 }
 
+/** Subagent ids name `agent-<id>.jsonl` files; letters, digits, `_` and `-` only, so no path segments. */
+export const AGENT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+export function isAgentId(value: unknown): value is string {
+  return typeof value === 'string' && AGENT_ID_PATTERN.test(value);
+}
+
 export function projectsDir(home: string): string {
   return join(home, '.claude', 'projects');
 }
@@ -77,6 +84,12 @@ export function findSessionTranscript(sessionId: string, home: string): Promise<
 /** The session's subagents folder, or null when the session has none (yet). */
 export function findSubagentsDir(sessionId: string, home: string): Promise<string | null> {
   return isSessionId(sessionId) ? findInProjects(home, join(sessionId, 'subagents')) : Promise.resolve(null);
+}
+
+/** Path of a subagent's transcript of the session, or null when the session or the agent has none. */
+export function findSubagentTranscript(sessionId: string, agentId: string, home: string): Promise<string | null> {
+  if (!isSessionId(sessionId) || !isAgentId(agentId)) return Promise.resolve(null);
+  return findInProjects(home, join(sessionId, 'subagents', `agent-${agentId}.jsonl`));
 }
 
 /** Reads up to `length` raw bytes from `start` (fewer at the end of the file). */

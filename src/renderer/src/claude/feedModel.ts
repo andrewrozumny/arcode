@@ -3,7 +3,7 @@
  * "load earlier"), tool results are paired with their calls, and consecutive tool calls are
  * grouped into one collapsible line. Pure, so it is covered by tests.
  */
-import type { FeedChunk, FeedItem, FeedToolResult } from '@shared/claude';
+import type { FeedChunk, FeedItem, FeedToolResult, FeedUsage } from '@shared/claude';
 
 /** Items kept in memory; live appends past this drop the oldest (they can be loaded again). */
 export const MAX_ITEMS = 3000;
@@ -14,6 +14,7 @@ export const MAX_ITEMS = 3000;
 export const MAX_LOADED_ITEMS = 2 * MAX_ITEMS;
 
 export interface FeedState {
+  /** What the state belongs to: the session id, or `<session>/<agent>` for a subagent's transcript. */
   sessionId: string;
   items: FeedItem[];
   /** Tool results by tool_use id; results may arrive before or after their call is loaded. */
@@ -27,10 +28,14 @@ export interface FeedState {
   found: boolean;
   /** Most items kept: MAX_ITEMS, or MAX_LOADED_ITEMS after "load earlier". */
   cap: number;
+  /** Token usage records of the loaded range, in file order (several per streamed API call). */
+  usage: FeedUsage[];
+  /** Whether the transcript's latest turn record ends a turn; null while unknown. */
+  ended: boolean | null;
 }
 
 export function emptyFeed(sessionId: string): FeedState {
-  return { sessionId, items: [], results: {}, start: 0, end: 0, loaded: false, found: false, cap: MAX_ITEMS };
+  return { sessionId, items: [], results: {}, start: 0, end: 0, loaded: false, found: false, cap: MAX_ITEMS, usage: [], ended: null };
 }
 
 /** True when "load earlier" can add anything: the transcript has earlier bytes and the ceiling is not reached. */
@@ -65,7 +70,8 @@ function trim(state: FeedState): FeedState {
   const kept = new Set(items.map((item) => item.id));
   const results: Record<string, FeedToolResult> = {};
   for (const [id, result] of Object.entries(state.results)) if (kept.has(id)) results[id] = result;
-  return { ...state, items, results, start: items[0]?.offset ?? state.start };
+  const start = items[0]?.offset ?? state.start;
+  return { ...state, items, results, start, usage: state.usage.filter((u) => u.offset >= start) };
 }
 
 /**
@@ -84,6 +90,8 @@ export function mergeChunk(state: FeedState, chunk: FeedChunk, mode: 'tail' | 'a
       loaded: true,
       found: true,
       cap: MAX_ITEMS,
+      usage: chunk.usage,
+      ended: chunk.ended,
     });
   }
   if (mode === 'append') {
@@ -96,6 +104,8 @@ export function mergeChunk(state: FeedState, chunk: FeedChunk, mode: 'tail' | 'a
       results: withResults(state.results, chunk.results),
       end: chunk.end,
       found: true,
+      usage: chunk.usage.length > 0 ? [...state.usage, ...chunk.usage] : state.usage,
+      ended: chunk.ended ?? state.ended,
     });
   }
   if (chunk.end !== state.start) return state;
@@ -108,6 +118,7 @@ export function mergeChunk(state: FeedState, chunk: FeedChunk, mode: 'tail' | 'a
     results: { ...withResults({}, chunk.results), ...state.results },
     start: chunk.start,
     cap: MAX_LOADED_ITEMS,
+    usage: [...chunk.usage, ...state.usage],
   });
 }
 
@@ -132,7 +143,9 @@ export type FeedBlock =
   /** A tool call drawn as a card of its own: an agent, a question, a plan, the current task list. */
   | { type: 'card'; item: ToolItem }
   /** A time divider before an item that follows a long pause. */
-  | { type: 'divider'; id: string; at: string };
+  | { type: 'divider'; id: string; at: string }
+  /** Tokens and time of a finished turn, under its last item. */
+  | { type: 'turn'; id: string; stats: TurnStats };
 
 /** A pause between two items longer than this gets a time divider. */
 export const DIVIDER_GAP_MS = 30 * 60 * 1000;
@@ -166,7 +179,7 @@ function time(at: string | null): number | null {
  * are cards of their own; every other item is a block of its own. A pause of DIVIDER_GAP_MS or
  * more between two items puts a time divider before the later one.
  */
-export function groupFeed(items: readonly FeedItem[]): FeedBlock[] {
+export function groupFeed(items: readonly FeedItem[], turns: ReadonlyMap<string, TurnStats> = new Map()): FeedBlock[] {
   const blocks: FeedBlock[] = [];
   const listId = latestListId(items);
   let last: number | null = null;
@@ -176,19 +189,157 @@ export function groupFeed(items: readonly FeedItem[]): FeedBlock[] {
       if (last !== null && at - last >= DIVIDER_GAP_MS && item.at) blocks.push({ type: 'divider', id: `divider:${item.id}`, at: item.at });
       last = at;
     }
-    if (item.kind !== 'tool') {
-      blocks.push({ type: 'item', item });
-      continue;
+    if (item.kind !== 'tool') blocks.push({ type: 'item', item });
+    else if (isCard(item, listId)) blocks.push({ type: 'card', item });
+    else {
+      const prev = blocks[blocks.length - 1];
+      if (prev?.type === 'tools') prev.items.push(item);
+      else blocks.push({ type: 'tools', id: item.id, items: [item] });
     }
-    if (isCard(item, listId)) {
-      blocks.push({ type: 'card', item });
-      continue;
-    }
-    const prev = blocks[blocks.length - 1];
-    if (prev?.type === 'tools') prev.items.push(item);
-    else blocks.push({ type: 'tools', id: item.id, items: [item] });
+    const stats = turns.get(item.id);
+    if (stats) blocks.push({ type: 'turn', id: `turn:${item.id}`, stats });
   }
   return blocks;
+}
+
+/** Tokens of one or more API calls. `input` counts only input not read from the cache. */
+export interface UsageTotals {
+  /** Input not served from the prompt cache: fresh input plus tokens written to the cache. */
+  input: number;
+  output: number;
+  /** Input tokens served from the prompt cache. */
+  cacheRead: number;
+  /** Input tokens written to the prompt cache (part of `input`). */
+  cacheWrite: number;
+  /** Distinct API calls (message ids). */
+  calls: number;
+}
+
+export interface TurnStats extends UsageTotals {
+  /** From the prompt to the last assistant record of the turn; null when a timestamp is missing. */
+  durationMs: number | null;
+}
+
+interface Call {
+  offset: number;
+  at: number | null;
+  fresh: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+/**
+ * One entry per API call: Claude Code writes a streamed message once per content block, each
+ * record with the usage so far, so fields keep their maximum and the call sits at its first record.
+ */
+function usageCalls(usage: readonly FeedUsage[]): Call[] {
+  const byId = new Map<string, Call>();
+  for (const u of usage) {
+    const at = time(u.at);
+    const prev = byId.get(u.messageId);
+    if (!prev) {
+      byId.set(u.messageId, { offset: u.offset, at, fresh: u.input, output: u.output, cacheRead: u.cacheRead, cacheWrite: u.cacheWrite });
+      continue;
+    }
+    if (at !== null) prev.at = prev.at === null ? at : Math.max(prev.at, at);
+    prev.fresh = Math.max(prev.fresh, u.input);
+    prev.output = Math.max(prev.output, u.output);
+    prev.cacheRead = Math.max(prev.cacheRead, u.cacheRead);
+    prev.cacheWrite = Math.max(prev.cacheWrite, u.cacheWrite);
+  }
+  return [...byId.values()];
+}
+
+function sum(calls: readonly Call[]): UsageTotals {
+  const totals: UsageTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: calls.length };
+  for (const call of calls) {
+    totals.input += call.fresh + call.cacheWrite;
+    totals.output += call.output;
+    totals.cacheRead += call.cacheRead;
+    totals.cacheWrite += call.cacheWrite;
+  }
+  return totals;
+}
+
+/** Tokens of every API call in the loaded range. */
+export function usageTotals(usage: readonly FeedUsage[]): UsageTotals {
+  return sum(usageCalls(usage));
+}
+
+/**
+ * Tokens and time per finished turn, keyed by the id of the turn's last item (where the chip goes).
+ * A turn runs from a prompt to the next one; its API calls are the usage records in between.
+ * Every turn followed by a prompt is finished; the last one only when `lastDone` (the session is
+ * not working on it). Items before the first loaded prompt belong to a turn whose start is not
+ * loaded and get no chip.
+ */
+export function turnStats(items: readonly FeedItem[], usage: readonly FeedUsage[], lastDone: boolean): Map<string, TurnStats> {
+  const out = new Map<string, TurnStats>();
+  if (usage.length === 0) return out;
+  const calls = usageCalls(usage);
+  const prompts: number[] = [];
+  items.forEach((item, index) => {
+    if (item.kind === 'user') prompts.push(index);
+  });
+  prompts.forEach((promptIndex, n) => {
+    const prompt = items[promptIndex];
+    const nextIndex = prompts[n + 1];
+    if (!prompt || (nextIndex === undefined && !lastDone)) return;
+    let anchor: FeedItem | null = null;
+    for (let i = (nextIndex ?? items.length) - 1; i > promptIndex; i--) {
+      const item = items[i];
+      if (item && (item.kind === 'assistant' || item.kind === 'tool')) {
+        anchor = item;
+        break;
+      }
+    }
+    if (!anchor) return;
+    const until = nextIndex === undefined ? Number.POSITIVE_INFINITY : (items[nextIndex]?.offset ?? Number.POSITIVE_INFINITY);
+    const turn = calls.filter((call) => call.offset > prompt.offset && call.offset < until);
+    if (turn.length === 0) return;
+    const started = time(prompt.at);
+    let last: number | null = null;
+    for (const call of turn) if (call.at !== null && (last === null || call.at > last)) last = call.at;
+    const durationMs = started !== null && last !== null ? Math.max(0, last - started) : null;
+    out.set(anchor.id, { ...sum(turn), durationMs });
+  });
+  return out;
+}
+
+/** `830`, `1.1k`, `12.4k`, `245k`, `1.2M`. */
+export function compactTokens(count: number): string {
+  if (count < 1000) return String(Math.round(count));
+  if (count < 100_000) return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  if (count < 999_500) return `${Math.round(count / 1000)}k`;
+  return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+}
+
+/** `38 s`, `4 m 12 s`, `1 h 3 m`. */
+export function turnDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} m ${seconds % 60} s`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} m`;
+}
+
+/** The chip under a turn: `12.4k in · 1.1k out · 38 s`. */
+export function turnLabel(stats: TurnStats): string {
+  const parts = [`${compactTokens(stats.input)} in`, `${compactTokens(stats.output)} out`];
+  if (stats.durationMs !== null) parts.push(turnDuration(stats.durationMs));
+  return parts.join(' · ');
+}
+
+/** Tooltip of a usage chip: the cache split and the number of API calls. */
+export function usageTooltip(totals: UsageTotals): string {
+  const n = (value: number): string => value.toLocaleString('en-US');
+  return [
+    `Input not from cache: ${n(totals.input)} (of it written to cache: ${n(totals.cacheWrite)})`,
+    `Read from cache: ${n(totals.cacheRead)}`,
+    `Output: ${n(totals.output)}`,
+    `${totals.calls} API ${totals.calls === 1 ? 'call' : 'calls'}`,
+  ].join('\n');
 }
 
 export interface FeedTask {
@@ -264,6 +415,15 @@ export function runState(
   // A background agent reports back with a task notification; until then it works.
   if (result.agent?.async === true && item.detail?.type === 'agent') return activity === 'gone' ? 'stopped' : 'running';
   return 'done';
+}
+
+/**
+ * What a subagent is doing. It runs until its transcript ends a turn; without a closing record it
+ * is taken as running while the parent session's process lives.
+ */
+export function agentActivity(ended: boolean | null, parent: SessionActivity): SessionActivity {
+  if (ended === true) return 'idle';
+  return parent === 'gone' || parent === 'unknown' ? parent : 'busy';
 }
 
 /** State of a run of calls: running while any runs, else failed when any failed. */

@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import type { FeedItem, FeedToolResult } from '@shared/claude';
 import { modelLabel } from '../layout/ClaudeBadges';
+import { openAgentTranscript } from './openFeed';
 import { runState } from './feedModel';
 import type { FeedTask, RunState } from './feedModel';
 import type { ToolItem } from './feedTools';
@@ -34,13 +35,20 @@ function StatusPill({ state, labels }: { state: RunState; labels: Record<RunStat
 
 /** A subagent launch: type, model, description and whether it still runs; prompt and report on click. */
 const AgentCard = memo(function AgentCard({ item, detail }: { item: ToolItem; detail: Detail<'agent'> }) {
-  const { root, results, notices, activity } = useFeedContext();
+  const { root, results, notices, activity, sessionId } = useFeedContext();
   const [open, setOpen] = useState(false);
+  const [missing, setMissing] = useState(false);
   const result = results[item.id];
   const notice = notices.get(item.id);
   const state = runState(item, result, notice, activity);
   const model = result?.agent?.model ?? detail.model;
   const report = notice?.result ?? (result && !result.agent?.async ? result.text : null);
+  const openTranscript = (): void => {
+    if (!sessionId) return;
+    void openAgentTranscript(sessionId, { toolUseId: item.id, agentId: result?.agent?.agentId ?? null, title: detail.description }).then((ok) =>
+      setMissing(!ok),
+    );
+  };
   return (
     <div className={`fd-card agent ${state}`}>
       <button type="button" className="fd-card-head" onClick={() => setOpen((v) => !v)}>
@@ -53,6 +61,16 @@ const AgentCard = memo(function AgentCard({ item, detail }: { item: ToolItem; de
         <span className="fd-chip">{detail.agentType ?? 'agent'}</span>
         {model && <span className="fd-chip">{modelName(model)}</span>}
         {detail.background || result?.agent?.async ? <span className="fd-chip subtle">background</span> : null}
+        {sessionId && (
+          <button
+            type="button"
+            className="fd-card-link"
+            onClick={openTranscript}
+            title={missing ? 'No transcript for this agent yet' : "Open the agent's own conversation in a tab"}
+          >
+            {missing ? 'No transcript yet' : 'Open transcript'}
+          </button>
+        )}
       </div>
       {open && (
         <div className="fd-card-body">
@@ -109,16 +127,18 @@ function answersFromText(result: FeedToolResult | undefined): Record<string, str
 
 /** Claude's questions to the user, with the options and, once answered, the picked ones. */
 const QuestionCard = memo(function QuestionCard({ item, detail }: { item: ToolItem; detail: Detail<'question'> }) {
-  const { results } = useFeedContext();
+  const { results, activity } = useFeedContext();
   const result = results[item.id];
   const answers = answersFromText(result);
-  const status = !result ? 'Waiting for your answer' : result.isError ? 'Not answered' : 'Answered';
+  // A question without an answer waits only while a Claude process runs the session.
+  const pending = !result && activity !== 'gone';
+  const status = pending ? 'Waiting for your answer' : !result || result.isError ? 'Not answered' : 'Answered';
   return (
-    <div className={`fd-card ask${!result ? ' live' : ''}`}>
+    <div className={`fd-card ask${pending ? ' live' : ''}`}>
       <div className="fd-card-head static">
         <Icon name="question" className="fd-card-icon" />
         <span className="fd-card-title">{detail.questions.length > 1 ? 'Questions for you' : 'Question for you'}</span>
-        <span className={`fd-pill ${!result ? 'running' : result.isError ? 'stopped' : 'done'}`}>{status}</span>
+        <span className={`fd-pill ${pending ? 'running' : !result || result.isError ? 'stopped' : 'done'}`}>{status}</span>
       </div>
       <div className="fd-card-body">
         {detail.questions.map((q, i) => {

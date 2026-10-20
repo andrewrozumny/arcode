@@ -37,6 +37,11 @@ export interface BusEvents {
   resumeClaude: { sessionId: string; name: string };
   /** Open a new Claude tab in the terminal dock. */
   newClaude: undefined;
+  /**
+   * Open a closable, read-only feed tab for a session, or for one of its subagents when `agentId`
+   * is set (or focus the tab already showing it). `title` is the tab title.
+   */
+  openFeed: { sessionId: string; agentId?: string; title: string };
 }
 
 type Listener<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

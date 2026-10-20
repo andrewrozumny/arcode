@@ -151,6 +151,17 @@
 .v-tab.feed.active::after {
   display: none;
 }
+/* Read-only feed tabs of past sessions and subagents: ordinary tabs with a coral mark. */
+.v-tab.session .v-tab-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #ff7a5c;
+  vertical-align: 1px;
+}
 .v-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;

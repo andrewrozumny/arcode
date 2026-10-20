@@ -1129,3 +1129,58 @@
 .fd-empty .v-empty {
   position: static;
 }
+
+/* Tokens and time of a finished turn, under its last message. */
+.fd-turn {
+  display: flex;
+  margin: 2px 0 6px;
+  color: var(--fg-faint);
+  font: 11.5px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.fd-turn span {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: default;
+}
+
+/* Thin strip above the conversation: read-only label and the session's token total. */
+.fd-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 26px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-faint);
+  font: 11.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.fd-head-label {
+  color: var(--fg-muted);
+}
+.fd-head-usage {
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+/* "Open transcript" on an agent card. */
+.fd-card-link {
+  margin-left: auto;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--fd-file);
+  font: 12px var(--font-ui);
+  cursor: pointer;
+}
+.fd-card-link:hover {
+  text-decoration: underline;
+}

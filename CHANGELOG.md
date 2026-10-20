@@ -9,6 +9,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Open past sessions in the feed.** **Open** next to Resume in the Claude panel's Sessions list
+  and Overview opens a session read-only in a closable viewer tab; the pinned Claude feed keeps
+  following the active Claude tab. Sessions are titled by the name Claude Code saved for them
+  (`/rename` or its generated title) when there is one.
+- **Subagent transcripts.** Agent cards in the feed and the header subagent chip have
+  **Open transcript**, which opens the agent's own conversation in a tab that updates live while
+  it runs.
+- **Tokens and time per turn.** Each finished turn in the feed gets a muted chip such as
+  `12.4k in · 1.1k out · 38 s` (cache reads and writes in the tooltip), and a thin strip at the top
+  of the feed shows the session total.
+
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;

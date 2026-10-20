@@ -17,9 +17,23 @@ export interface FeedContextValue {
   results: Record<string, FeedToolResult>;
   notices: Map<string, FeedTaskNotice>;
   activity: SessionActivity;
+  /** Session whose transcript (or whose subagent's transcript) is shown; null when none. */
+  sessionId: string | null;
+  /**
+   * True only in the pinned feed, which shows the session live in this window. Read-only tabs of
+   * past sessions and subagents never offer actions that would answer Claude.
+   */
+  interactive: boolean;
 }
 
-export const FeedContext = createContext<FeedContextValue>({ root: '', results: {}, notices: new Map(), activity: 'unknown' });
+export const FeedContext = createContext<FeedContextValue>({
+  root: '',
+  results: {},
+  notices: new Map(),
+  activity: 'unknown',
+  sessionId: null,
+  interactive: false,
+});
 
 export function useFeedContext(): FeedContextValue {
   return useContext(FeedContext);

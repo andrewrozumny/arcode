@@ -124,6 +124,11 @@ export interface MemoryFile {
 
 export interface SessionSummary {
   sessionId: string;
+  /**
+   * Title Claude Code saved for the session: a name the user gave it (`/rename`), else the title
+   * Claude Code generated, else an older summary record. Null when the transcript has none.
+   */
+  title: string | null;
   /** First real prompt the user typed, trimmed; null when the transcript has none. */
   firstPrompt: string | null;
   /** ISO time of the first entry, or null when the transcript has no timestamps. */
@@ -148,6 +153,8 @@ export interface SubagentInfo {
   lastActivityAt: string;
   /** True until the transcript ends with a finished turn, or it went quiet for ten minutes. */
   running: boolean;
+  /** tool_use id of the parent's Agent call that started it, from the meta file. */
+  toolUseId: string | null;
 }
 
 /** One rate-limit window as reported by Claude Code's status line. */
@@ -359,6 +366,11 @@ export interface FeedToolResult {
  */
 export interface FeedRequest {
   sessionId: string;
+  /**
+   * Reads the transcript of this subagent of the session instead of the session's own one
+   * (`<sessionId>/subagents/agent-<agentId>.jsonl`). Its records are all sidechain records.
+   */
+  agentId?: string;
   from?: number;
   before?: number;
 }
@@ -378,4 +390,28 @@ export interface FeedChunk {
   reset: boolean;
   items: FeedItem[];
   results: FeedToolResult[];
+  /** Token usage of the assistant API calls in this range, one entry per transcript record. */
+  usage: FeedUsage[];
+  /**
+   * Whether the last user or assistant record in this range ends a turn (end_turn, a hand-back
+   * tool result, an interrupt); null when the range has none. Tells a finished subagent apart.
+   */
+  ended: boolean | null;
+}
+
+/**
+ * Token usage of one assistant API call. Claude Code writes a streamed message once per content
+ * block with the same message id; entries with the same `messageId` are one call (fields keep
+ * their maximum).
+ */
+export interface FeedUsage {
+  messageId: string;
+  /** ISO time of the record. */
+  at: string | null;
+  /** Byte offset of the record's line in the transcript. */
+  offset: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
 }
