@@ -1,13 +1,15 @@
 import type { ReactElement, ReactNode } from 'react';
+import type { LeftMode } from './Workspace';
 
 interface Props {
   treeVisible: boolean;
-  /** The left column shows Find in files instead of the tree. */
-  findVisible: boolean;
+  /** What the left column shows (while it is visible). */
+  leftMode: LeftMode;
   terminalVisible: boolean;
   searchOpen: boolean;
   onToggleTree(): void;
   onToggleFind(): void;
+  onToggleChanges(): void;
   onToggleTerminal(): void;
   onOpenSearch(): void;
   onOpenClaude(): void;
@@ -25,7 +27,7 @@ const ICON_PROPS = {
   'aria-hidden': true,
 };
 
-const ICONS: Record<'tree' | 'search' | 'find' | 'claude' | 'terminal', ReactElement> = {
+const ICONS: Record<'tree' | 'search' | 'find' | 'changes' | 'claude' | 'terminal', ReactElement> = {
   tree: (
     <svg {...ICON_PROPS}>
       <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
@@ -42,6 +44,14 @@ const ICONS: Record<'tree' | 'search' | 'find' | 'claude' | 'terminal', ReactEle
       <path d="M4 5.5h10M4 10h5M4 14.5h4M4 19h8" />
       <circle cx="15.5" cy="13.5" r="3.8" />
       <path d="m18.3 16.3 2.7 2.7" />
+    </svg>
+  ),
+  changes: (
+    <svg {...ICON_PROPS}>
+      <circle cx="6.5" cy="5.5" r="2" />
+      <circle cx="6.5" cy="18.5" r="2" />
+      <circle cx="17.5" cy="8.5" r="2" />
+      <path d="M6.5 7.5v9M17.5 10.5c0 4-4.5 3.5-9.6 6.6" />
     </svg>
   ),
   claude: (
@@ -88,25 +98,29 @@ function Button({
 /** Thin strip of panel toggles on the left edge of the project window. */
 export function ActivityBar({
   treeVisible,
-  findVisible,
+  leftMode,
   terminalVisible,
   searchOpen,
   onToggleTree,
   onToggleFind,
+  onToggleChanges,
   onToggleTerminal,
   onOpenSearch,
   onOpenClaude,
 }: Props) {
   return (
     <nav className="activity-bar" aria-label="Panels">
-      <Button label="Project files" shortcut="⌘1" active={treeVisible && !findVisible} onClick={onToggleTree}>
+      <Button label="Project files" shortcut="⌘1" active={treeVisible && leftMode === 'tree'} onClick={onToggleTree}>
         {ICONS.tree}
       </Button>
       <Button label="Search files" shortcut="⌘P" active={searchOpen} onClick={onOpenSearch}>
         {ICONS.search}
       </Button>
-      <Button label="Find in files" shortcut="⇧⌘F" active={treeVisible && findVisible} onClick={onToggleFind}>
+      <Button label="Find in files" shortcut="⇧⌘F" active={treeVisible && leftMode === 'find'} onClick={onToggleFind}>
         {ICONS.find}
+      </Button>
+      <Button label="Changes" shortcut="⌃⇧G" active={treeVisible && leftMode === 'changes'} onClick={onToggleChanges}>
+        {ICONS.changes}
       </Button>
       <Button label="Claude" onClick={onOpenClaude}>
         {ICONS.claude}

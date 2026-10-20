@@ -5,6 +5,8 @@ import type { ViewerTabsState } from '@shared/editorState';
 import logoUrl from '../../../../design/empty-mark.svg';
 import { ClaudePanel } from '../claude/ClaudePanel';
 import { FeedView } from '../claude/FeedView';
+import type { OpenDiff } from '../bus';
+import { DeletedFilePane } from './DeletedFilePane';
 import { DiffTab } from './DiffTab';
 import { FilePane } from './FilePane';
 import type { FilePaneHandle, RevealRequest } from './FilePane';
@@ -16,13 +18,15 @@ import './viewer.css';
 
 interface TabModel {
   id: string;
-  kind: 'file' | 'diff' | 'claude' | 'feed';
-  /** Project-relative path (file tabs), the tab name (diff tabs) or the title (Claude tabs). */
+  /** 'deleted': the HEAD version of a file that is gone from the working tree, as a read-only diff. */
+  kind: 'file' | 'diff' | 'claude' | 'feed' | 'deleted';
+  /** Project-relative path (file and deleted tabs), the tab name (diff tabs) or the title (Claude tabs). */
   path: string;
   request?: DiffRequest;
 }
 
 const fileId = (path: string): string => `file:${path}`;
+const deletedId = (path: string): string => `deleted:${path}`;
 const diffId = (tabName: string): string => `diff:${tabName}`;
 const CLAUDE_ID = 'claude:panel';
 /** The Claude feed: always the first tab, cannot be closed. */
@@ -69,6 +73,8 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
   const activeId = tabs.some((t) => t.id === selectedId) ? selectedId : FEED_ID;
   const [dirtyMap, setDirtyMap] = useState<Record<string, boolean>>({});
   const [reveal, setReveal] = useState<(RevealRequest & { id: string }) | null>(null);
+  /** The latest "open with its HEAD diff" request (the Changes view). */
+  const [headDiff, setHeadDiff] = useState<{ id: string; nonce: number } | null>(null);
   const [autosave, setAutosave] = useState(DEFAULT_EDITOR_SETTINGS.autosave);
   /** Saved tabs were read (or there were none); only then are changes written back. */
   const restored = useRef(false);
@@ -136,7 +142,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
       const tab = tabsRef.current.find((t) => t.id === id);
       // The feed is pinned: closing it is a no-op that does not stop "Close All".
       if (!tab || tab.kind === 'feed') return true;
-      if (tab.kind === 'claude') {
+      if (tab.kind === 'claude' || tab.kind === 'deleted') {
         removeTab(id);
         return true;
       }
@@ -159,13 +165,15 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
   );
 
   const openFile = useCallback(
-    (path: string, line?: number, column?: number) => {
+    (path: string, line?: number, column?: number, diff?: OpenDiff) => {
       const rel = toRelative(projectRoot, path);
       if (!rel) return;
-      const id = fileId(rel);
-      setTabs((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { id, kind: 'file', path: rel }]));
+      const kind = diff === 'deleted' ? 'deleted' : 'file';
+      const id = kind === 'deleted' ? deletedId(rel) : fileId(rel);
+      setTabs((prev) => (prev.some((t) => t.id === id) ? prev : [...prev, { id, kind, path: rel }]));
       setSelectedId(id);
-      if (line !== undefined) setReveal({ id, line, column: column ?? 1, nonce: ++nonce.current });
+      if (line !== undefined && kind === 'file') setReveal({ id, line, column: column ?? 1, nonce: ++nonce.current });
+      if (diff === 'head') setHeadDiff({ id, nonce: ++nonce.current });
     },
     [projectRoot],
   );
@@ -335,7 +343,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
     kind: tab.kind,
     pinned: tab.kind === 'feed',
     dirty: dirtyMap[tab.id] === true,
-    git: tab.kind === 'file' ? gitKind(gitStatus?.[tab.path]) : null,
+    git: tab.kind === 'file' ? gitKind(gitStatus?.[tab.path]) : tab.kind === 'deleted' ? 'deleted' : null,
   }));
 
   const pathOf = (id: string): string => tabs.find((t) => t.id === id)?.path ?? '';
@@ -378,6 +386,8 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
               />
             ) : tab.kind === 'claude' ? (
               <ClaudePanel projectRoot={projectRoot} />
+            ) : tab.kind === 'deleted' ? (
+              <DeletedFilePane root={projectRoot} path={tab.path} />
             ) : tab.kind === 'file' ? (
               <FilePane
                 ref={(handle) => {
@@ -389,6 +399,7 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
                 active={tab.id === activeId}
                 autosave={autosave}
                 reveal={reveal?.id === tab.id ? reveal : null}
+                headDiff={headDiff?.id === tab.id ? headDiff.nonce : null}
                 onDirtyChange={reportDirty}
                 onSelection={reportSelection}
                 onOpenFile={openFile}

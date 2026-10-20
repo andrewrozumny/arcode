@@ -13,6 +13,7 @@ everyday use. For how the code is put together, see [ARCHITECTURE.md](ARCHITECTU
 - [Window layout](#window-layout)
 - [File tree](#file-tree)
 - [Find in files](#find-in-files)
+- [Changes](#changes)
 - [File viewer](#file-viewer)
 - [Terminal](#terminal)
 - [Claude Code integration](#claude-code-integration)
@@ -76,7 +77,7 @@ paths to the running app instead of starting a second copy.
 | Area | Contents |
 |---|---|
 | Header | Project avatar, name and path (click to switch project), current git branch, the **Claude** button, model badge, running subagents, usage bars, IDE bridge status, and the **Gate** buttons. |
-| Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Claude panel, Terminal (Cmd+2). |
+| Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Changes (Ctrl+Shift+G), Claude panel, Terminal (Cmd+2). |
 | File tree | Left column. |
 | Viewer | Right column, top. Tabs for the Claude feed, files, diffs and the Claude panel. |
 | Terminal dock | Right column, bottom. Shell, Claude and gate tabs. |
@@ -130,6 +131,27 @@ file tree to a project-wide text search. Text selected in the editor on one line
   installed (`brew install ripgrep`), otherwise `git grep`, otherwise its own scan.
 - Very large result sets stop at 2,000 matching lines and long lines are shortened around the match;
   the status line says when results are incomplete. A search stops after 10 seconds.
+
+## Changes
+
+Ctrl+Shift+G (or the Changes button in the activity bar) switches the left column to the list of
+files that differ from the last commit, so you can review what a Claude turn changed without
+hunting for files in the tree.
+
+- Modified, added, deleted, renamed and untracked files are listed, grouped by folder. The letter
+  on the right and the name colour match the tree: M modified, A added, D deleted, R renamed,
+  U untracked, ! conflict. A renamed file shows where it came from.
+- Each file shows the lines added and removed against HEAD (for an untracked file, its line
+  count); the header shows the number of files and the totals.
+- The list updates by itself while files change. The refresh button reruns git at once.
+- Click a file or press Enter to open it with its diff against HEAD already shown (Side by side or
+  Unified; the Diff with HEAD button hides it). A deleted file opens its HEAD version as a
+  read-only diff.
+- Up and Down move through the files, Esc returns to the file tree. "Open all diffs" (the button
+  next to refresh) opens every changed file with its diff; with more than 20 files it asks first.
+- Changes only shows what changed. Staging, committing and reverting stay in the terminal.
+- In a folder that is not a git repository, the view says so.
+- Cmd+Shift+G is not used for Changes because it is Find previous in the editor.
 
 ## File viewer
 
@@ -388,6 +410,7 @@ database the switcher shows recent projects only.
 | Cmd+Shift+F12 | Hide all panels / bring them back |
 | Cmd+P | Go to file (works in the terminal too) |
 | Cmd+Shift+F | Find in files (works in the terminal too; Esc returns to the tree) |
+| Ctrl+Shift+G | Changes against HEAD (works in the terminal too; Esc returns to the tree) |
 | Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
 | Cmd+T | New shell tab |

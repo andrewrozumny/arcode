@@ -18,7 +18,14 @@ export interface OpenFileRequest {
   endLine?: number;
   /** 1-based column to place the cursor at on `line`. */
   column?: number;
+  /**
+   * Show a diff against HEAD right away: 'head' opens the file with its HEAD diff, 'deleted' opens
+   * the HEAD version of a file that is gone from the working tree as a read-only diff.
+   */
+  diff?: OpenDiff;
 }
+
+export type OpenDiff = 'head' | 'deleted';
 
 export interface BusEvents {
   /** Open a file in the viewer (and focus it). */

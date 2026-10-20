@@ -25,6 +25,15 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('KeyF', { shiftKey: true, altKey: true }), 'viewer')).toBeNull();
   });
 
+  it('opens Changes on Ctrl+Shift+G from anywhere and leaves Cmd+Shift+G (find previous) to the editor', () => {
+    const changes = key('KeyG', { metaKey: false, ctrlKey: true, shiftKey: true });
+    for (const zone of ['terminal', 'viewer', 'tree', 'other'] as const) expect(resolveShortcut(changes, zone)).toBe('changes');
+    expect(resolveShortcut(key('KeyG', { shiftKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('KeyG', { metaKey: false, ctrlKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('KeyG', { ctrlKey: true, shiftKey: true }), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('KeyG', { metaKey: false, ctrlKey: true, shiftKey: true, altKey: true }), 'tree')).toBeNull();
+  });
+
   it('opens recent files on Cmd+Shift+E from anywhere', () => {
     const recent = key('KeyE', { shiftKey: true });
     expect(resolveShortcut(recent, 'terminal')).toBe('recentFiles');

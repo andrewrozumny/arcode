@@ -32,6 +32,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exclusions, keyboard navigation and Enter to open at the matched line and column. The editor
   selection becomes the query. Runs ripgrep when installed, else `git grep`, else a built-in scan
   that honors `.gitignore`; results are capped and a newer query cancels the running one.
+- **Changes** (Ctrl+Shift+G). A third mode of the left column that lists every file changed against
+  HEAD (modified, added, deleted, renamed, untracked) grouped by folder, with status letters in the
+  tree colours, +/- line counts from `git diff --numstat` and totals. It updates live as files change.
+  Click or Enter opens the file with its diff against HEAD already shown; a deleted file opens its
+  HEAD version as a read-only diff. Up and Down move, Esc returns to the tree, "Open all diffs"
+  opens every changed file. Read-only: no stage, commit or revert.
 
 ### Changed
 
