@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ClipboardEvent, DragEvent, KeyboardEvent } from 'react';
 import { terminalApi } from './api';
-import { loadHistory, pushHistory, saveHistory } from './history';
+import { loadHistory, pushHistory, saveHistory, searchHistory } from './history';
 
 const MAX_ROWS = 10;
 
 interface Props {
+  /** History is kept per project. */
+  projectRoot: string;
   /** Receives the composed text; the pane pastes it into the active terminal and presses Enter. */
   onSend: (text: string) => void;
   /** Esc: hand focus back to the terminal. */
@@ -13,12 +15,22 @@ interface Props {
   autoFocus?: boolean;
 }
 
-/** Multi-line prompt editor shown above the terminal. Cmd+Enter sends, Shift+Enter inserts a newline. */
-export function Composer({ onSend, onEscape, autoFocus }: Props) {
+/**
+ * Multi-line prompt editor shown above the terminal. Cmd+Enter sends, Shift+Enter inserts a newline,
+ * Up/Down step through this project's history, Ctrl+R searches it.
+ */
+export function Composer({ projectRoot, onSend, onEscape, autoFocus }: Props) {
   const [value, setValue] = useState('');
   const areaRef = useRef<HTMLTextAreaElement>(null);
-  const history = useRef<string[]>(loadHistory());
+  const history = useRef<string[]>(loadHistory(projectRoot));
   const cursor = useRef<number | null>(null);
+  // Ctrl+R search: the query is the text typed while the list is open.
+  const [search, setSearch] = useState<{ query: string; index: number; entries: string[] } | null>(null);
+  const matches = search ? searchHistory(search.entries, search.query) : [];
+
+  useEffect(() => {
+    history.current = loadHistory(projectRoot);
+  }, [projectRoot]);
 
   useEffect(() => {
     if (autoFocus) areaRef.current?.focus();
@@ -47,11 +59,44 @@ export function Composer({ onSend, onEscape, autoFocus }: Props) {
     const text = value.trim();
     if (!text) return;
     history.current = pushHistory(history.current, text);
-    saveHistory(history.current);
+    saveHistory(projectRoot, history.current);
     cursor.current = null;
     setValue('');
     onSend(text);
-  }, [onSend, value]);
+  }, [onSend, projectRoot, value]);
+
+  const pick = (entry: string | undefined): void => {
+    setSearch(null);
+    if (entry === undefined) return;
+    cursor.current = null;
+    setValue(entry);
+    requestAnimationFrame(() => {
+      const area = areaRef.current;
+      area?.focus();
+      area?.setSelectionRange(entry.length, entry.length);
+    });
+  };
+
+  const onSearchKey = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (!search) return;
+    const move = (delta: number): void =>
+      setSearch({ ...search, index: Math.max(0, Math.min(matches.length - 1, search.index + delta)) });
+    if (event.key === 'ArrowDown' || (event.key === 'r' && event.ctrlKey)) {
+      event.preventDefault();
+      move(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      move(-1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      pick(matches[search.index]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      pick(undefined);
+      areaRef.current?.focus();
+    }
+  };
 
   const step = (direction: -1 | 1): void => {
     const entries = history.current;
@@ -70,7 +115,10 @@ export function Composer({ onSend, onEscape, autoFocus }: Props) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.shiftKey) {
+    if (event.key === 'r' && event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      setSearch({ query: value.trim(), index: 0, entries: history.current });
+    } else if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.shiftKey) {
       event.preventDefault();
       send();
     } else if (event.key === 'Escape') {
@@ -110,13 +158,44 @@ export function Composer({ onSend, onEscape, autoFocus }: Props) {
 
   return (
     <div className="tp-composer">
+      {search && (
+        <div className="tp-history" role="dialog" aria-label="Prompt history">
+          <input
+            className="tp-history-input"
+            autoFocus
+            value={search.query}
+            placeholder="Search this project's prompts"
+            spellCheck={false}
+            onChange={(event) => setSearch({ ...search, query: event.target.value, index: 0 })}
+            onKeyDown={onSearchKey}
+            onBlur={() => setSearch(null)}
+          />
+          <ul className="tp-history-list" role="listbox">
+            {matches.length === 0 && <li className="tp-history-empty">No prompts match</li>}
+            {matches.map((entry, i) => (
+              <li
+                key={entry}
+                role="option"
+                aria-selected={i === search.index}
+                className={`tp-history-item${i === search.index ? ' active' : ''}`}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  pick(entry);
+                }}
+              >
+                {entry}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <textarea
         ref={areaRef}
         className="tp-composer-input"
         value={value}
         rows={2}
         spellCheck={false}
-        placeholder="Write a prompt. Cmd+Enter sends, Shift+Enter adds a line."
+        placeholder="Write a prompt. Cmd+Enter sends, Shift+Enter adds a line, Ctrl+R searches history."
         onChange={(event) => {
           cursor.current = null;
           setValue(event.target.value);

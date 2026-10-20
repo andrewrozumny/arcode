@@ -160,7 +160,8 @@ Other features:
 - **File links:** paths in the output, such as `src/app.ts:42` or Claude Code's `Read(src/app.ts)`,
   are clickable and open the file at that line in the viewer. Web links open in your browser.
 - **Composer** (Cmd+Shift+Enter): a multi-line text box under the terminal. Cmd+Enter sends the
-  text to the active tab, Up/Down recall earlier entries, Esc returns to the terminal.
+  text to the active tab, Up/Down recall earlier entries of this project, Ctrl+R searches them
+  (type words, Up/Down or Ctrl+R to move, Enter to take one), Esc returns to the terminal.
 - **New lines** inside Claude Code's prompt: Shift+Enter or Option+Enter.
 - **Search** (Cmd+F): Enter for next, Shift+Enter for previous, Esc to close, with a match case
   toggle.

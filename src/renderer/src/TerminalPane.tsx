@@ -454,6 +454,7 @@ export function TerminalPane({
       />
       {composerOpen && (
         <Composer
+          projectRoot={projectRoot}
           autoFocus
           onEscape={focusActive}
           onSend={(text) => {

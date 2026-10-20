@@ -12,6 +12,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Cmd+D duplicates** the line or the selection in edit mode, Ctrl+G adds the next occurrence, as in
   JetBrains IDEs. Several cursors (Cmd+click), column selection (Alt+drag), Cmd+Shift+Up/Down to
   move a line, auto-closed brackets and quotes.
+- **Composer history per project** (200 prompts) with Ctrl+R search.
 
 ### Changed
 
