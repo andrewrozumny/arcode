@@ -97,6 +97,8 @@ export class WindowManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        // Chromium's built-in PDF viewer, used by PDF tabs (arcode-pdf: frames).
+        plugins: true,
       },
     });
     win.setRepresentedFilename(root);

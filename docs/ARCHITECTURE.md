@@ -49,6 +49,17 @@ the HEAD version for diffs (`git show`); watches open files, re-attaching after 
 saves. All paths go through `files/paths.ts`. The renderer side is CodeMirror plus a Markdown
 preview (marked and DOMPurify) and the diff tabs used by the IDE bridge.
 
+PDFs (`viewer/pdf.ts`, `viewer/pdfProtocol.ts`, `renderer/src/viewer/PdfView.tsx`) are shown by
+Chromium's built-in PDF viewer (project windows set `webPreferences.plugins: true`) in an iframe
+whose URL uses the privileged `arcode-pdf:` scheme (`arcode-pdf://doc/<relative path>?root=<root>&v=<mtime>`).
+`readFile` returns that URL for a `.pdf` instead of reading the bytes, plus the sibling `.md` when
+one exists. The protocol handler serves a request only when the root is an open project window's
+root, the path passes `resolveInside`, the name ends in `.pdf` and the file starts with a PDF
+header; the response is always `application/pdf`. The page's CSP allows only this scheme in
+`frame-src`. The mtime in the URL makes the iframe reload when the file watcher reports a change.
+`navigation.ts` also stops frames inside the page from navigating to web, mail or file URLs (links
+in a PDF), which open in the default browser instead (ADR 0011).
+
 **Terminal, pty and Claude session tracking** (`pty.ts`, `env.ts`, `main/terminal`,
 `renderer/src/TerminalPane.tsx`, `renderer/src/terminal`, `terminalSession.ts`). `PtyManager`
 spawns login shells with node-pty; `env.ts` strips credentials and parent-session markers so a

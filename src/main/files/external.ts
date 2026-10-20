@@ -168,6 +168,7 @@ export async function previewExternal(home: string, path: string): Promise<Exter
       return { kind: 'text', text: head.text, truncated: head.truncated, ...base };
     }
     case 'binary':
+    case 'pdf':
       return { kind: 'none', reason: 'No preview for this file type', ...base };
     case 'tooLarge':
       return { kind: 'none', reason: 'Too large to preview', ...base };

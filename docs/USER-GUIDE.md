@@ -134,6 +134,13 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
 - **Images:** zoom with Cmd+= and Cmd+- (or pinch, or Cmd+scroll), Cmd+0 or Shift+1 to fit,
   Shift+0 for actual size. Hold Space and drag to pan, or Shift+drag (or the zoom-to-selection
   button) to zoom into a rectangle.
+- **PDF:** `.pdf` files open read-only in a PDF tab, whether you open them from the tree, Go to
+  file, a path in the terminal or the Claude feed, or with `open -a ARcode file.pdf`. The built-in
+  PDF viewer has page navigation, zoom, fit to page, rotation,
+  thumbnails and scrolling. When the file changes on disk (for example, Claude regenerates it), the
+  tab reloads; it returns to the first page. When `foo.md` sits next to `foo.pdf`, **Open Markdown
+  source** opens it. **Open in default app** hands the file to Preview or your PDF app. Links in
+  a PDF open in your default browser. Only PDFs inside an open project are shown.
 - **Binary and large files:** binary files and files over the size limits (5 MB for text, 30 MB
   for images) show a placeholder with Reveal in Finder.
 - **Tabs:** Cmd+W closes the active tab, Cmd+Shift+T reopens the last closed one,
@@ -415,7 +422,8 @@ ARcode has no account, no telemetry, no crash reporter and no auto-updater. It m
 requests of its own.
 
 - **Network:** the only listener is the IDE bridge WebSocket on 127.0.0.1, protected by a random
-  token. Remote images in Markdown are blocked by the page's Content Security Policy. Web links
+  token. Remote images in Markdown are blocked by the page's Content Security Policy. PDF tabs are
+  served by ARcode itself from the project folder; nothing is fetched from the network. Web links
   open in your default browser only when you click them.
 - **What it reads:** your project files and git state, and Claude Code's local files:
   `~/.claude/projects` (transcripts), `~/.claude/sessions`, settings, plugins, skills, agents,

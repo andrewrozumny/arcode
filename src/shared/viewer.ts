@@ -22,6 +22,15 @@ export type ReadFileResult =
       /** Present for SVG only, so the viewer can switch to source. */
       svgSource?: string;
     }
+  | {
+      kind: 'pdf';
+      /** `arcode-pdf:` URL the viewer's iframe loads; changes with the file's mtime. */
+      url: string;
+      size: number;
+      mtime: number;
+      /** Project-relative path of `foo.md` next to `foo.pdf`, when it exists. */
+      markdownSource: string | null;
+    }
   | { kind: 'binary'; size: number }
   | { kind: 'tooLarge'; size: number }
   | { kind: 'error'; message: string };

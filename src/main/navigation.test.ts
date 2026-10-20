@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leavesPage } from './navigation';
+import { leavesPage, subframeLeaves } from './navigation';
 
 describe('leavesPage', () => {
   const page = 'file:///Applications/ARcode.app/Contents/Resources/app.asar/out/renderer/index.html?view=project';
@@ -17,5 +17,19 @@ describe('leavesPage', () => {
 
   it('blocks anything it cannot parse', () => {
     expect(leavesPage(page, 'not a url')).toBe(true);
+  });
+});
+
+describe('subframeLeaves', () => {
+  it('blocks web pages, mail links and local files inside frames', () => {
+    expect(subframeLeaves('https://example.com/')).toBe(true);
+    expect(subframeLeaves('mailto:me@example.com')).toBe(true);
+    expect(subframeLeaves('file:///etc/hosts')).toBe(true);
+  });
+
+  it('lets the PDF frame load and move within its document', () => {
+    expect(subframeLeaves('arcode-pdf://doc/out/plan.pdf?root=%2Fp&v=1')).toBe(false);
+    expect(subframeLeaves('chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html')).toBe(false);
+    expect(subframeLeaves('about:blank')).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import { basename, dirname, extname, relative, resolve, sep } from 'node:path';
 import { IMAGE_SIZE_LIMIT, TEXT_SIZE_LIMIT } from '@shared/viewer';
 import type { ReadFileResult, WriteFileResult } from '@shared/viewer';
 import { resolveInside } from '../files/paths';
+import { isPdfPath, markdownSourceFor, pdfUrl } from './pdf';
 
 const BINARY_SNIFF_BYTES = 8 * 1024;
 
@@ -45,7 +46,20 @@ async function sniff(path: string): Promise<Buffer> {
 
 export async function readFile(root: string, relPath: string): Promise<ReadFileResult> {
   try {
-    return await readAbsoluteFile(await resolveInside(root, relPath));
+    const abs = await resolveInside(root, relPath);
+    if (isPdfPath(abs)) {
+      const info = await stat(abs);
+      if (info.isFile()) {
+        return {
+          kind: 'pdf',
+          url: pdfUrl(root, relPath, info.mtimeMs),
+          size: info.size,
+          mtime: info.mtimeMs,
+          markdownSource: await markdownSourceFor(root, relPath),
+        };
+      }
+    }
+    return await readAbsoluteFile(abs);
   } catch (error) {
     return { kind: 'error', message: error instanceof Error ? error.message : String(error) };
   }

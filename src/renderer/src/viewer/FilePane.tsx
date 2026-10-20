@@ -12,6 +12,7 @@ import { MarkdownPreview } from './MarkdownPreview';
 import { extension } from './paths';
 import { Placeholder } from './Placeholder';
 import { ImageView } from './ImageView';
+import { PdfView } from './PdfView';
 import type { SelectionInfo } from './types';
 
 export interface FilePaneHandle {
@@ -92,7 +93,7 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
       savedRef.current = result.content;
       setPreviewText(result.content);
       editorRef.current?.setValue(result.content);
-    } else if (result.kind === 'image') {
+    } else if (result.kind === 'image' || result.kind === 'pdf') {
       mtimeRef.current = result.mtime;
     }
     setData(result);
@@ -152,7 +153,7 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
 
   const overwrite = useCallback(async () => {
     const latest = await api.readFile(root, path);
-    const mtime = latest.kind === 'text' || latest.kind === 'image' ? latest.mtime : null;
+    const mtime = latest.kind === 'text' || latest.kind === 'image' || latest.kind === 'pdf' ? latest.mtime : null;
     await save(mtime);
   }, [api, root, path, save]);
 
@@ -251,6 +252,21 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
               Source
             </button>
           </div>
+        )}
+        {data.kind === 'pdf' && data.markdownSource && (
+          <button
+            type="button"
+            className="v-btn"
+            title={`Open ${data.markdownSource}`}
+            onClick={() => data.markdownSource && onOpenFile(data.markdownSource)}
+          >
+            Open Markdown source
+          </button>
+        )}
+        {data.kind === 'pdf' && (
+          <button type="button" className="v-btn" title="Open in the default PDF app" onClick={() => void api.openDefault(root, path)}>
+            Open in default app
+          </button>
         )}
         {text && diff && (
           <div className="v-seg">
@@ -356,6 +372,7 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
         {data.kind === 'image' && svg && svgMode === 'source' && (
           <pre className="v-svg-source">{data.svgSource}</pre>
         )}
+        {data.kind === 'pdf' && <PdfView url={data.url} path={path} />}
         {data.kind === 'binary' && <Placeholder root={root} path={path} title="Binary file" size={data.size} />}
         {data.kind === 'tooLarge' && (
           <Placeholder root={root} path={path} title="File is too large to display" size={data.size} />
