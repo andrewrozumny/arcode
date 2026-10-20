@@ -1,3 +1,5 @@
+import type { OpenDiff } from '../bus';
+
 export interface Position {
   line: number;
   character: number;
@@ -44,8 +46,11 @@ export interface ViewerProps {
 }
 
 export interface ViewerHandle {
-  /** Opens a file (absolute or project-relative). `line` and `column` are 1-based. */
-  open(path: string, line?: number, column?: number): void;
+  /**
+   * Opens a file (absolute or project-relative). `line` and `column` are 1-based. `diff` shows its
+   * diff against HEAD right away ('deleted': the HEAD version of a file gone from disk, read-only).
+   */
+  open(path: string, line?: number, column?: number, diff?: OpenDiff): void;
   openDiff(request: DiffRequest): Promise<DiffOutcome>;
   /** Opens (or focuses) the Claude panel tab: skills, plugins, MCP, agents, hooks, CLAUDE.md, usage. */
   openClaude(): void;

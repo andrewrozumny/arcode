@@ -8,6 +8,8 @@ export const FilesChannel = {
   Search: 'files:search',
   /** Content search (Find in files). A new query from the same window cancels the previous one. */
   Grep: 'files:grep',
+  /** Files changed against HEAD with line counts (the Changes view). */
+  Changes: 'files:changes',
   Watch: 'files:watch',
   Unwatch: 'files:unwatch',
   Reveal: 'files:reveal',
@@ -77,6 +79,28 @@ export interface GitStatusMap {
   files: Record<string, GitStatusCode>;
   /** Project-relative folders that contain at least one changed file. */
   dirs: string[];
+}
+
+/** One file that differs from HEAD (the Changes view). */
+export interface ChangedFile {
+  /** Project-relative path with forward slashes. */
+  path: string;
+  status: GitStatusCode;
+  /** Project-relative original path of a rename or copy; absent when it lies outside the project. */
+  origPath?: string;
+  /** Lines added against HEAD (an untracked file: its line count); null when unknown. */
+  added: number | null;
+  /** Lines deleted against HEAD; null when unknown. */
+  deleted: number | null;
+  /** Git treats the file as binary, so there are no line counts. */
+  binary: boolean;
+}
+
+export interface ChangesResult {
+  /** False when the project is not inside a git work tree. */
+  git: boolean;
+  /** Sorted by path. */
+  files: ChangedFile[];
 }
 
 export interface SearchRange {
@@ -189,6 +213,8 @@ export interface FilesApi {
   search(root: string, query: string, limit?: number): Promise<SearchResult[]>;
   /** Find in files. Resolves with `cancelled: true` when a newer grep from this window replaced it. */
   grep(root: string, query: GrepQuery): Promise<GrepResult>;
+  /** Files changed against HEAD (modified, added, deleted, renamed, untracked) with +/- line counts. */
+  changes(root: string): Promise<ChangesResult>;
   watch(root: string): Promise<void>;
   unwatch(root: string): Promise<void>;
   reveal(root: string, relPath: string): Promise<void>;

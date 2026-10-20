@@ -3,6 +3,7 @@ import { shell } from 'electron';
 import type { IpcMain, WebContents } from 'electron';
 import { FilesChannel } from '@shared/files';
 import type { FileOp, FilesChangedEvent, FilesGitStatusEvent, GrepQuery } from '@shared/files';
+import { getChanges } from './changes';
 import { getBranch } from './git';
 import { grepProject } from './grep';
 import { getGitStatus } from './gitStatus';
@@ -92,7 +93,8 @@ export function registerFilesIpc(ipcMain: IpcMain): void {
     listDir(await projectRoot(root), text(relDir, 'folder')),
   );
   ipcMain.handle(FilesChannel.GitStatus, async (_e, root: unknown) => getGitStatus(await projectRoot(root)));
-  ipcMain.handle(FilesChannel.Branch, async (_e, root: unknown) => getBranch(await projectRoot(root)));
+  ipcMain.handle(FilesChannel.Changes, async (_e, root: unknown) => getChanges(await projectRoot(root)));
+  ipcMain.handle(FilesChannel.Branch,async (_e, root: unknown) => getBranch(await projectRoot(root)));
   ipcMain.handle(FilesChannel.Search, async (_e, root: unknown, query: unknown, limit: unknown) =>
     search(await projectRoot(root), text(query, 'query'), limit === undefined || limit === null ? 50 : integer(limit, 'limit')),
   );

@@ -43,6 +43,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   tab's terminal. Typed answers work for single-choice questions; anything else falls back to the
   terminal with one click.
 - Plan cards show the plan Claude Code wrote to its plan file when ExitPlanMode has no input.
+- **Changes** (Ctrl+Shift+G). A third mode of the left column that lists every file changed against
+  HEAD (modified, added, deleted, renamed, untracked) grouped by folder, with status letters in the
+  tree colours, +/- line counts from `git diff --numstat` and totals. It updates live as files change.
+  Click or Enter opens the file with its diff against HEAD already shown; a deleted file opens its
+  HEAD version as a read-only diff. Up and Down move, Esc returns to the tree, "Open all diffs"
+  opens every changed file. Read-only: no stage, commit or revert.
 
 ### Changed
 

@@ -44,6 +44,8 @@ interface Props {
   /** The Autosave setting. */
   autosave: boolean;
   reveal: RevealRequest | null;
+  /** A new value opens the diff with HEAD (the Changes view); null when none was asked for. */
+  headDiff?: number | null;
   onDirtyChange: (path: string, dirty: boolean) => void;
   /** Selection of the pane; null for panes without a text cursor. Only called while active. */
   onSelection: (path: string, info: SelectionInfo | null) => void;
@@ -68,7 +70,7 @@ interface DiffState {
 const isMarkdown = (path: string): boolean => ['md', 'markdown', 'mdx'].includes(extension(path));
 
 export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
-  { root, path, active, autosave, reveal, onDirtyChange, onSelection, onOpenFile },
+  { root, path, active, autosave, reveal, headDiff, onDirtyChange, onSelection, onOpenFile },
   ref,
 ) {
   const api = viewerApi();
@@ -320,15 +322,26 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
     onSelection(path, data?.kind === 'text' && editorShown ? (editorRef.current?.getSelection() ?? null) : null);
   }, [active, data, editorShown, onSelection, path]);
 
-  const openHeadDiff = async (mode: DiffMode): Promise<void> => {
-    const head = await api.headContent(root, path);
-    setDiff({
-      mode,
-      original: head ?? '',
-      modified: editorRef.current?.getValue() ?? savedRef.current,
-      isNew: head === null,
-    });
-  };
+  const openHeadDiff = useCallback(
+    async (mode: DiffMode): Promise<void> => {
+      const head = await api.headContent(root, path);
+      setDiff({
+        mode,
+        original: head ?? '',
+        modified: editorRef.current?.getValue() ?? savedRef.current,
+        isNew: head === null,
+      });
+    },
+    [api, root, path],
+  );
+
+  // Apply an "open with its HEAD diff" request once the text is loaded.
+  const appliedHeadDiff = useRef(0);
+  useEffect(() => {
+    if (!headDiff || data?.kind !== 'text' || headDiff === appliedHeadDiff.current) return;
+    appliedHeadDiff.current = headDiff;
+    void openHeadDiff('split');
+  }, [headDiff, data, openHeadDiff]);
 
   const openSnapshotDiff = async (snapshot: SnapshotInfo): Promise<void> => {
     const content = await api.readSnapshot(root, path, snapshot.id);

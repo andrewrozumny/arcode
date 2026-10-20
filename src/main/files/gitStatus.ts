@@ -14,31 +14,47 @@ function codeFor(type: string, xy: string): GitStatusCode {
   return 'M';
 }
 
-/** Parses `git status --porcelain=v2 -z` output into path -> status code. Paths are repo-root relative. */
-export function parsePorcelainV2(output: string): Record<string, GitStatusCode> {
-  const files: Record<string, GitStatusCode> = {};
+export interface PorcelainEntry {
+  /** Repo-root relative path. */
+  path: string;
+  code: GitStatusCode;
+  /** Repo-root relative original path of a rename or copy. */
+  origPath?: string;
+}
+
+/** Parses `git status --porcelain=v2 -z` output into entries in output order. Paths are repo-root relative. */
+export function parsePorcelainEntries(output: string): PorcelainEntry[] {
+  const entries: PorcelainEntry[] = [];
   const tokens = output.split('\0');
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (!token) continue;
     const type = token[0];
     if (type === '?') {
-      files[token.slice(2)] = '?';
+      entries.push({ path: token.slice(2), code: '?' });
     } else if (type === '1') {
       // 1 XY sub mH mI mW hH hI path
       const fields = token.split(' ');
-      files[fields.slice(8).join(' ')] = codeFor('1', fields[1] ?? '');
+      entries.push({ path: fields.slice(8).join(' '), code: codeFor('1', fields[1] ?? '') });
     } else if (type === '2') {
       // 2 XY sub mH mI mW hH hI Xscore path, followed by a separate NUL-terminated original path.
       const fields = token.split(' ');
-      files[fields.slice(9).join(' ')] = codeFor('2', fields[1] ?? '');
+      const origPath = tokens[i + 1];
+      entries.push({ path: fields.slice(9).join(' '), code: codeFor('2', fields[1] ?? ''), ...(origPath ? { origPath } : {}) });
       i++;
     } else if (type === 'u') {
       // u XY sub m1 m2 m3 mW h1 h2 h3 path
       const fields = token.split(' ');
-      files[fields.slice(10).join(' ')] = 'U';
+      entries.push({ path: fields.slice(10).join(' '), code: 'U' });
     }
   }
+  return entries;
+}
+
+/** Parses `git status --porcelain=v2 -z` output into path -> status code. Paths are repo-root relative. */
+export function parsePorcelainV2(output: string): Record<string, GitStatusCode> {
+  const files: Record<string, GitStatusCode> = {};
+  for (const entry of parsePorcelainEntries(output)) files[entry.path] = entry.code;
   return files;
 }
 

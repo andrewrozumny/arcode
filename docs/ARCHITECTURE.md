@@ -46,7 +46,12 @@ on PATH (or in the Homebrew folders), else `git grep -n -I --untracked`, else a 
 index; always spawned with an argv array, capped (lines, files, scanned files, preview length,
 10 s timeout), cancelled per window when a newer query arrives, and every returned path passes
 `paths.ts`. In the renderer `FindInFiles` replaces the tree in the left column (`findModel.ts` holds
-its pure row and keyboard logic) and opens matches through the bus with line and column. `external.ts` and `clipboard*.ts` serve the Import from Mac
+its pure row and keyboard logic) and opens matches through the bus with line and column. `changes.ts` serves the
+Changes mode of the left column: `git status` entries joined with `git diff --numstat -z -M HEAD`
+counts (untracked files are counted by reading them, size and number capped), all through
+`runGit`; `ChangesView` (with `changesModel.ts`) refetches on the watcher's git status events and
+opens files through the bus with a `diff` flag, which the viewer turns into the HEAD diff of the
+file tab or, for a deleted file, a read-only tab with the HEAD version. `external.ts` and `clipboard*.ts` serve the Import from Mac
 dialog, Finder copy and paste and drag and drop (ADR 0008). In the renderer `useDirectoryTree`
 loads and watches folders and `FileTree` handles selection, keyboard, menu and drops.
 
