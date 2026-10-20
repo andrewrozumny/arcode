@@ -11,6 +11,7 @@ export type FocusZone = 'terminal' | 'viewer' | 'tree' | 'other';
 
 export type ShortcutAction =
   | 'fileSearch'
+  | 'recentFiles'
   | 'reopenTab'
   | 'save'
   | 'toggleEdit'
@@ -38,6 +39,8 @@ export function resolveShortcut(key: ShortcutKey, zone: FocusZone): ShortcutActi
 
   // Anywhere, including the terminal.
   if (code === 'KeyP' && !shift && !alt) return 'fileSearch';
+  // Cmd+E is edit mode here, so Recent Files (JetBrains Cmd+E) takes Cmd+Shift+E.
+  if (code === 'KeyE' && shift && !alt) return 'recentFiles';
 
   if (zone === 'terminal') return null;
 

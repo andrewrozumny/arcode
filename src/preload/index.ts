@@ -3,6 +3,7 @@ import { IpcChannel } from '@shared/ipc';
 import type { AcodeApi, PtyDataEvent, PtyExitEvent, TabStep } from '@shared/ipc';
 import { AppChannel, parseWindowContext } from '@shared/app';
 import type { AcodeAppApi, LayoutCommand } from '@shared/app';
+import type { EditorSettings } from '@shared/editorState';
 import { claudeApi } from './claude';
 import { subscribe } from './subscribe';
 import { filesApi } from './files';
@@ -37,6 +38,14 @@ const appApi: AcodeAppApi = {
     set: (root, layout) => ipcRenderer.send(AppChannel.LayoutSet, root, layout),
     getTerminal: (root) => ipcRenderer.invoke(AppChannel.TerminalStateGet, root),
     setTerminal: (root, state) => ipcRenderer.send(AppChannel.TerminalStateSet, root, state),
+    getViewerTabs: (root) => ipcRenderer.invoke(AppChannel.ViewerTabsGet, root),
+    setViewerTabs: (root, state) => ipcRenderer.send(AppChannel.ViewerTabsSet, root, state),
+    getRecentFiles: (root) => ipcRenderer.invoke(AppChannel.RecentFilesGet, root),
+    addRecentFile: (root, path) => ipcRenderer.send(AppChannel.RecentFilesAdd, root, path),
+  },
+  settings: {
+    get: () => ipcRenderer.invoke(AppChannel.SettingsGet),
+    onChange: (listener) => subscribe<[EditorSettings]>(AppChannel.SettingsChanged, listener),
   },
 };
 

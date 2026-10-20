@@ -61,8 +61,9 @@ thinking and hook noise are hidden. It follows the active Claude terminal tab an
 - **File tree.** Lazy and virtualised, respects `.gitignore`, marks git changes, create, rename,
   move to Trash, copy and paste with Finder, drag and drop, Import from Mac (Downloads, Recent,
   Screenshots).
-- **Go to file** (Cmd+P) with fuzzy matching and `:line` jumps.
-- **Viewer and editor.** Syntax highlighting, edit mode with conflict detection, side by side or
+- **Go to file** (Cmd+P) with fuzzy matching and `:line` jumps, and **Recent files** (Cmd+Shift+E).
+- **Viewer and editor.** Syntax highlighting, type to edit with autosave and conflict detection,
+  file tabs restored per project, side by side or
   unified diff against `HEAD`, Markdown preview, images with zoom and pan.
 
 | Diff against HEAD | Markdown preview |
@@ -140,13 +141,14 @@ first start.
 |---|---|
 | Cmd+Shift+O | Switch project |
 | Cmd+P | Go to file (`name:line` jumps to a line) |
+| Cmd+Shift+E | Recent files |
 | Cmd+T / Cmd+W | New tab / close tab |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab |
 | Cmd+Shift+T | Reopen closed tab |
 | Ctrl+Esc | New Claude tab |
 | Cmd+Shift+Enter | Composer for multi-line terminal input |
 | Cmd+1 / Cmd+2 | Toggle file tree / terminal |
-| Cmd+E / Cmd+S | Toggle edit mode / save |
+| Cmd+E / Cmd+S | Toggle edit mode / save now (autosave is on by default) |
 | Cmd+F / Cmd+L | Find in file / go to line |
 | Cmd+D / Ctrl+G | Duplicate line or selection / select next occurrence (edit mode) |
 | Cmd+Alt+K | Mention the selection in Claude (@file#lines) |

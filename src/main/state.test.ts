@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_LAYOUT } from '@shared/app';
+import { MAX_RECENT_FILES } from '@shared/editorState';
 import { MAX_RECENT, StateStore, defaultState, migrateState, readStateFile, writeStateFile } from './state';
 
 let dir: string;
@@ -133,5 +134,60 @@ describe('terminal tabs', () => {
     store.setTerminal('/p', 'garbage');
     expect(store.terminal('/p')).toEqual({ tabs: [claude], activeTabId: 'tab-1', composerOpen: false });
     expect(store.terminal('/other')).toBeUndefined();
+  });
+});
+
+describe('viewer tabs, recent files and autosave', () => {
+  it('migrates valid viewer tabs and recent files and drops junk', () => {
+    const state = migrateState({
+      projects: {
+        '/p': {
+          viewerTabs: { files: ['src/a.ts', '../escape', 'b.md', 'src/a.ts'], active: 'b.md' },
+          recentFiles: ['b.md', '/abs', 'src/a.ts', 'b.md'],
+        },
+        '/q': { viewerTabs: { files: [], active: null }, recentFiles: 'nope' },
+        '/r': { viewerTabs: 'junk' },
+      },
+      settings: { autosave: false },
+    });
+    expect(state.projects['/p']).toEqual({
+      viewerTabs: { files: ['src/a.ts', 'b.md'], active: 'b.md' },
+      recentFiles: ['b.md', 'src/a.ts'],
+    });
+    expect(state.projects['/q']).toEqual({});
+    expect(state.projects['/r']).toEqual({});
+    expect(state.settings.autosave).toBe(false);
+    expect(migrateState({ settings: { autosave: 'yes' } }).settings.autosave).toBeUndefined();
+  });
+
+  it('stores viewer tabs and clears them when none are open', () => {
+    const store = new StateStore(file, 0);
+    store.setViewerTabs('/p', { files: ['a.ts', 'b.ts'], active: 'b.ts' });
+    store.setViewerTabs('/p', 'junk');
+    expect(store.viewerTabs('/p')).toEqual({ files: ['a.ts', 'b.ts'], active: 'b.ts' });
+    store.setViewerTabs('/p', { files: [], active: null });
+    expect(store.viewerTabs('/p')).toBeUndefined();
+    expect(store.project('/p')).toEqual({});
+  });
+
+  it('keeps recent files most recent first, unique and capped', () => {
+    const store = new StateStore(file, 0);
+    store.addRecentFile('/p', 'a.ts');
+    store.addRecentFile('/p', 'b.ts');
+    store.addRecentFile('/p', 'a.ts');
+    store.addRecentFile('/p', '../outside');
+    expect(store.recentFiles('/p')).toEqual(['a.ts', 'b.ts']);
+    for (let i = 0; i < MAX_RECENT_FILES + 5; i++) store.addRecentFile('/p', `f${i}.ts`);
+    expect(store.recentFiles('/p')).toHaveLength(MAX_RECENT_FILES);
+    expect(store.recentFiles('/other')).toEqual([]);
+  });
+
+  it('defaults autosave to on and persists the toggle', () => {
+    const store = new StateStore(file, 0);
+    expect(store.editorSettings()).toEqual({ autosave: true });
+    store.setAutosave(false);
+    store.flush();
+    expect(readStateFile(file).settings.autosave).toBe(false);
+    expect(new StateStore(file, 0).editorSettings()).toEqual({ autosave: false });
   });
 });

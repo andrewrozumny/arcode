@@ -12,6 +12,9 @@ export interface MenuActions {
   openFolder(): void;
   openRecent(root: string): void;
   recent(): string[];
+  /** Current value of the Autosave setting and its toggle. */
+  autosave(): boolean;
+  setAutosave(on: boolean): void;
 }
 
 const RECENT_IN_MENU = 15;
@@ -39,6 +42,13 @@ export function buildMenu(actions: MenuActions): void {
         { label: 'Open Project...', accelerator: 'CmdOrCtrl+Shift+O', click: actions.openProject },
         { label: 'Open Folder...', click: actions.openFolder },
         { label: 'Open Recent', submenu: recentItems },
+        { type: 'separator' },
+        {
+          label: 'Autosave',
+          type: 'checkbox',
+          checked: actions.autosave(),
+          click: (item) => actions.setAutosave(item.checked),
+        },
         { type: 'separator' },
         { label: 'Close Window', accelerator: 'CmdOrCtrl+Shift+W', role: 'close' },
       ],

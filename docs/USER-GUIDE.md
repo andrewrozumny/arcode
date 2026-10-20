@@ -105,7 +105,11 @@ disk.
 - **Import from Mac:** a file browser limited to your home folder, with quick places for
   Screenshots, Downloads and Recent (newest files in Downloads, Desktop and Documents), sortable by
   name, size or date, with previews. Only files can be imported, not folders.
-- **Go to file:** Cmd+P opens a fuzzy file search over the whole project.
+- **Go to file:** Cmd+P opens a fuzzy file search over the whole project. With nothing typed yet,
+  the files you opened most recently come first.
+- **Recent files:** Cmd+Shift+E opens the same palette with only the files you opened recently in
+  this project (up to 30, newest first, files that no longer exist are left out). The file in front
+  is not listed, so Cmd+Shift+E then Enter goes back to the previous file. Typing filters the list.
 
 ![File search](screenshots/search.png)
 
@@ -116,10 +120,16 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
 
 ![File viewer](screenshots/viewer.png)
 
-- **Read and edit:** files open read-only with syntax highlighting. Press **Cmd+E** (or the Edit
-  button) to edit and **Cmd+S** to save. If the file changed on disk since you opened it, saving
-  asks whether to overwrite or reload. If it changes on disk while you have unsaved edits, a banner
-  offers to reload or keep yours.
+- **Read and edit:** files open read-only with syntax highlighting. Start typing to switch to edit
+  mode (the character you typed goes in), or press **Cmd+E** (or the Edit button) to toggle it.
+  If the file changed on disk since you opened it, saving asks whether to overwrite or reload. If
+  it changes on disk while you have unsaved edits, a banner offers to reload or keep yours.
+- **Autosave:** edits are saved about a second after you stop typing, when the window loses focus,
+  when you switch to another tab, leave edit mode or close the tab. Claude Code reads files from
+  disk, so it sees your edits without a manual save. The dot on the tab shows edits that are not
+  on disk yet. Nothing is saved while a banner (changed on disk, conflict, deleted, save failed)
+  waits for your decision. **Cmd+S** saves at once. Turn autosave off with **File > Autosave**;
+  then Cmd+S saves and closing a tab with edits asks first.
 - **Find and go to line:** Cmd+F searches in the file, Cmd+L goes to a line.
 - **Duplicate:** in edit mode Cmd+D duplicates the current line, or repeats the selection right after it,
   as in JetBrains IDEs. Ctrl+G adds the next occurrence of the selection (multi-cursor), Cmd+click adds
@@ -145,6 +155,9 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
   for images) show a placeholder with Reveal in Finder.
 - **Tabs:** Cmd+W closes the active tab, Cmd+Shift+T reopens the last closed one,
   Cmd+Shift+] and Cmd+Shift+[ step between tabs. The window header shows the current git branch.
+  Open file tabs and the active one are remembered per project and reopened the next time the
+  project opens, behind the pinned Claude tab. Files deleted in the meantime are skipped; diff
+  tabs and the Claude panel are not restored.
 
 ![Diff with HEAD](screenshots/diff.png)
 
@@ -326,6 +339,7 @@ database the switcher shows recent projects only.
 | Cmd+2 | Show or hide the terminal |
 | Cmd+Shift+F12 | Hide all panels / bring them back |
 | Cmd+P | Go to file (works in the terminal too) |
+| Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
 | Cmd+T | New shell tab |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |
@@ -356,8 +370,8 @@ database the switcher shows recent projects only.
 
 | Keys | Action |
 |---|---|
-| Cmd+E | Toggle edit mode |
-| Cmd+S | Save |
+| Cmd+E | Toggle edit mode (typing in read-only mode also starts editing) |
+| Cmd+S | Save now (autosave saves on its own unless File > Autosave is off) |
 | Cmd+F | Find in file |
 | Cmd+L | Go to line |
 | Cmd+D | Duplicate the line (or the selection), in edit mode |
@@ -406,7 +420,7 @@ database the switcher shows recent projects only.
 
 | Location | Contents |
 |---|---|
-| `~/Library/Application Support/ARcode/state.json` | Recent projects, open windows, window bounds, panel layout, terminal tabs, settings. |
+| `~/Library/Application Support/ARcode/state.json` | Recent projects, open windows, window bounds, panel layout, terminal tabs, viewer tabs and recent files per project, settings (Autosave). |
 | `~/Library/Application Support/ARcode/paste/` | Images pasted into the terminal composer; deleted after 7 days. |
 | `~/Library/Application Support/ARcode/usage/` | Status line records, one per session; pruned after 7 days. Only with the status line on. |
 | `~/Library/Application Support/ARcode/arcode-statusline.py` | Installed status line script. Only with the status line on. |

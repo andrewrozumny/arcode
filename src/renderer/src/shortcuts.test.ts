@@ -17,6 +17,14 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('KeyP'), 'viewer')).toBe('fileSearch');
   });
 
+  it('opens recent files on Cmd+Shift+E from anywhere', () => {
+    const recent = key('KeyE', { shiftKey: true });
+    expect(resolveShortcut(recent, 'terminal')).toBe('recentFiles');
+    expect(resolveShortcut(recent, 'viewer')).toBe('recentFiles');
+    expect(resolveShortcut(recent, 'tree')).toBe('recentFiles');
+    expect(resolveShortcut(key('KeyE'), 'other')).toBe('toggleEdit');
+  });
+
   it('leaves other keys in the terminal alone', () => {
     expect(resolveShortcut(key('KeyT', { shiftKey: true }), 'terminal')).toBeNull();
     expect(resolveShortcut(key('KeyS'), 'terminal')).toBeNull();

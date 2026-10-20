@@ -29,7 +29,9 @@ app is ready and opens the windows that were open at quit. `WindowManager` keeps
 `BrowserWindow` per resolved project root; each entry owns the window's `PtyManager` and IDE
 session. `ProjectSwitcher` is the frameless palette window (recent projects plus an optional
 read-only SQLite registry read through the `sqlite3` CLI). `StateStore` keeps `state.json`
-(recent projects, open windows, bounds, panel layout, terminal tabs) with debounced atomic writes.
+(recent projects, open windows, bounds, panel layout, terminal tabs, viewer file tabs, recent
+files, settings) with debounced atomic writes. `shared/editorState.ts` validates the viewer tabs
+and recent files and holds the most-recently-used update.
 The renderer learns which view to show from the page URL query (`WindowContext`).
 
 **Files, tree, watcher, git** (`main/files`, `renderer/src/tree`). `paths.ts` is the one path
@@ -47,7 +49,9 @@ loads and watches folders and `FileTree` handles selection, keyboard, menu and d
 detects binary and oversized files; writes with an mtime check that reports conflicts; shows
 the HEAD version for diffs (`git show`); watches open files, re-attaching after rename-based
 saves. All paths go through `files/paths.ts`. The renderer side is CodeMirror plus a Markdown
-preview (marked and DOMPurify) and the diff tabs used by the IDE bridge.
+preview (marked and DOMPurify) and the diff tabs used by the IDE bridge. `viewer/autosave.ts` holds
+the autosave decisions (debounced save, never while a banner waits for the user) and the type to
+edit key test; saves of one file are queued so each sends the mtime the previous one produced.
 
 PDFs (`viewer/pdf.ts`, `viewer/pdfProtocol.ts`, `renderer/src/viewer/PdfView.tsx`) are shown by
 Chromium's built-in PDF viewer (project windows set `webPreferences.plugins: true`) in an iframe
@@ -132,7 +136,7 @@ the enclosing git repository (ADR 0009).
 
 | Location | Written by ARcode | Contents |
 |---|---|---|
-| `~/Library/Application Support/ARcode/state.json` | yes | Recent projects, open windows, bounds, layout, terminal tabs, settings. Atomic, debounced. |
+| `~/Library/Application Support/ARcode/state.json` | yes | Recent projects, open windows, bounds, layout, terminal tabs, viewer tabs, recent files, settings (`autosave`). Atomic, debounced. |
 | `.../ARcode/paste/` | yes | Images pasted into the terminal composer; files older than 7 days removed at startup. |
 | `.../ARcode/usage/<sessionId>.json` | by the status line script | Live usage records; the script prunes them after 7 days. |
 | `.../ARcode/arcode-statusline.py` | yes | Installed copy of the status line script. |

@@ -15,6 +15,7 @@ import { mentionLines, resolveShortcut } from './shortcuts';
 import type { FocusZone } from './shortcuts';
 import { loadFonts } from './theme/fonts';
 import { FileSearch } from './tree/FileSearch';
+import type { FileSearchMode } from './tree/recentFiles';
 import { FileTree } from './tree/FileTree';
 import { Viewer } from './viewer/Viewer';
 import type { ActiveInfo, ViewerHandle } from './viewer/types';
@@ -50,7 +51,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const terminalRef = useRef<TerminalPaneHandle>(null);
   const [activePath, setActivePath] = useState<string | undefined>(undefined);
   const [revealPath, setRevealPath] = useState<string | undefined>(undefined);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState<FileSearchMode | null>(null);
   const viewerRef = useRef<ViewerHandle>(null);
   const activeInfo = useRef<ActiveInfo | null>(null);
   const { files: gitStatus, branch } = useGitStatus(projectRoot);
@@ -127,7 +128,10 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
       event.stopPropagation();
       switch (action) {
         case 'fileSearch':
-          setSearchOpen(true);
+          setSearchMode('files');
+          break;
+        case 'recentFiles':
+          setSearchMode('recent');
           break;
         case 'reopenTab':
           viewer?.reopenClosed();
@@ -207,14 +211,18 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
             />
           }
           terminal={<TerminalDock ref={terminalRef} projectRoot={projectRoot} initialState={savedTerminal} onTabsChange={onTabsChange} />}
-          searchOpen={searchOpen}
-          onOpenSearch={() => setSearchOpen(true)}
+          searchOpen={searchMode !== null}
+          onOpenSearch={() => setSearchMode('files')}
           onOpenClaude={() => viewerRef.current?.openClaude()}
         />
       )}
       <FileSearch
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
+        // A new mode remounts the palette with a fresh query.
+        key={searchMode ?? 'closed'}
+        open={searchMode !== null}
+        mode={searchMode ?? 'files'}
+        currentPath={activePath}
+        onClose={() => setSearchMode(null)}
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
