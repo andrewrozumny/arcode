@@ -68,7 +68,7 @@ export class IdeBridge {
     this.lockFile = writeLock(this.options.lockDir ?? defaultLockDir(), this.port, {
       workspaceFolders: opts.workspaceFolders,
       pid: opts.pid ?? process.pid,
-      ideName: opts.ideName ?? 'Acode',
+      ideName: opts.ideName ?? 'ARcode',
       transport: 'ws',
       runningInWindows: false,
       authToken: this.authToken,

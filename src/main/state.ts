@@ -214,7 +214,7 @@ export class StateStore {
     try {
       writeStateFile(this.path, this.state);
     } catch (error) {
-      console.error('[acode] failed to save state', error);
+      console.error('[arcode] failed to save state', error);
     }
   }
 

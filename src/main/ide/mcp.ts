@@ -175,7 +175,7 @@ export function createMcpHandler(host: IdeHost, hooks: McpHooks = {}) {
         return ok({
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: { listChanged: true } },
-          serverInfo: { name: 'Acode', version: '0.0.1' },
+          serverInfo: { name: 'ARcode', version: '0.0.1' },
         });
       case 'ping':
         return ok({});

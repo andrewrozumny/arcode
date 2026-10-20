@@ -14,7 +14,7 @@ import {
 import type { StatusLinePaths } from './statusline';
 import { parseUsageRecord, readUsageDir } from './usageLive';
 
-const SCRIPT = '/Users/me/Library/Application Support/Acode/acode-statusline.py';
+const SCRIPT = '/Users/me/Library/Application Support/ARcode/arcode-statusline.py';
 const OURS = acodeStatusLineEntry(SCRIPT);
 
 describe('statusLineStateOf', () => {
@@ -60,8 +60,8 @@ function tempPaths(): StatusLinePaths & { home: string } {
   mkdirSync(join(home, '.claude'), { recursive: true });
   return {
     home,
-    source: resolve('resources/acode-statusline.py'),
-    installed: join(home, 'Library', 'Application Support', 'Acode', 'acode-statusline.py'),
+    source: resolve('resources/arcode-statusline.py'),
+    installed: join(home, 'Library', 'Application Support', 'ARcode', 'arcode-statusline.py'),
     settings: join(home, '.claude', 'settings.json'),
   };
 }
@@ -74,7 +74,7 @@ describe('enableStatusLine / disableStatusLine (temp home)', () => {
     expect(existsSync(paths.installed)).toBe(true);
     const written = JSON.parse(readFileSync(paths.settings, 'utf8')) as Record<string, unknown>;
     expect(written).toEqual({ model: 'opus', statusLine: acodeStatusLineEntry(paths.installed) });
-    expect(readdirSync(join(paths.home, '.claude')).some((n) => n.startsWith('settings.json.bak-acode-'))).toBe(true);
+    expect(readdirSync(join(paths.home, '.claude')).some((n) => n.startsWith('settings.json.bak-arcode-'))).toBe(true);
 
     expect(disableStatusLine(paths)).toEqual({ ok: true });
     expect(JSON.parse(readFileSync(paths.settings, 'utf8'))).toEqual({ model: 'opus' });
@@ -156,7 +156,7 @@ const hasPython = ((): boolean => {
   }
 })();
 
-describe.skipIf(!hasPython)('acode-statusline.py', () => {
+describe.skipIf(!hasPython)('arcode-statusline.py', () => {
   it('prints one status line and writes the usage record under HOME', async () => {
     const home = mkdtempSync(join(os.tmpdir(), 'acode-py-'));
     const input = JSON.stringify({
@@ -167,9 +167,9 @@ describe.skipIf(!hasPython)('acode-statusline.py', () => {
       cost: { total_cost_usd: 1.5 },
       rate_limits: { five_hour: { used_percentage: 12.4, resets_at: 1738425600 }, seven_day: { used_percentage: 37, resets_at: 1738857600 } },
     });
-    const out = execFileSync('python3', [resolve('resources/acode-statusline.py')], { input, env: { ...process.env, HOME: home } }).toString();
+    const out = execFileSync('python3', [resolve('resources/arcode-statusline.py')], { input, env: { ...process.env, HOME: home } }).toString();
     expect(out.trim()).toBe('Fable 5.1 · ctx 43% · 5h 12% · week 37%');
-    const dir = join(home, 'Library', 'Application Support', 'Acode', 'usage');
+    const dir = join(home, 'Library', 'Application Support', 'ARcode', 'usage');
     const [record] = await readUsageDir(dir);
     expect(record?.sessionId).toBe('abc');
     expect(record?.contextUsed).toBe(86800);
@@ -197,7 +197,7 @@ describe.skipIf(!hasPython)('acode-statusline.py', () => {
       transcript_path: join(projects, 'sess-1.jsonl'),
       model: { id: 'claude-fable-5-1', display_name: 'Fable 5.1' },
     });
-    const out = execFileSync('python3', [resolve('resources/acode-statusline.py')], { input, env: { ...process.env, HOME: home } }).toString();
+    const out = execFileSync('python3', [resolve('resources/arcode-statusline.py')], { input, env: { ...process.env, HOME: home } }).toString();
     const lines = out.trimEnd().split('\n');
     expect(lines).toHaveLength(2);
     expect(lines[0]).toBe('Fable 5.1');
@@ -206,7 +206,7 @@ describe.skipIf(!hasPython)('acode-statusline.py', () => {
 
   it('never fails on bad input', () => {
     const home = mkdtempSync(join(os.tmpdir(), 'acode-py-'));
-    const out = execFileSync('python3', [resolve('resources/acode-statusline.py')], { input: 'not json', env: { ...process.env, HOME: home } }).toString();
+    const out = execFileSync('python3', [resolve('resources/arcode-statusline.py')], { input: 'not json', env: { ...process.env, HOME: home } }).toString();
     expect(out).toBe('\n');
   });
 });

@@ -16,11 +16,11 @@ import type { WindowManager } from './windows';
 import { contextFor, loadRenderer, PRELOAD_PATH, WINDOW_BACKGROUND } from './renderer';
 
 /**
- * Path of the local project registry database. Taken from the ACODE_PROJECT_REGISTRY_DB
+ * Path of the local project registry database. Taken from the ARCODE_PROJECT_REGISTRY_DB
  * environment variable, else from `settings.projectRegistryDb` in state.json.
  */
 export function projectRegistryDb(state: StateStore): string | undefined {
-  return process.env.ACODE_PROJECT_REGISTRY_DB || state.get().settings.projectRegistryDb || undefined;
+  return process.env.ARCODE_PROJECT_REGISTRY_DB || state.get().settings.projectRegistryDb || undefined;
 }
 
 const PALETTE_SIZE = { width: 640, height: 460 };

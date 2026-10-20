@@ -1,5 +1,5 @@
 /**
- * Development-only self test, enabled with ACODE_SELFTEST=1.
+ * Development-only self test, enabled with ARCODE_SELFTEST=1.
  *
  * Drives the real window through synthetic input events (the same path as a
  * physical keyboard), captures screenshots and prints process metrics. It is
@@ -19,7 +19,7 @@ type Modifier = NonNullable<InputEvent['modifiers']>[number];
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function runSelfTest(win: BrowserWindow, ptys: PtyManager): void {
-  const outDir = process.env.ACODE_SELFTEST_OUT || join(app.getPath('temp'), 'acode-selftest');
+  const outDir = process.env.ARCODE_SELFTEST_OUT || join(app.getPath('temp'), 'acode-selftest');
   mkdirSync(outDir, { recursive: true });
   const wc = win.webContents;
 
@@ -106,7 +106,7 @@ export function runSelfTest(win: BrowserWindow, ptys: PtyManager): void {
     await delay(300);
     key('c', ['control']);
     await delay(1000);
-    if (!process.env.ACODE_SELFTEST_KEEP) app.quit();
+    if (!process.env.ARCODE_SELFTEST_KEEP) app.quit();
   };
 
   wc.once('did-finish-load', () => {

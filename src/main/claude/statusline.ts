@@ -1,5 +1,5 @@
 /**
- * Opt-in Claude Code status line that feeds live plan usage to Acode.
+ * Opt-in Claude Code status line that feeds live plan usage to ARcode.
  *
  * Nothing here touches ~/.claude/settings.json on its own: `enable`/`disable` run only from an
  * explicit click in the Claude panel, and `enable` refuses when a different status line is set.
@@ -9,18 +9,18 @@ import { dirname, join } from 'node:path';
 import type { StatusLineResult, StatusLineState } from '@shared/claude';
 import { isRecord, readJson } from './common';
 
-export const SCRIPT_NAME = 'acode-statusline.py';
+export const SCRIPT_NAME = 'arcode-statusline.py';
 
 export interface StatusLinePaths {
   /** Script shipped with the app (repo `resources/` in dev, Contents/Resources in production). */
   source: string;
-  /** Installed copy the settings entry points at (`~/Library/Application Support/Acode/<script>`). */
+  /** Installed copy the settings entry points at (`~/Library/Application Support/ARcode/<script>`). */
   installed: string;
   /** `~/.claude/settings.json`. */
   settings: string;
 }
 
-/** The exact `statusLine` entry Acode writes. */
+/** The exact `statusLine` entry ARcode writes. */
 export function acodeStatusLineEntry(installedScript: string): { type: 'command'; command: string } {
   return { type: 'command', command: `python3 "${installedScript}"` };
 }
@@ -31,18 +31,18 @@ function statusLineOf(settings: unknown): Record<string, unknown> | null {
   return isRecord(entry) ? entry : null;
 }
 
-/** Classifies the current settings: no status line, Acode's script, or someone else's command. */
+/** Classifies the current settings: no status line, ARcode's script, or someone else's command. */
 export function statusLineStateOf(settings: unknown, installedScript: string): StatusLineState {
   const entry = statusLineOf(settings);
   if (!entry) return { state: 'off', command: null };
   const command = typeof entry.command === 'string' ? entry.command : null;
-  // Only Acode's exact entry is ours. A user command that merely calls the script (wrapped in a
+  // Only ARcode's exact entry is ours. A user command that merely calls the script (wrapped in a
   // shell line with other tools) is theirs, and disabling must never delete it.
   if (command && command.trim() === acodeStatusLineEntry(installedScript).command) return { state: 'acode', command };
   return { state: 'other', command: command ?? JSON.stringify(entry) };
 }
 
-/** Settings with Acode's entry added; null when another status line is configured (left untouched). */
+/** Settings with ARcode's entry added; null when another status line is configured (left untouched). */
 export function withAcodeStatusLine(settings: unknown, installedScript: string): Record<string, unknown> | null {
   const base = isRecord(settings) ? settings : {};
   const state = statusLineStateOf(base, installedScript).state;
@@ -50,7 +50,7 @@ export function withAcodeStatusLine(settings: unknown, installedScript: string):
   return { ...base, statusLine: acodeStatusLineEntry(installedScript) };
 }
 
-/** Settings with Acode's entry removed; other status lines are kept as they are. */
+/** Settings with ARcode's entry removed; other status lines are kept as they are. */
 export function withoutAcodeStatusLine(settings: unknown, installedScript: string): Record<string, unknown> {
   const base = isRecord(settings) ? settings : {};
   if (statusLineStateOf(base, installedScript).state !== 'acode') return base;
@@ -82,7 +82,7 @@ function readSettings(file: string): { parsed: unknown; raw: string | null } {
  * A symlinked settings.json (dotfiles) stays a link: its target is replaced, with its mode kept.
  */
 function writeSettings(file: string, raw: string | null, next: Record<string, unknown>): void {
-  if (raw !== null) writeFileSync(`${file}.bak-acode-${Date.now()}`, raw);
+  if (raw !== null) writeFileSync(`${file}.bak-arcode-${Date.now()}`, raw);
   const target = existsSync(file) ? realpathSync(file) : file;
   mkdirSync(dirname(target), { recursive: true });
   const mode = existsSync(target) ? statSync(target).mode & 0o777 : null;
@@ -95,6 +95,20 @@ function writeSettings(file: string, raw: string | null, next: Record<string, un
     rmSync(temp, { force: true });
     throw error;
   }
+}
+
+/**
+ * Before the rename the entry pointed at the old data folder's script. Re-point it at the current
+ * install (backup kept, as for any settings write) so live usage keeps flowing. Only an entry that is
+ * exactly the old one is touched.
+ */
+export function migrateLegacyStatusLine(paths: StatusLinePaths, legacyScript: string): boolean {
+  const { parsed, raw } = readSettings(paths.settings);
+  if (raw === null || !isRecord(parsed)) return false;
+  if (statusLineStateOf(parsed, legacyScript).state !== 'acode') return false;
+  installScript(paths);
+  writeSettings(paths.settings, raw, { ...parsed, statusLine: acodeStatusLineEntry(paths.installed) });
+  return true;
 }
 
 export function readStatusLineState(paths: StatusLinePaths): StatusLineState {
@@ -118,7 +132,7 @@ export function enableStatusLine(paths: StatusLinePaths): StatusLineResult {
   }
 }
 
-/** User action: remove Acode's entry only. */
+/** User action: remove ARcode's entry only. */
 export function disableStatusLine(paths: StatusLinePaths): StatusLineResult {
   try {
     const { parsed, raw } = readSettings(paths.settings);

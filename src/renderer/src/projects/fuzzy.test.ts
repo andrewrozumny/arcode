@@ -7,7 +7,7 @@ const project = (name: string, root: string, slug?: string): ProjectEntry =>
 
 describe('fuzzyScore', () => {
   it('matches subsequences case-insensitively and rejects others', () => {
-    expect(fuzzyScore('acd', 'Acode')).not.toBeNull();
+    expect(fuzzyScore('acd', 'ARcode')).not.toBeNull();
     expect(fuzzyScore('ACO', 'acode')).not.toBeNull();
     expect(fuzzyScore('xyz', 'acode')).toBeNull();
     expect(fuzzyScore('edoca', 'acode')).toBeNull();

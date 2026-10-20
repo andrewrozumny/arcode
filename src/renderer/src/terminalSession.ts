@@ -1,6 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import type { IDisposable, ITheme } from '@xterm/xterm';
-import { ACODE_PATH_TYPE, decodeDraggedPaths } from '@shared/files';
+import { ARCODE_PATH_TYPE, decodeDraggedPaths } from '@shared/files';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
@@ -180,7 +180,7 @@ export class TerminalSession {
   /** Dropping files on the terminal types their shell-escaped paths, like other terminals do. */
   private installDrop(): void {
     const accepts = (types: readonly string[] | undefined): boolean =>
-      !!types && (types.includes('Files') || types.includes(ACODE_PATH_TYPE));
+      !!types && (types.includes('Files') || types.includes(ARCODE_PATH_TYPE));
     const onOver = (event: DragEvent): void => {
       if (accepts(event.dataTransfer?.types)) event.preventDefault();
     };
@@ -188,7 +188,7 @@ export class TerminalSession {
       const transfer = event.dataTransfer;
       if (!transfer) return;
       // Rows dragged from the file tree carry their paths as a JSON array; Finder drops carry File objects.
-      const own = transfer.getData(ACODE_PATH_TYPE);
+      const own = transfer.getData(ARCODE_PATH_TYPE);
       const paths = own
         ? decodeDraggedPaths(own)
         : [...transfer.files].map((file) => terminalApi().pathForFile(file)).filter((p) => p.length > 0);

@@ -10,8 +10,8 @@ records, skills and agents folders.
 
 ## Decision
 
-Acode reads these files and treats them as untrusted, possibly half-written input: every reader
-tolerates missing files and malformed lines and returns empty results. Acode never writes to
+ARcode reads these files and treats them as untrusted, possibly half-written input: every reader
+tolerates missing files and malformed lines and returns empty results. ARcode never writes to
 `~/.claude`, with two exceptions: the IDE lock files it owns in `~/.claude/ide`, and the opt-in
 status line entry (ADR 0005). Locating and reading transcripts goes through one module,
 `main/claude/transcripts.ts`.

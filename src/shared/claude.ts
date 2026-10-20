@@ -157,8 +157,8 @@ export interface LiveUsageWindow {
 }
 
 /**
- * Plan utilization of one Claude Code session, written by Acode's status line script
- * (`resources/acode-statusline.py`) on every status line update. Rate limits appear only for
+ * Plan utilization of one Claude Code session, written by ARcode's status line script
+ * (`resources/arcode-statusline.py`) on every status line update. Rate limits appear only for
  * claude.ai Pro/Max and only after the first API response of the session.
  */
 export interface LiveUsage {
@@ -178,7 +178,7 @@ export interface LiveUsage {
   updatedAt: number;
 }
 
-/** Whether ~/.claude/settings.json points the status line at Acode's script, elsewhere, or nowhere. */
+/** Whether ~/.claude/settings.json points the status line at ARcode's script, elsewhere, or nowhere. */
 export interface StatusLineState {
   state: 'off' | 'acode' | 'other';
   command: string | null;

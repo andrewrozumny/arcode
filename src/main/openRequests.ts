@@ -1,5 +1,5 @@
 /**
- * Routes paths handed to the app from outside (`open -a Acode <path>`, Finder, a second
+ * Routes paths handed to the app from outside (`open -a ARcode <path>`, Finder, a second
  * launch) to project windows: folders open as projects, files open in the window whose
  * root contains them, or in a new window for the enclosing git repository.
  */

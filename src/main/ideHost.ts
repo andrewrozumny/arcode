@@ -205,7 +205,7 @@ export class IdeSession implements IdeSessionLike {
   }
 
   async start(): Promise<void> {
-    await this.bridge.start({ workspaceFolders: [this.options.root], ideName: 'Acode', pid: process.pid });
+    await this.bridge.start({ workspaceFolders: [this.options.root], ideName: 'ARcode', pid: process.pid });
     if (this.stopped) {
       await this.bridge.stop();
       return;

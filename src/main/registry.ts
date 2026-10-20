@@ -91,7 +91,7 @@ export function readRegistry(dbPath: string | undefined, timeoutMs = 3000): Prom
       { timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024 },
       (error, stdout) => {
         if (error) {
-          console.warn(`[acode] project registry unavailable: ${error.message}`);
+          console.warn(`[arcode] project registry unavailable: ${error.message}`);
           resolve([]);
           return;
         }

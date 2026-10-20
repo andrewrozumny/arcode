@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-21
+
+### Changed
+
+- **Renamed from Acode to ARcode**, with a new icon. The name Acode was already taken by an
+  Android code editor. The bundle id is now `io.github.andrewrozumny.arcode` and development
+  environment variables use the `ARCODE_` prefix.
+
+### Added
+
+- **Upgrade from Acode.** On the first start ARcode copies recent projects, layout, terminal tabs
+  and live usage records from `~/Library/Application Support/Acode` (the old folder is kept), and
+  re-points an enabled Acode status line at the new script.
+
 ## [0.1.0] - 2026-10-16
 
 First public release.
@@ -13,7 +27,7 @@ First public release.
 
 - **Project windows.** One window per project, reopened at start. Project switcher (Cmd+Shift+O)
   with recent projects and an optional read-only SQLite project registry. Single instance:
-  `open -a Acode <file or folder>` routes to the window that owns the path.
+  `open -a ARcode <file or folder>` routes to the window that owns the path.
 - **File tree.** Lazy and virtualised, respects `.gitignore`, marks git changes, follows changes on
   disk. Fuzzy file search (Cmd+P), create, rename, move to Trash, copy and paste files with Finder,
   drag and drop from Finder, and an Import from Mac dialog (Screenshots, Downloads, Recent).
@@ -26,7 +40,7 @@ First public release.
 - **Claude Code integration.** Built-in IDE bridge (diff review with accept and reject, open file,
   selection sharing, @-mentions) that Claude Code joins without `/ide`. Header model badge, running
   subagents and context, 5-hour and weekly usage bars.
-- **Opt-in status line** that feeds live plan usage to Acode, written to `~/.claude/settings.json`
+- **Opt-in status line** that feeds live plan usage to ARcode, written to `~/.claude/settings.json`
   only on an explicit click, with a backup, and refused when another status line is configured.
 - **Claude feed.** A pinned viewer tab that shows the active Claude session as a live conversation:
   Markdown answers with highlighted code and file links, tool calls that expand into diffs and
@@ -38,4 +52,4 @@ First public release.
 - **Notifications** when a Claude session waits for you in a background window, and a Dock badge
   counting waiting tabs.
 
-[0.1.0]: https://github.com/andrewrozumny/acode/releases/tag/v0.1.0
+[0.1.0]: https://github.com/andrewrozumny/arcode/releases/tag/v0.1.0

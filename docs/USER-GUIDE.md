@@ -1,10 +1,10 @@
-# Acode user guide
+# ARcode user guide
 
-Acode is a small macOS workspace around terminal coding agents, mainly Claude Code. Each project
+ARcode is a small macOS workspace around terminal coding agents, mainly Claude Code. Each project
 gets its own window with a file tree, a file viewer and a terminal dock. This guide covers
 everyday use. For how the code is put together, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-![Acode window](screenshots/overview.png)
+![ARcode window](screenshots/overview.png)
 
 ## Contents
 
@@ -27,34 +27,34 @@ everyday use. For how the code is put together, see [ARCHITECTURE.md](ARCHITECTU
 
 ## Install
 
-Acode is not distributed as a signed download. Build it from source on a Mac (Apple silicon or
+ARcode is not distributed as a signed download. Build it from source on a Mac (Apple silicon or
 Intel, macOS 12 or later):
 
 Requirements: Node.js 22.12+, pnpm 10, Xcode Command Line Tools (`xcode-select --install`). The
 native terminal module `node-pty` is compiled against Electron's headers during install.
 
 ```bash
-git clone https://github.com/andrewrozumny/acode.git
-cd acode
+git clone https://github.com/andrewrozumny/arcode.git
+cd arcode
 pnpm install
-scripts/install-app.sh   # builds Acode.app and copies it to /Applications
+scripts/install-app.sh   # builds ARcode.app and copies it to /Applications
 ```
 
-`scripts/install-app.sh` runs `pnpm dist`, quits a running Acode and replaces
-`/Applications/Acode.app`. Run it from a terminal outside Acode (or quit Acode first), because it
+`scripts/install-app.sh` runs `pnpm dist`, quits a running ARcode and replaces
+`/Applications/ARcode.app`. Run it from a terminal outside ARcode (or quit ARcode first), because it
 cannot replace the instance you are typing in. To build without installing, run `pnpm dist`; the
-app lands in `dist/mac-arm64/Acode.app` (or `dist/mac/` on Intel).
+app lands in `dist/mac-arm64/ARcode.app` (or `dist/mac/` on Intel).
 
 The app is ad-hoc signed only and not notarized. If you copy the built app to another Mac,
 clear the quarantine flag before the first launch, or Gatekeeper refuses to open it:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/Acode.app
+xattr -dr com.apple.quarantine /Applications/ARcode.app
 ```
 
 ## Open projects
 
-A project is any folder. Acode opens one window per project; opening a project that already has a
+A project is any folder. ARcode opens one window per project; opening a project that already has a
 window focuses that window. Windows that were open when you quit are reopened at start.
 
 | How | What happens |
@@ -62,12 +62,12 @@ window focuses that window. Windows that were open when you quit are reopened at
 | **Cmd+Shift+O** (File > Open Project...) or a click on the project name in the header | Opens the project switcher: recent projects plus, optionally, a project registry. Type to filter, arrows or Ctrl+N / Ctrl+P to move, Enter to open, Esc to close. |
 | File > Open Folder... | Native folder picker. |
 | File > Open Recent | The last 15 projects. |
-| `open -a Acode <folder>` | Opens or focuses that folder's window. |
-| `open -a Acode <file>` | Opens the file in the window whose project contains it; otherwise opens a window for the file's git repository, or for its folder. |
+| `open -a ARcode <folder>` | Opens or focuses that folder's window. |
+| `open -a ARcode <file>` | Opens the file in the window whose project contains it; otherwise opens a window for the file's git repository, or for its folder. |
 
 ![Project switcher](screenshots/switcher.png)
 
-Acode runs as a single instance. Starting it again (for example with `open -a`) forwards the
+ARcode runs as a single instance. Starting it again (for example with `open -a`) forwards the
 paths to the running app instead of starting a second copy.
 
 ## Window layout
@@ -163,7 +163,7 @@ Other features:
 - **Pasting:** Cmd+V pastes text. Files copied in Finder or in the tree are typed as shell-escaped
   paths. An image on the clipboard is passed to the program as Ctrl+V, so Claude Code attaches it
   itself.
-- **Pasted images in the composer** are saved as files under Acode's data folder and their path is
+- **Pasted images in the composer** are saved as files under ARcode's data folder and their path is
   inserted. These files are deleted after seven days.
 - **Dropped files** from Finder or the tree type their shell-escaped paths.
 - **Font size:** Cmd+= / Cmd+- / Cmd+0.
@@ -175,8 +175,8 @@ Other features:
   whether to **Continue previous session** (`claude --resume <id>`) or start a **New session**.
 
 Terminals do not inherit Anthropic API keys, provider switches (Bedrock, Vertex and similar) or the
-markers of a parent Claude Code session from the environment Acode was launched in, so `claude`
-inside Acode uses your normal subscription login and starts as a top-level session.
+markers of a parent Claude Code session from the environment ARcode was launched in, so `claude`
+inside ARcode uses your normal subscription login and starts as a top-level session.
 
 ## Claude Code integration
 
@@ -184,7 +184,7 @@ inside Acode uses your normal subscription login and starts as a top-level sessi
 
 Every project window runs the same local bridge an IDE extension would: a WebSocket server on
 127.0.0.1 with a random token and a lock file in `~/.claude/ide`. Terminals get
-`CLAUDE_CODE_SSE_PORT`, so `claude` started in Acode connects at once; there is no need to run
+`CLAUDE_CODE_SSE_PORT`, so `claude` started in ARcode connects at once; there is no need to run
 `/ide`. The header shows the bridge status ("IDE: N clients").
 
 What it gives you:
@@ -208,25 +208,25 @@ What it gives you:
 ### Status line (opt-in)
 
 Plan percentages are only available inside Claude Code's status line input. To see them, open the
-Claude panel, go to **Usage** and click **Status line: off**. Acode then:
+Claude panel, go to **Usage** and click **Status line: off**. ARcode then:
 
-1. Copies its script to `~/Library/Application Support/Acode/acode-statusline.py`.
-2. Saves a backup of your current settings as `~/.claude/settings.json.bak-acode-<timestamp>`.
+1. Copies its script to `~/Library/Application Support/ARcode/arcode-statusline.py`.
+2. Saves a backup of your current settings as `~/.claude/settings.json.bak-arcode-<timestamp>`.
 3. Sets exactly this entry in `~/.claude/settings.json` (written atomically; a symlinked settings
    file stays a symlink):
 
    ```json
    "statusLine": {
      "type": "command",
-     "command": "python3 \"/Users/<you>/Library/Application Support/Acode/acode-statusline.py\""
+     "command": "python3 \"/Users/<you>/Library/Application Support/ARcode/arcode-statusline.py\""
    }
    ```
 
-Acode refuses to do this if another status line is already configured, or if `settings.json` is
-not valid JSON. Clicking **Status line: on** removes only Acode's own entry (again with a backup).
+ARcode refuses to do this if another status line is already configured, or if `settings.json` is
+not valid JSON. Clicking **Status line: on** removes only ARcode's own entry (again with a backup).
 
 The script runs with the system `python3`, writes one small JSON record per session to
-`~/Library/Application Support/Acode/usage/` (model, context, cost, rate limits) and prints a
+`~/Library/Application Support/ARcode/usage/` (model, context, cost, rate limits) and prints a
 status line inside Claude Code with a summary and the running subagents. It always exits 0, so it
 cannot break Claude Code. Records older than seven days are pruned.
 
@@ -274,9 +274,9 @@ read-only view of Claude Code's configuration for this project, except for the s
 The header's **Gate** buttons (ALL, lint, test, build, deploy) run `scripts/gates.sh <target>` in a
 new terminal tab of the open project. The tab shows a check or a cross when the script exits.
 
-This is a convention, not something tied to Acode's own code: any project can adopt it by adding an
+This is a convention, not something tied to ARcode's own code: any project can adopt it by adding an
 executable `scripts/gates.sh` that accepts `all`, `lint`, `test`, `build` and `deploy` and exits
-non-zero on failure. Acode's own [`scripts/gates.sh`](../scripts/gates.sh) is a working example
+non-zero on failure. ARcode's own [`scripts/gates.sh`](../scripts/gates.sh) is a working example
 (ESLint and TypeScript, Vitest, a production build, and a `deploy` target that is only a preflight).
 
 The **Gates** section of the Claude panel describes each target in plain words and lists the
@@ -288,17 +288,17 @@ each run stays in its terminal tab.
 ## Notifications and dock badge
 
 When a Claude session in one of a window's terminals starts waiting for you (a permission prompt,
-a question, the end of a turn) and that window is not focused, Acode shows one macOS notification
+a question, the end of a turn) and that window is not focused, ARcode shows one macOS notification
 per waiting period. Clicking it focuses the window. The Dock icon shows a badge with the number of
-waiting tabs you are not looking at. Allow notifications for Acode in System Settings >
+waiting tabs you are not looking at. Allow notifications for ARcode in System Settings >
 Notifications if they do not appear.
 
 ## Project registry (optional)
 
 The switcher can also list projects from a local SQLite database with a `projects` table
-(`slug, name, status, kind, home`), where `home` starts with a folder path. Point Acode at it with
-the `ACODE_PROJECT_REGISTRY_DB` environment variable, or set `settings.projectRegistryDb` in
-`~/Library/Application Support/Acode/state.json`. The database is read only, through the system
+(`slug, name, status, kind, home`), where `home` starts with a folder path. Point ARcode at it with
+the `ARCODE_PROJECT_REGISTRY_DB` environment variable, or set `settings.projectRegistryDb` in
+`~/Library/Application Support/ARcode/state.json`. The database is read only, through the system
 `sqlite3` command. Projects with status `active` or `validating` are listed first. Without a
 database the switcher shows recent projects only.
 
@@ -390,19 +390,19 @@ database the switcher shows recent projects only.
 
 | Location | Contents |
 |---|---|
-| `~/Library/Application Support/Acode/state.json` | Recent projects, open windows, window bounds, panel layout, terminal tabs, settings. |
-| `~/Library/Application Support/Acode/paste/` | Images pasted into the terminal composer; deleted after 7 days. |
-| `~/Library/Application Support/Acode/usage/` | Status line records, one per session; pruned after 7 days. Only with the status line on. |
-| `~/Library/Application Support/Acode/acode-statusline.py` | Installed status line script. Only with the status line on. |
+| `~/Library/Application Support/ARcode/state.json` | Recent projects, open windows, window bounds, panel layout, terminal tabs, settings. |
+| `~/Library/Application Support/ARcode/paste/` | Images pasted into the terminal composer; deleted after 7 days. |
+| `~/Library/Application Support/ARcode/usage/` | Status line records, one per session; pruned after 7 days. Only with the status line on. |
+| `~/Library/Application Support/ARcode/arcode-statusline.py` | Installed status line script. Only with the status line on. |
 | `~/.claude/ide/<port>.lock` | IDE bridge lock file per open window, removed when the window closes. |
-| `~/.claude/settings.json` and `settings.json.bak-acode-<timestamp>` | Changed only by the status line switch, with a backup. |
+| `~/.claude/settings.json` and `settings.json.bak-arcode-<timestamp>` | Changed only by the status line switch, with a backup. |
 | Browser storage of the app | Terminal font size, expanded tree folders, import dialog sort. |
 
-To reset Acode, quit it and delete `~/Library/Application Support/Acode`.
+To reset ARcode, quit it and delete `~/Library/Application Support/ARcode`.
 
 ## Privacy
 
-Acode has no account, no telemetry, no crash reporter and no auto-updater. It makes no network
+ARcode has no account, no telemetry, no crash reporter and no auto-updater. It makes no network
 requests of its own.
 
 - **Network:** the only listener is the IDE bridge WebSocket on 127.0.0.1, protected by a random
@@ -425,11 +425,11 @@ Whatever you run in a terminal, including Claude Code itself, talks to the netwo
 
 | Problem | Fix |
 |---|---|
-| "Acode is damaged" or "cannot be opened" on first launch | Clear the quarantine flag: `xattr -dr com.apple.quarantine /Applications/Acode.app`. |
+| "ARcode is damaged" or "cannot be opened" on first launch | Clear the quarantine flag: `xattr -dr com.apple.quarantine /Applications/ARcode.app`. |
 | Terminal does not start, or an error mentions `node-pty` / `NODE_MODULE_VERSION` | The native module was built for another Electron version. Run `pnpm rebuild:native` and rebuild. |
-| `pnpm dev` starts and quits at once | Another Acode is running; the new instance forwards its arguments to it and exits. Quit the installed Acode, or start the dev build with a different user data folder. |
-| `scripts/install-app.sh` hangs or fails to replace the app | Run it from a terminal outside Acode, or quit Acode first. |
-| No usage bars in the header | Turn on the status line in Claude panel > Usage, then wait for the next Claude reply. If another status line is configured, Acode leaves it alone and shows no live percentages. |
-| Claude Code does not connect to Acode | Make sure `claude` was started in an Acode terminal (it needs `CLAUDE_CODE_SSE_PORT`). Check the "IDE" indicator in the header. |
-| No notifications | Allow notifications for Acode in System Settings > Notifications. Notifications only appear when the window is not focused. |
+| `pnpm dev` starts and quits at once | Another ARcode is running; the new instance forwards its arguments to it and exits. Quit the installed ARcode, or start the dev build with a different user data folder. |
+| `scripts/install-app.sh` hangs or fails to replace the app | Run it from a terminal outside ARcode, or quit ARcode first. |
+| No usage bars in the header | Turn on the status line in Claude panel > Usage, then wait for the next Claude reply. If another status line is configured, ARcode leaves it alone and shows no live percentages. |
+| Claude Code does not connect to ARcode | Make sure `claude` was started in an ARcode terminal (it needs `CLAUDE_CODE_SSE_PORT`). Check the "IDE" indicator in the header. |
+| No notifications | Allow notifications for ARcode in System Settings > Notifications. Notifications only appear when the window is not focused. |
 | Gate tab says `scripts/gates.sh: No such file or directory` | The project has no gates script. Add one (see [Quality gates](#quality-gates)). |

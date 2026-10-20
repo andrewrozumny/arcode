@@ -48,7 +48,7 @@ beforeEach(async () => {
     lockDir: dir,
     onClientConnected: (pid) => (connectedPid = pid),
   });
-  await bridge.start({ workspaceFolders: ['/work/proj'], ideName: 'Acode', pid: 4242 });
+  await bridge.start({ workspaceFolders: ['/work/proj'], ideName: 'ARcode', pid: 4242 });
 });
 
 afterEach(async () => {
@@ -101,7 +101,7 @@ describe('IDE bridge', () => {
     expect(ws.protocol).toBe('mcp');
     const init = await rpc(ws, 0, 'initialize', { protocolVersion: '2025-03-26' });
     expect(init.result.protocolVersion).toBe('2024-11-05');
-    expect(init.result.serverInfo.name).toBe('Acode');
+    expect(init.result.serverInfo.name).toBe('ARcode');
     expect(init.result.capabilities.tools).toBeTruthy();
     const list = await rpc(ws, 1, 'tools/list');
     const names = list.result.tools.map((t) => t.name);
@@ -216,7 +216,7 @@ describe('IDE bridge', () => {
     expect(json).toMatchObject({
       workspaceFolders: ['/work/proj'],
       pid: 4242,
-      ideName: 'Acode',
+      ideName: 'ARcode',
       transport: 'ws',
       runningInWindows: false,
       authToken: bridge.authToken,

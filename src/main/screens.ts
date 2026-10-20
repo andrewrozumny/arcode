@@ -1,5 +1,5 @@
 /**
- * Development-only screenshots (ACODE_SCREENS=<dir>): captures the first project window
+ * Development-only screenshots (ARCODE_SCREENS=<dir>): captures the first project window
  * and the project switcher, then quits. Used to check layout without a human at the screen.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -33,7 +33,7 @@ export function captureScreens(outDir: string, windows: WindowManager, switcher:
       await delay(500);
       await shot(palette, 'palette-query');
     }
-    if (!process.env.ACODE_SCREENS_KEEP) app.quit();
+    if (!process.env.ARCODE_SCREENS_KEEP) app.quit();
   };
   run().catch((error: unknown) => {
     console.error('[screens] failed', error);

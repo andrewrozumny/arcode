@@ -125,14 +125,14 @@ export class WindowManager {
           app.focus({ steal: true });
         },
         createBridge: (host, callbacks) => createIdeBridge(host, callbacks),
-        ...(process.env.ACODE_IDE_LOG ? { log: (message: string) => console.log(`[ide] ${message}`) } : {}),
+        ...(process.env.ARCODE_IDE_LOG ? { log: (message: string) => console.log(`[ide] ${message}`) } : {}),
       }),
       ideReady: Promise.resolve(),
       openedAt,
     };
     entry.ideReady = entry.ide
       .start()
-      .catch((error: unknown) => console.error('[acode] IDE bridge failed to start', error));
+      .catch((error: unknown) => console.error('[arcode] IDE bridge failed to start', error));
     attachTerminalWindow(win, entry.ptys);
     const contentsId = win.webContents.id;
     this.byRoot.set(root, entry);
@@ -186,7 +186,7 @@ export class WindowManager {
     this.state.setOpenWindows(this.roots());
     this.onChange();
 
-    if (process.env.ACODE_SELFTEST && !this.selfTestStarted) {
+    if (process.env.ARCODE_SELFTEST && !this.selfTestStarted) {
       this.selfTestStarted = true;
       runSelfTest(win, entry.ptys);
     }
@@ -230,7 +230,7 @@ export function registerWindowIpc(ipcMain: IpcMain, windows: WindowManager): voi
     const sinceOpen = (performance.now() - entry.openedAt).toFixed(0);
     const sinceStart = firstFrameLogged ? '' : `, ${performance.now().toFixed(0)} ms after process start`;
     firstFrameLogged = true;
-    console.log(`[acode] first terminal frame of ${baseName(entry.root)}: ${sinceOpen} ms after window open${sinceStart}`);
+    console.log(`[arcode] first terminal frame of ${baseName(entry.root)}: ${sinceOpen} ms after window open${sinceStart}`);
   });
 }
 

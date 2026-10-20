@@ -1,6 +1,6 @@
 # Benchmarks
 
-How fast and how heavy Acode is, measured on one machine with scripts that are in this repository.
+How fast and how heavy ARcode is, measured on one machine with scripts that are in this repository.
 Every number below was measured; nothing is estimated or copied from elsewhere.
 
 ## Machine
@@ -138,8 +138,8 @@ installed on this machine, not a feature comparison.
 
 | Bundle | Size |
 |---|---|
-| Acode `out/` (bundled JS, CSS, assets) | 5 MB |
-| Acode.app (`pnpm dist`, unsigned) | 256 MB |
+| ARcode `out/` (bundled JS, CSS, assets) | 5 MB |
+| ARcode.app (`pnpm dist`, unsigned) | 256 MB |
 | of which Electron Framework | 238 MB |
 | of which `app.asar` | 15 MB |
 | Cursor.app | 970 MB |
@@ -151,7 +151,7 @@ Visual Studio Code is not installed on this machine, so it is not listed.
 
 - One machine, one day. Numbers on other hardware will differ; the scripts are here to rerun.
 - The app-level suite runs the bundle in `out/` on the development Electron binary, not the
-  packaged `Acode.app`. The packaged app reads its code from `app.asar`; startup may differ a little.
+  packaged `ARcode.app`. The packaged app reads its code from `app.asar`; startup may differ a little.
 - Times are wall clock from the benchmark process and include Playwright's own overhead (a few
   milliseconds per step). Renderer-side times (IPC, "go to file", "load earlier") are taken with
   `performance.now()` inside the page.

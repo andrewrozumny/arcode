@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { enterBackgroundMode } from './background';
+import { migrateLegacyUserData } from './legacy';
 import { buildMenu } from './menu';
 import { ProjectSwitcher, registerProjectsIpc } from './projects';
 import { isDirectory } from './registry';
@@ -13,9 +14,9 @@ import { registerFilesIpc } from './files/ipc';
 import { registerViewerIpc } from './viewer/ipc';
 import { pasteDir, prunePastedImages } from './terminal/pasteImages';
 
-app.setName('Acode');
+app.setName('ARcode');
 
-// One running instance: a second `open -a Acode <path>` forwards its arguments here.
+// One running instance: a second `open -a ARcode <path>` forwards its arguments here.
 const openRequests = new OpenRequestRouter();
 const isPrimary = app.requestSingleInstanceLock();
 if (!isPrimary) {
@@ -36,6 +37,7 @@ void app.whenReady().then(() => {
   // files or save its stale copy of state.json over the running instance's.
   if (!isPrimary) return;
   enterBackgroundMode();
+  migrateLegacyUserData(app.getPath('appData'), app.getPath('userData'));
   registerFilesIpc(ipcMain);
   registerViewerIpc(ipcMain);
   registerClaudeIpc(ipcMain);
@@ -55,8 +57,8 @@ void app.whenReady().then(() => {
   registerProjectsIpc(ipcMain, switcher, windows, state);
   refreshMenu();
 
-  // Development override: ACODE_CWD opens that folder directly.
-  const devRoot = process.env.ACODE_CWD;
+  // Development override: ARCODE_CWD opens that folder directly.
+  const devRoot = process.env.ARCODE_CWD;
   const startRoots = devRoot ? [devRoot] : state.get().openWindows.filter(isDirectory);
   for (const root of startRoots) windows.openProject(root);
   // Paths given on the command line (dev: `electron . <file>`) and any queued `open-file` events.
@@ -78,7 +80,7 @@ void app.whenReady().then(() => {
   // Pasted images are only needed while the prompt that mentions them is fresh.
   void prunePastedImages(pasteDir(app.getPath('userData')));
 
-  if (process.env.ACODE_SCREENS) captureScreens(process.env.ACODE_SCREENS, windows, switcher);
+  if (process.env.ARCODE_SCREENS) captureScreens(process.env.ARCODE_SCREENS, windows, switcher);
 });
 
 // macOS convention: closing the last window keeps the app running.

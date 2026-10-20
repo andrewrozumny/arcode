@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ClipboardEvent, DragEvent, KeyboardEvent, MouseEvent, ReactElement } from 'react';
-import { ACODE_PATH_TYPE, encodeDraggedPaths } from '@shared/files';
+import { ARCODE_PATH_TYPE, encodeDraggedPaths } from '@shared/files';
 import { ipcErrorMessage } from '../format';
 import { ContextMenu, PromptDialog } from './overlays';
 import { ImportDialog } from './ImportDialog';
@@ -384,7 +384,7 @@ function FileTreeInner({ projectRoot, onOpenFile, activePath }: FileTreeProps): 
   /** Dragging a row (or the selection it belongs to) carries its absolute paths, so the terminal can type them. */
   const onRowDragStart = (event: DragEvent<HTMLDivElement>, row: Row): void => {
     const abs = targetsFor(row).map((r) => joinPath(projectRoot, r.rel));
-    event.dataTransfer.setData(ACODE_PATH_TYPE, encodeDraggedPaths(abs));
+    event.dataTransfer.setData(ARCODE_PATH_TYPE, encodeDraggedPaths(abs));
     event.dataTransfer.setData('text/plain', abs.join('\n'));
     event.dataTransfer.effectAllowed = 'copyLink';
   };

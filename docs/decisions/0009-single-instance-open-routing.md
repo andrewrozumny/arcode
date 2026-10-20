@@ -2,7 +2,7 @@
 
 ## Context
 
-Acode can be started from the Dock, from Finder, and from the command line (`open -a Acode <path>`).
+ARcode can be started from the Dock, from Finder, and from the command line (`open -a ARcode <path>`).
 Two running instances would fight over `state.json`, spawn duplicate IDE bridges and open the same
 project twice.
 
@@ -17,8 +17,8 @@ for its folder.
 
 ## Consequences
 
-- `open -a Acode file.ts` from any terminal lands in the right project window.
-- A development build with the same app name forwards to an installed, running Acode instead of
+- `open -a ARcode file.ts` from any terminal lands in the right project window.
+- A development build with the same app name forwards to an installed, running ARcode instead of
   starting; use a different user data folder to run both.
-- `scripts/install-app.sh` cannot replace a running instance cleanly from inside it; quit Acode
-  manually before installing from an Acode terminal.
+- `scripts/install-app.sh` cannot replace a running instance cleanly from inside it; quit ARcode
+  manually before installing from an ARcode terminal.

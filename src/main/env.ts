@@ -31,7 +31,7 @@ export const STRIPPED_ENV_KEYS: readonly string[] = [
 
 /**
  * Markers a parent terminal or a parent Claude Code session leaves in the
- * environment when Acode itself is launched from one. Inherited by a nested
+ * environment when ARcode itself is launched from one. Inherited by a nested
  * claude they make it believe it is a child session (e.g. transcripts off).
  */
 export const INHERITED_SESSION_KEYS: readonly string[] = [
@@ -51,7 +51,7 @@ const INHERITED_SESSION_PREFIX = 'CLAUDE_CODE_';
 export type Env = Record<string, string | undefined>;
 
 export interface ChildEnvOptions {
-  /** Project folder, exported as ACODE_PROJECT. */
+  /** Project folder, exported as ARCODE_PROJECT. */
   project?: string;
   /** Applied last, wins over everything (e.g. CLAUDE_CODE_SSE_PORT from the IDE bridge). */
   extraEnv?: Record<string, string> | undefined;
@@ -69,9 +69,9 @@ export function envForChild(source: Env = process.env, options: ChildEnvOptions 
   result.COLORTERM = 'truecolor';
   if (!result.LANG) result.LANG = 'en_US.UTF-8';
   result.ACODE = '1';
-  result.TERM_PROGRAM = 'Acode';
+  result.TERM_PROGRAM = 'ARcode';
   result.CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = '1';
-  if (options.project) result.ACODE_PROJECT = options.project;
+  if (options.project) result.ARCODE_PROJECT = options.project;
   for (const [key, value] of Object.entries(options.extraEnv ?? {})) {
     if (typeof value === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) result[key] = value;
   }

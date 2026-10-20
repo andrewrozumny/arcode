@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="resources/icon.png" width="112" alt="Acode icon">
+  <img src="resources/icon.png" width="112" alt="ARcode icon">
 </p>
 
-<h1 align="center">Acode</h1>
+<h1 align="center">ARcode</h1>
 
 <p align="center">
   A small, fast macOS workspace built around <a href="https://docs.claude.com/en/docs/claude-code/overview">Claude Code</a>
@@ -11,17 +11,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/andrewrozumny/acode/actions/workflows/ci.yml"><img src="https://github.com/andrewrozumny/acode/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/andrewrozumny/arcode/actions/workflows/ci.yml"><img src="https://github.com/andrewrozumny/arcode/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
 </p>
 
-![Acode: file tree, the Claude feed and a Claude Code tab](docs/screenshots/overview.png)
+![ARcode: file tree, the Claude feed and a Claude Code tab](docs/screenshots/overview.png)
 
 ## Why
 
 If most of your day happens inside Claude Code, a full IDE is mostly overhead: you need to see
-the files, read a diff, glance at what the agent is doing and keep a few terminals open. Acode is
+the files, read a diff, glance at what the agent is doing and keep a few terminals open. ARcode is
 exactly that and nothing more. It speaks the same IDE protocol as the VS Code and JetBrains
 extensions, so Claude Code can open diffs and files in it without `/ide`, and it reads Claude
 Code's own files to show sessions, usage, skills, MCP servers and hooks. It never sends anything
@@ -77,7 +77,7 @@ restored after a restart.
 
 ### Projects and gates
 
-- **One window per project**, reopened at start. **Cmd+Shift+O** switches projects; `open -a Acode
+- **One window per project**, reopened at start. **Cmd+Shift+O** switches projects; `open -a ARcode
   <file or folder>` routes to the right window.
 - **Quality gates.** The header buttons run `scripts/gates.sh <target>` (`all`, `lint`, `test`,
   `build`, `deploy`) of the open project in a terminal tab. Any project can adopt the convention.
@@ -92,7 +92,7 @@ Out of scope on purpose: debugger, database client, git GUI, language intelligen
 
 Measured on an M4 Pro MacBook (24 GB, macOS 26), development build, medians where several runs were taken:
 
-| | Acode |
+| | ARcode |
 |---|---|
 | Window visible after launch | 243 ms |
 | First file tree row | 515 ms |
@@ -109,21 +109,30 @@ Methodology, raw numbers and how to reproduce them: [docs/BENCHMARKS.md](docs/BE
 
 ## Install
 
-Acode is not notarized yet, so you build it yourself. Requirements: macOS 12+, Node.js 22.12+,
-pnpm 10 and the Xcode Command Line Tools (node-pty is compiled against Electron's headers).
+**Download.** Take `ARcode-<version>-arm64.dmg` (Apple Silicon) from the
+[latest release](https://github.com/andrewrozumny/arcode/releases/latest), open it and drag ARcode
+to Applications. The app is not signed or notarized yet, so macOS blocks the first launch; clear the
+quarantine flag once:
 
 ```bash
-git clone https://github.com/andrewrozumny/acode.git
-cd acode
-pnpm install
-scripts/install-app.sh      # builds Acode.app and copies it to /Applications
+xattr -dr com.apple.quarantine /Applications/ARcode.app
 ```
 
-To build without installing: `pnpm dist` puts the app in `dist/mac-arm64/Acode.app`. If you copy
-the app to another Mac, clear the quarantine flag first:
-`xattr -dr com.apple.quarantine Acode.app`.
+**Build from source.** Requirements: macOS 12+, Node.js 22.12+, pnpm 10 and the Xcode Command Line
+Tools (node-pty is compiled against Electron's headers).
 
-Then open a project: `open -a Acode ~/code/my-project`, or launch Acode and press Cmd+Shift+O.
+```bash
+git clone https://github.com/andrewrozumny/arcode.git
+cd arcode
+pnpm install
+scripts/install-app.sh      # builds ARcode.app and copies it to /Applications
+```
+
+To build without installing: `pnpm dist` puts the app in `dist/mac-arm64/ARcode.app`.
+
+Then open a project: `open -a ARcode ~/code/my-project`, or launch ARcode and press Cmd+Shift+O.
+Coming from Acode (the old name)? ARcode picks up your projects, layout and status line on the
+first start.
 
 ## Keyboard shortcuts
 
@@ -147,7 +156,7 @@ The full list is in the [user guide](docs/USER-GUIDE.md).
 
 ```bash
 pnpm install          # also downloads Electron and rebuilds node-pty for it
-pnpm dev              # run with hot reload (ACODE_CWD=<folder> opens a folder directly)
+pnpm dev              # run with hot reload (ARCODE_CWD=<folder> opens a folder directly)
 scripts/gates.sh all  # lint (zero warnings), typecheck, tests and the production build
 pnpm screenshots      # regenerate docs/screenshots from a demo sandbox
 ```
@@ -162,8 +171,8 @@ captures each view, so they never contain anyone's real data.
 
 ## Data and privacy
 
-Acode reads Claude Code's files under `~/.claude` and the project's `.claude/` and `.mcp.json`,
-and writes only its own state to `~/Library/Application Support/Acode`. It touches
+ARcode reads Claude Code's files under `~/.claude` and the project's `.claude/` and `.mcp.json`,
+and writes only its own state to `~/Library/Application Support/ARcode`. It touches
 `~/.claude/settings.json` only when you switch on the optional status line (a timestamped backup is
 kept). Details: [docs/USER-GUIDE.md](docs/USER-GUIDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

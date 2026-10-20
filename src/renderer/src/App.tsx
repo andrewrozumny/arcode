@@ -163,7 +163,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
 
   /** Gate buttons. The terminal runs `scripts/gates.sh <target>` in a new tab (see the `runGate` listener). */
   const onRunGate = useCallback((target: GateTarget) => {
-    if (bus.count('runGate') === 0) console.info(`[acode] no gate runner attached for "${target}"`);
+    if (bus.count('runGate') === 0) console.info(`[arcode] no gate runner attached for "${target}"`);
     bus.emit('runGate', { target });
   }, []);
 

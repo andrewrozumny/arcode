@@ -36,7 +36,7 @@ describe('pathsFromArgv', () => {
   it('keeps existing paths, resolves relative ones and drops flags', () => {
     const dir = mkdtempSync(join(os.tmpdir(), 'acode-argv-'));
     writeFileSync(join(dir, 'a.txt'), '');
-    const out = pathsFromArgv(['/Applications/Acode.app/Contents/MacOS/Acode', '--no-sandbox', 'a.txt', 'missing.txt'], dir);
+    const out = pathsFromArgv(['/Applications/ARcode.app/Contents/MacOS/ARcode', '--no-sandbox', 'a.txt', 'missing.txt'], dir);
     expect(out).toEqual([join(dir, 'a.txt')]);
   });
 });

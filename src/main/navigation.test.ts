@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { leavesPage } from './navigation';
 
 describe('leavesPage', () => {
-  const page = 'file:///Applications/Acode.app/Contents/Resources/app.asar/out/renderer/index.html?view=project';
+  const page = 'file:///Applications/ARcode.app/Contents/Resources/app.asar/out/renderer/index.html?view=project';
 
   it('blocks a dropped file and web pages', () => {
     expect(leavesPage(page, 'file:///Users/me/Desktop/shot.png')).toBe(true);

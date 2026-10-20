@@ -1,8 +1,8 @@
-# Acode architecture
+# ARcode architecture
 
 ## Purpose
 
-Acode is a macOS workspace for people who spend the day in a terminal-based coding agent,
+ARcode is a macOS workspace for people who spend the day in a terminal-based coding agent,
 mainly Claude Code. One window holds one project: a file tree, a file viewer and a terminal
 dock with shell, Claude and gate tabs. Around the terminal it adds what an IDE gives Claude
 Code (diff review, open file, selection sharing) and a read-only view of Claude Code's own
@@ -86,8 +86,8 @@ waits), and "load earlier" reads backwards from the oldest offset. The renderer 
 viewer pipeline, with code highlighting and file links that open in the viewer.
 
 **Live usage via status line** (`claude/statusline.ts`, `claude/usageLive.ts`,
-`resources/acode-statusline.py`). Plan percentages exist only in Claude Code's status line input.
-On an explicit click Acode installs its script into `<userData>` and points `statusLine` in
+`resources/arcode-statusline.py`). Plan percentages exist only in Claude Code's status line input.
+On an explicit click ARcode installs its script into `<userData>` and points `statusLine` in
 `~/.claude/settings.json` at it (backup kept, atomic write, refuses when another status line is set).
 The script writes one JSON record per session to `<userData>/usage`; `LiveUsageWatcher` broadcasts
 them to all windows (ADR 0005).
@@ -96,7 +96,7 @@ them to all windows (ADR 0005).
 window's pty starts waiting for the user and the window is not focused, a system notification is
 shown once per waiting period; the dock badge counts waiting tabs that are not being looked at.
 
-**Open requests** (`openRequests.ts`). Paths from `open -a Acode <path>`, Finder and second launches
+**Open requests** (`openRequests.ts`). Paths from `open -a ARcode <path>`, Finder and second launches
 open folders as projects and files in the window whose root contains them, else in a window for
 the enclosing git repository (ADR 0009).
 
@@ -119,12 +119,12 @@ the enclosing git repository (ADR 0009).
 
 ## Data on disk
 
-| Location | Written by Acode | Contents |
+| Location | Written by ARcode | Contents |
 |---|---|---|
-| `~/Library/Application Support/Acode/state.json` | yes | Recent projects, open windows, bounds, layout, terminal tabs, settings. Atomic, debounced. |
-| `.../Acode/paste/` | yes | Images pasted into the terminal composer; files older than 7 days removed at startup. |
-| `.../Acode/usage/<sessionId>.json` | by the status line script | Live usage records; the script prunes them after 7 days. |
-| `.../Acode/acode-statusline.py` | yes | Installed copy of the status line script. |
+| `~/Library/Application Support/ARcode/state.json` | yes | Recent projects, open windows, bounds, layout, terminal tabs, settings. Atomic, debounced. |
+| `.../ARcode/paste/` | yes | Images pasted into the terminal composer; files older than 7 days removed at startup. |
+| `.../ARcode/usage/<sessionId>.json` | by the status line script | Live usage records; the script prunes them after 7 days. |
+| `.../ARcode/arcode-statusline.py` | yes | Installed copy of the status line script. |
 | `~/.claude/ide/<port>.lock` | yes | IDE bridge lock file (mode 0600), removed when the window closes. |
 | `~/.claude/settings.json` | only on the status line switch | `statusLine` entry added or removed; timestamped backup next to it. |
 | `~/.claude/projects`, `sessions`, `plugins`, `agents`, `skills`, `CLAUDE.md`, `~/.claude.json`, project `.claude/` and `.mcp.json` | never | Read-only sources of the Claude panel, the Claude feed, sessions, usage and model badge. |
@@ -161,10 +161,10 @@ renderer code; both depend on `src/shared`.
   the built app in it through Playwright's Electron driver; `screenshots.mjs` uses both to
   regenerate `docs/screenshots/`. They need `pnpm build` first and never touch the real home folder.
 - Development-only hooks in main, inactive unless their environment variable is set:
-  `screens.ts` (`ACODE_SCREENS=<dir>` captures the project window and the switcher, then quits),
-  `selftest.ts` (`ACODE_SELFTEST=1` drives a window with synthetic key events and prints process
-  metrics), `background.ts` (`ACODE_BACKGROUND=1` keeps the app out of the Dock and shows windows
-  without taking focus; the demo and bench scripts set it) and `ACODE_IDE_LOG` (logs IDE bridge
+  `screens.ts` (`ARCODE_SCREENS=<dir>` captures the project window and the switcher, then quits),
+  `selftest.ts` (`ARCODE_SELFTEST=1` drives a window with synthetic key events and prints process
+  metrics), `background.ts` (`ARCODE_BACKGROUND=1` keeps the app out of the Dock and shows windows
+  without taking focus; the demo and bench scripts set it) and `ARCODE_IDE_LOG` (logs IDE bridge
   traffic).
 - `scripts/bench/` (app-level timings, memory and CPU through the same launcher) and
   `src/**/*.bench.ts` (Vitest micro-benchmarks); results and method in `docs/BENCHMARKS.md`.

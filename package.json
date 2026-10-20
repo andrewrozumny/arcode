@@ -1,7 +1,7 @@
 {
-  "name": "acode",
-  "productName": "Acode",
-  "version": "0.1.0",
+  "name": "arcode",
+  "productName": "ARcode",
+  "version": "0.2.0",
   "private": true,
   "description": "A lightweight macOS workspace for Claude Code and other terminal coding agents.",
   "keywords": [
@@ -12,13 +12,13 @@
     "macos",
     "coding-agent"
   ],
-  "homepage": "https://github.com/andrewrozumny/acode#readme",
+  "homepage": "https://github.com/andrewrozumny/arcode#readme",
   "bugs": {
-    "url": "https://github.com/andrewrozumny/acode/issues"
+    "url": "https://github.com/andrewrozumny/arcode/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andrewrozumny/acode.git"
+    "url": "git+https://github.com/andrewrozumny/arcode.git"
   },
   "license": "MIT",
   "author": "Andrey Rozumny",

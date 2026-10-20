@@ -20,7 +20,7 @@ describe('envForChild', () => {
     expect(env.TERM).toBe('xterm-256color');
     expect(env.COLORTERM).toBe('truecolor');
     expect(env.ACODE).toBe('1');
-    expect(env.TERM_PROGRAM).toBe('Acode');
+    expect(env.TERM_PROGRAM).toBe('ARcode');
     expect(env).not.toHaveProperty('TERM_PROGRAM_VERSION');
   });
 
@@ -82,12 +82,12 @@ describe('envForChild', () => {
     }
   });
 
-  it('adds Acode markers, the project folder and extra env (which wins)', () => {
+  it('adds ARcode markers, the project folder and extra env (which wins)', () => {
     const env = envForChild(
       { CLAUDE_CODE_SSE_PORT: '1' },
       { project: '/work/app', extraEnv: { CLAUDE_CODE_SSE_PORT: '4242', 'bad key': 'x' } },
     );
-    expect(env.ACODE_PROJECT).toBe('/work/app');
+    expect(env.ARCODE_PROJECT).toBe('/work/app');
     expect(env.CLAUDE_CODE_SSE_PORT).toBe('4242');
     expect(env.CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL).toBe('1');
     expect(env).not.toHaveProperty('bad key');

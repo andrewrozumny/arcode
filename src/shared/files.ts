@@ -30,14 +30,14 @@ export const FilesChannel = {
  * DataTransfer type carrying absolute paths when tree rows are dragged inside the app. The value is a
  * JSON array of strings (see `encodeDraggedPaths`), so a file name with a newline stays one path.
  */
-export const ACODE_PATH_TYPE = 'application/x-acode-path';
+export const ARCODE_PATH_TYPE = 'application/x-acode-path';
 
-/** The ACODE_PATH_TYPE value for `paths`. */
+/** The ARCODE_PATH_TYPE value for `paths`. */
 export function encodeDraggedPaths(paths: readonly string[]): string {
   return JSON.stringify(paths);
 }
 
-/** Paths from an ACODE_PATH_TYPE value; anything that is not a JSON array of strings counts as one path. */
+/** Paths from an ARCODE_PATH_TYPE value; anything that is not a JSON array of strings counts as one path. */
 export function decodeDraggedPaths(value: string): string[] {
   if (value.length === 0) return [];
   let parsed: unknown;

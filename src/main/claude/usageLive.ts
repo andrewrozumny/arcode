@@ -1,6 +1,6 @@
 /**
- * Watches the usage records written by `resources/acode-statusline.py`
- * (`~/Library/Application Support/Acode/usage/<sessionId>.json`) and keeps the latest snapshot.
+ * Watches the usage records written by `resources/arcode-statusline.py`
+ * (`~/Library/Application Support/ARcode/usage/<sessionId>.json`) and keeps the latest snapshot.
  */
 import { mkdirSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';

@@ -1,13 +1,13 @@
-# Contributing to Acode
+# Contributing to ARcode
 
-Thanks for helping. Acode is a small project, so the process is light: open an issue for anything
+Thanks for helping. ARcode is a small project, so the process is light: open an issue for anything
 larger than a fix, keep pull requests focused, and make the gates green before you ask for review.
 
 ## Development setup
 
 Requirements:
 
-- macOS (Acode is macOS only)
+- macOS (ARcode is macOS only)
 - Node.js 22.12 or later
 - pnpm 10
 - Xcode Command Line Tools (`xcode-select --install`), needed to compile `node-pty` against
@@ -18,8 +18,8 @@ pnpm install   # also downloads the Electron binary and rebuilds node-pty for El
 pnpm dev       # run the app with hot reload
 ```
 
-`ACODE_CWD=<folder> pnpm dev` opens that folder directly. Acode is single instance: if an installed
-Acode is running, a dev build forwards its arguments to it and quits. Quit the installed app first,
+`ARCODE_CWD=<folder> pnpm dev` opens that folder directly. ARcode is single instance: if an installed
+ARcode is running, a dev build forwards its arguments to it and quits. Quit the installed app first,
 or pass a different user data folder.
 
 ## Commands
@@ -32,7 +32,7 @@ or pass a different user data folder.
 | `pnpm test` | Vitest. |
 | `pnpm build` | Production bundle into `out/`. |
 | `pnpm start` | Run the production bundle. |
-| `pnpm dist` | Package `dist/mac-arm64/Acode.app` (unsigned). |
+| `pnpm dist` | Package `dist/mac-arm64/ARcode.app` (unsigned). |
 | `pnpm rebuild:native` | Rebuild `node-pty` after an Electron upgrade. |
 | `pnpm screenshots` | Regenerate `docs/screenshots/` (see below). |
 | `scripts/gates.sh all` | Lint + typecheck, tests and build in one go. |
@@ -41,7 +41,7 @@ or pass a different user data folder.
 ## Project layout
 
 Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first: it describes the process model (main,
-preload, renderer, shared), the module map, IPC conventions and the files Acode reads and writes.
+preload, renderer, shared), the module map, IPC conventions and the files ARcode reads and writes.
 Design decisions are recorded in [docs/decisions/](docs/decisions/).
 
 ## Conventions
@@ -74,7 +74,7 @@ scripts/gates.sh all
 ```
 
 This runs `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build`, the same steps CI runs
-(`.github/workflows/ci.yml`). The same script backs the Gate buttons in Acode's header, so you can
+(`.github/workflows/ci.yml`). The same script backs the Gate buttons in ARcode's header, so you can
 also run it from there.
 
 In the pull request, describe what changed and how you checked it. For UI changes, attach a

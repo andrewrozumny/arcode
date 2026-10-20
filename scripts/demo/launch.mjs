@@ -12,7 +12,7 @@ export function electronBinary() {
   return join(REPO, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
 }
 
-/** Launches Acode on `sandbox.root` with the sandbox's home, PATH and user data folder. */
+/** Launches ARcode on `sandbox.root` with the sandbox's home, PATH and user data folder. */
 export async function launch(sandbox, extraEnv = {}) {
   const env = {
     ...process.env,
@@ -20,9 +20,9 @@ export async function launch(sandbox, extraEnv = {}) {
     ZDOTDIR: sandbox.home,
     PATH: `${sandbox.bin}:${process.env.PATH}`,
     SHELL: '/bin/zsh',
-    ACODE_CWD: sandbox.root,
+    ARCODE_CWD: sandbox.root,
     // No Dock icon and no focus stealing while a script drives the app.
-    ACODE_BACKGROUND: '1',
+    ARCODE_BACKGROUND: '1',
     ...extraEnv,
   };
   // Parent-session markers would make the app treat itself as running inside Claude Code.

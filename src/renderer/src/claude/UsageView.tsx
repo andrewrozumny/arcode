@@ -86,7 +86,7 @@ function LiveCard({ title, win }: { title: string; win: LiveUsage['fiveHour'] })
 
 /**
  * Plan utilization straight from Claude Code's status line (the only place it is exposed), plus
- * the switch that points ~/.claude/settings.json at Acode's script. The settings file changes only
+ * the switch that points ~/.claude/settings.json at ARcode's script. The settings file changes only
  * through that switch.
  */
 function LiveUsageSection({ root }: { root: string }) {
@@ -147,7 +147,7 @@ function LiveUsageSection({ root }: { root: string }) {
       <div className="cl-toolbar">
         <span className="cl-desc cl-grow">
           Plan limits come from the Claude Code status line, the only place Claude Code exposes them.
-          {state?.state === 'other' && ` Another status line is configured (${state.command ?? ''}); Acode leaves it alone.`}
+          {state?.state === 'other' && ` Another status line is configured (${state.command ?? ''}); ARcode leaves it alone.`}
           {state?.state === 'off' && ' Turn it on to see 5-hour and weekly usage here and in the header.'}
           {state?.state === 'acode' && !live && ' Numbers appear after the next reply from a Claude session in this project.'}
         </span>

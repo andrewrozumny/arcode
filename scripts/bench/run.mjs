@@ -422,10 +422,10 @@ function duMB(path) {
 
 function suiteSize() {
   const entries = [
-    ['Acode out/ (bundled JS, CSS, assets)', join(REPO, 'out')],
-    ['Acode.app (dist/mac-arm64, unsigned)', join(REPO, 'dist/mac-arm64/Acode.app')],
-    ['Acode.app app.asar only', join(REPO, 'dist/mac-arm64/Acode.app/Contents/Resources/app.asar')],
-    ['Electron Framework inside Acode.app', join(REPO, 'dist/mac-arm64/Acode.app/Contents/Frameworks/Electron Framework.framework')],
+    ['ARcode out/ (bundled JS, CSS, assets)', join(REPO, 'out')],
+    ['ARcode.app (dist/mac-arm64, unsigned)', join(REPO, 'dist/mac-arm64/ARcode.app')],
+    ['ARcode.app app.asar only', join(REPO, 'dist/mac-arm64/ARcode.app/Contents/Resources/app.asar')],
+    ['Electron Framework inside ARcode.app', join(REPO, 'dist/mac-arm64/ARcode.app/Contents/Frameworks/Electron Framework.framework')],
     ['/Applications/Cursor.app', '/Applications/Cursor.app'],
     ['/Applications/Visual Studio Code.app', '/Applications/Visual Studio Code.app'],
     ['/Applications/PhpStorm.app', '/Applications/PhpStorm.app'],
@@ -463,6 +463,6 @@ for (const name of ONLY) {
   await suites[name]();
 }
 
-console.log(`## Acode benchmarks\n\n${machine.cpu}, ${machine.cores} cores, ${machine.memoryGB} GB, macOS ${machine.macos}, Electron ${machine.electron}\n`);
+console.log(`## ARcode benchmarks\n\n${machine.cpu}, ${machine.cores} cores, ${machine.memoryGB} GB, macOS ${machine.macos}, Electron ${machine.electron}\n`);
 console.log(sections.join('\n\n'));
 if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(results, null, 2));

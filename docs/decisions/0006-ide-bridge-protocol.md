@@ -4,7 +4,7 @@
 
 Claude Code integrates with IDEs (diff review before edits, opening files, sharing the current
 selection, @-mentions) through a WebSocket MCP server announced by a lock file in
-`~/.claude/ide`. Acode already has a viewer and a diff editor, so it can play that role.
+`~/.claude/ide`. ARcode already has a viewer and a diff editor, so it can play that role.
 
 ## Decision
 
@@ -17,6 +17,6 @@ diffs as closed. Malformed messages are answered with JSON-RPC errors.
 ## Consequences
 
 - Diff review, open file and selection sharing work with the stock Claude Code CLI.
-- Tools Acode cannot serve meaningfully (diagnostics, reformat) answer with empty results.
+- Tools ARcode cannot serve meaningfully (diagnostics, reformat) answer with empty results.
 - The lock file is removed on stop and on process exit; a crash can leave a stale one, which
   Claude Code ignores once the port is closed.

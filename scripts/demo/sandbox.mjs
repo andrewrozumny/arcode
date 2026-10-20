@@ -6,7 +6,7 @@
  *   <dir>/home/code/orbit-api
  *                   a small git repository with uncommitted changes
  *   <dir>/bin       a stand-in `claude` that registers itself the way Claude Code does
- *   <dir>/userData  Acode's own state, kept apart from an installed Acode
+ *   <dir>/userData  ARcode's own state, kept apart from an installed ARcode
  *
  * Nothing here touches the real home folder, and no model is ever called.
  */
@@ -338,7 +338,7 @@ if [ "$1" = "mcp" ]; then
   echo "postgres: npx -y @modelcontextprotocol/server-postgres postgres://localhost/orbit - ✘ Failed to connect"
   exit 0
 fi
-# Acode starts Claude tabs with --session-id <new id> or --resume <id>: serve the demo conversation under that id.
+# ARcode starts Claude tabs with --session-id <new id> or --resume <id>: serve the demo conversation under that id.
 while [ $# -gt 0 ]; do
   case "$1" in --session-id|--resume) NEW="$2"; shift ;; esac
   shift
@@ -350,7 +350,7 @@ if [ -n "$NEW" ] && [ "$NEW" != "$SID" ]; then
 fi
 mkdir -p "$HOME/.claude/sessions"
 REG="$HOME/.claude/sessions/$$.json"
-printf '{"pid":%d,"sessionId":"%s","cwd":"%s","status":"%s","startedAt":%d}' $$ "$SID" "$PWD" "\${ACODE_DEMO_STATUS:-idle}" "$(date +%s)000" > "$REG"
+printf '{"pid":%d,"sessionId":"%s","cwd":"%s","status":"%s","startedAt":%d}' $$ "$SID" "$PWD" "\${ARCODE_DEMO_STATUS:-idle}" "$(date +%s)000" > "$REG"
 trap 'rm -f "$REG"; exit 0' INT TERM HUP EXIT
 O=$'\\e[38;2;215;119;87m'; D=$'\\e[2m'; B=$'\\e[1m'; R=$'\\e[0m'; G=$'\\e[32m'; RED=$'\\e[31m'
 HR="$(printf '─%.0s' $(seq 1 78))"
@@ -445,7 +445,7 @@ export function buildSandbox(dir) {
   );
   write(join(home, '.zprofile'), '');
   write(join(home, '.bashrc'), `export PATH="${bin}:$PATH"\nPS1='\\W ❯ '\n`);
-  // A live usage record as Acode's status line script writes it, so plan limits show up.
+  // A live usage record as ARcode's status line script writes it, so plan limits show up.
   const now = Date.now();
   write(
     join(userData, 'usage', `${sessionId}.json`),

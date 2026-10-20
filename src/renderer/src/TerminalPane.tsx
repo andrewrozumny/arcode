@@ -42,7 +42,7 @@ export interface TerminalPaneHandle {
 }
 
 export interface TerminalPaneProps {
-  /** Project root: terminal cwd, base for relative file links, ACODE_PROJECT. */
+  /** Project root: terminal cwd, base for relative file links, ARCODE_PROJECT. */
   projectRoot: string;
   ref?: Ref<TerminalPaneHandle>;
   /** Restored on mount; without it the pane opens one shell tab. */

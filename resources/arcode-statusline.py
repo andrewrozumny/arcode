@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Claude Code status line for Acode.
+"""Claude Code status line for ARcode.
 
 Claude Code pipes a JSON document to stdin on every update (see
 https://code.claude.com/docs/en/statusline.md). This script
 
-  1. writes the parts Acode shows (model, context, cost, rate limits) to
-     ~/Library/Application Support/Acode/usage/<session_id>.json, which the app watches;
+  1. writes the parts ARcode shows (model, context, cost, rate limits) to
+     ~/Library/Application Support/ARcode/usage/<session_id>.json, which the app watches;
   2. prints the status line inside Claude Code itself: one summary line, then one line per
      running subagent of the session with its model.
 
@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 
-USAGE_DIR = os.path.expanduser("~/Library/Application Support/Acode/usage")
+USAGE_DIR = os.path.expanduser("~/Library/Application Support/ARcode/usage")
 PRUNE_AFTER_SECONDS = 7 * 24 * 3600
 # Subagents: same "running" rule as src/main/claude/subagents.ts.
 AGENT_QUIET_SECONDS = 10 * 60

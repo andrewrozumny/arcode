@@ -1,5 +1,5 @@
-appId: io.github.andrewrozumny.acode
-productName: Acode
+appId: io.github.andrewrozumny.arcode
+productName: ARcode
 directories:
   buildResources: resources
   output: dist
@@ -10,8 +10,8 @@ files:
 asarUnpack:
   - node_modules/node-pty/**
 extraResources:
-  - from: resources/acode-statusline.py
-    to: acode-statusline.py
+  - from: resources/arcode-statusline.py
+    to: arcode-statusline.py
 npmRebuild: false
 mac:
   target:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Quality gates for Acode: the one definition used by the terminal and by Acode's own
+# Quality gates for ARcode: the one definition used by the terminal and by ARcode's own
 # Gate buttons (which run `scripts/gates.sh <target>` in the open project).
 #
 #   scripts/gates.sh            # same as `all`

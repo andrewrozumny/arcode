@@ -15,7 +15,8 @@ import { listPlugins } from './plugins';
 import { listSessions } from './sessions';
 import { listSkills } from './skills';
 import { listSubagents } from './subagents';
-import { SCRIPT_NAME, disableStatusLine, enableStatusLine, installScript, readStatusLineState } from './statusline';
+import { legacyStatusLineScript } from '../legacy';
+import { SCRIPT_NAME, disableStatusLine, enableStatusLine, installScript, migrateLegacyStatusLine, readStatusLineState } from './statusline';
 import type { StatusLinePaths } from './statusline';
 import { summarizeUsage } from './usage';
 import { LiveUsageWatcher } from './usageLive';
@@ -39,15 +40,20 @@ function broadcast(records: LiveUsage[]): void {
 
 /**
  * Live plan usage from the status line script. Call once after `app.whenReady()`.
- * Only Acode's own data folder is written here; the Claude settings change on user action alone.
+ * Only ARcode's own data folder is written here; the Claude settings change on user action alone.
  */
 export function startLiveUsage(ipcMain: IpcMain): LiveUsageWatcher {
   const paths = statusLinePaths();
   try {
+    migrateLegacyStatusLine(paths, legacyStatusLineScript(app.getPath('appData')));
+  } catch (error) {
+    console.warn('[arcode] status line migration failed', error);
+  }
+  try {
     // Keep the installed copy current for users who already enabled it; harmless otherwise.
     if (readStatusLineState(paths).state === 'acode') installScript(paths);
   } catch (error) {
-    console.warn('[acode] status line script refresh failed', error);
+    console.warn('[arcode] status line script refresh failed', error);
   }
   const watcher = new LiveUsageWatcher(join(app.getPath('userData'), 'usage'), broadcast);
   watcher.start();

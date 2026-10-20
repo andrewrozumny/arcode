@@ -9,12 +9,12 @@ the Claude apps call, and the OAuth tokens Claude Code keeps in the macOS Keycha
 
 ## Decision
 
-Acode ships `resources/acode-statusline.py`. Only when the user clicks the switch in the Claude
-panel, Acode installs the script into its data folder and sets `statusLine` in
+ARcode ships `resources/arcode-statusline.py`. Only when the user clicks the switch in the Claude
+panel, ARcode installs the script into its data folder and sets `statusLine` in
 `~/.claude/settings.json` to run it. It refuses when another status line is configured, keeps a
 timestamped backup and writes atomically, following a symlinked settings file. The script writes
 a small JSON record per session into `<userData>/usage`, which main watches and broadcasts.
-Acode does not call the undocumented endpoint and does not read Keychain tokens.
+ARcode does not call the undocumented endpoint and does not read Keychain tokens.
 
 ## Consequences
 
