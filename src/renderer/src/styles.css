@@ -616,6 +616,16 @@ body.resizing-horizontal * {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+/* The Claude panel button carries the brand coral, like the pinned Claude tab. */
+.activity-btn[aria-label='Claude'] {
+  color: #ff7a5c;
+}
+
+.activity-btn[aria-label='Claude']:hover {
+  color: #ff9a80;
+  background: rgba(255, 122, 92, 0.14);
+}
+
 .activity-btn:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
