@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting } from '@codemirror/language';
-import { gotoLine, highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
+import { gotoLine, highlightSelectionMatches, search, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { Compartment, EditorState, StateEffect, StateField } from '@codemirror/state';
 import {
   Decoration,
@@ -15,6 +15,7 @@ import {
 import type { DecorationSet } from '@codemirror/view';
 import { classHighlighter } from '@lezer/highlight';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { duplicateLineOrSelection } from './duplicate';
 import { loadLanguage } from './languages';
 import { viewerTheme } from './theme';
 import type { SelectionInfo } from './types';
@@ -113,6 +114,9 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
           langComp.current.of([]),
           keymap.of([
             { key: 'Mod-l', run: gotoLine, preventDefault: true },
+            // JetBrains habits: Cmd+D duplicates, Ctrl+G adds the next occurrence (CodeMirror's Cmd+D).
+            { key: 'Mod-d', run: duplicateLineOrSelection, preventDefault: true },
+            { mac: 'Ctrl-g', key: 'Alt-j', run: selectNextOccurrence, preventDefault: true },
             indentWithTab,
             ...defaultKeymap,
             ...historyKeymap,

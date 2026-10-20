@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Cmd+D duplicates** the line or the selection in edit mode, Ctrl+G adds the next occurrence, as in
+  JetBrains IDEs.
+
+### Changed
+
+- The pinned Claude feed tab is highlighted in coral so it is easy to find among file tabs.
+
 ## [0.2.0] - 2026-10-21
 
 ### Changed

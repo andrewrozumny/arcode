@@ -132,6 +132,25 @@
   height: 2px;
   background: var(--v-accent);
 }
+.v-tab.feed {
+  margin: 4px 4px 4px 6px;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: rgba(255, 122, 92, 0.16);
+  color: #ff9a80;
+  font-weight: 600;
+}
+.v-tab.feed:hover {
+  background: rgba(255, 122, 92, 0.26);
+}
+.v-tab.feed.active {
+  background: #ff7a5c;
+  color: #1b1f2a;
+}
+.v-tab.feed.active::after {
+  display: none;
+}
 .v-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;

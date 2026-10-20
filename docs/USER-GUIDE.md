@@ -121,6 +121,8 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
   asks whether to overwrite or reload. If it changes on disk while you have unsaved edits, a banner
   offers to reload or keep yours.
 - **Find and go to line:** Cmd+F searches in the file, Cmd+L goes to a line.
+- **Duplicate:** in edit mode Cmd+D duplicates the current line, or repeats the selection right after it,
+  as in JetBrains IDEs. Ctrl+G adds the next occurrence of the selection (multi-cursor).
 - **Diff with HEAD:** shows the file against its last committed version, side by side or
   unified. A file that is not in HEAD is shown as entirely added.
 - **Markdown:** `.md` files open in a rendered preview with a Preview / Source switch. Relative
@@ -348,6 +350,8 @@ database the switcher shows recent projects only.
 | Cmd+S | Save |
 | Cmd+F | Find in file |
 | Cmd+L | Go to line |
+| Cmd+D | Duplicate the line (or the selection), in edit mode |
+| Ctrl+G | Add the next occurrence to the selection, in edit mode |
 | Cmd+Shift+T | Reopen closed tab |
 | Cmd+Option+K | Send the file and selection to Claude Code as an @-mention |
 | Tab / Shift+Tab | Indent / outdent while editing |

@@ -148,6 +148,7 @@ first start.
 | Cmd+1 / Cmd+2 | Toggle file tree / terminal |
 | Cmd+E / Cmd+S | Toggle edit mode / save |
 | Cmd+F / Cmd+L | Find in file / go to line |
+| Cmd+D / Ctrl+G | Duplicate line or selection / select next occurrence (edit mode) |
 | Cmd+Alt+K | Mention the selection in Claude (@file#lines) |
 
 The full list is in the [user guide](docs/USER-GUIDE.md).
