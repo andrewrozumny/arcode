@@ -145,6 +145,13 @@ them to all windows (ADR 0005).
 **Notifications** (`notifications.ts`, `terminal/ipc.ts`). When a Claude process owned by a
 window's pty starts waiting for the user and the window is not focused, a system notification is
 shown once per waiting period; the dock badge counts waiting tabs that are not being looked at.
+The renderer reports its tab titles per pty (`TerminalChannel.TabTitles`, validated by
+`sanitizeTabTitles`), so the notification is titled with the project and names the tab. A click
+sends the pty back (`TerminalChannel.FocusPty`); the window turns it into the `focusPanel` and
+`focusPty` bus events. Shown notifications are held in a small set so their click handlers survive
+garbage collection. The `notificationSound` setting (state.json, off by default) maps to the
+notification's `silent` flag. Cmd+Shift+J (`shortcuts.ts`, plus a menu item) jumps to the next
+waiting tab (`terminal/waiting.ts`).
 
 **Open requests** (`openRequests.ts`). Paths from `open -a ARcode <path>`, Finder and second launches
 open folders as projects and files in the window whose root contains them, else in a window for

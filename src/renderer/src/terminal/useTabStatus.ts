@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ClaudeStatusEvent } from '@shared/terminal';
 import { terminalApi } from './api';
 import type { TerminalTab } from './types';
+import { tabTitlesOf } from './waiting';
 
 /** Applies Claude status events from the main process (and the snapshot on mount) to the matching tab. */
 export function useClaudeStatus(
@@ -60,4 +61,16 @@ export function useAttentionBadge(tabs: readonly TerminalTab[], activeId: string
   useEffect(() => {
     terminalApi().attention({ waiting: waitingCount });
   }, [waitingCount]);
+}
+
+/** Tells main the title of every tab that has a pty, so a "Claude is waiting" notification can name the tab. */
+export function useTabTitlesReport(tabs: readonly TerminalTab[]): void {
+  const last = useRef('');
+  useEffect(() => {
+    const titles = tabTitlesOf(tabs);
+    const json = JSON.stringify(titles);
+    if (json === last.current) return;
+    last.current = json;
+    terminalApi().tabTitles(titles);
+  }, [tabs]);
 }

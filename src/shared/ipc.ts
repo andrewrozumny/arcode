@@ -17,6 +17,7 @@ export const IpcChannel = {
   MenuNewTab: 'menu:new-tab',
   MenuCloseTab: 'menu:close-tab',
   MenuSelectTab: 'menu:select-tab',
+  MenuJumpWaiting: 'menu:jump-waiting',
   AppReady: 'app:first-render',
 } as const;
 
@@ -73,6 +74,8 @@ export interface AcodeApi {
     onNewTab(listener: () => void): () => void;
     onCloseTab(listener: () => void): () => void;
     onSelectTab(listener: (step: TabStep) => void): () => void;
+    /** Terminal > Jump to Waiting Claude Tab (Cmd+Shift+J). */
+    onJumpWaiting(listener: () => void): () => void;
   };
   /** Tells main that the first terminal frame of this window is on screen (startup timing). */
   firstRender(): void;

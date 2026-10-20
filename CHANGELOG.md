@@ -15,6 +15,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   History button in the file header lists versions with their age; picking one shows a diff against
   the current file with a Restore action. Text files up to 1 MB, 50 versions per file, kept 14 days
   under `<userData>/history`.
+- **Find the Claude tab that waits for you.** Clicking a "Claude is waiting" notification brings the
+  window forward, shows the terminal and selects that exact tab. Cmd+Shift+J (Terminal > Jump to
+  Waiting Claude Tab) cycles through the waiting tabs of the window, with a short hint when none
+  waits. Waiting tabs get a pulsing coral dot. Notifications name the project and the tab and say
+  what Claude waits for. Terminal > Notification Sound (on by default, as before) plays the macOS sound with them.
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;

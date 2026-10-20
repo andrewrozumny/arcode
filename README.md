@@ -155,6 +155,7 @@ first start.
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab |
 | Cmd+Shift+T | Reopen closed tab |
 | Ctrl+Esc | New Claude tab |
+| Cmd+Shift+J | Jump to the next Claude tab waiting for you |
 | Cmd+Shift+Enter | Composer for multi-line terminal input |
 | Cmd+1 / Cmd+2 | Toggle file tree / terminal |
 | Cmd+E / Cmd+S | Toggle edit mode / save now (autosave is on by default) |

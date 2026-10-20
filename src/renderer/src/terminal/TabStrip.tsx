@@ -25,7 +25,7 @@ interface TabStripProps {
 function TabDot({ tab }: { tab: TerminalTab }) {
   if (tab.gate?.state === 'running' && !tab.exited) return <span className="tp-dot busy" />;
   if (tab.claudeStatus === 'busy') return <span className="tp-dot busy" />;
-  if (tab.claudeStatus === 'waiting') return <span className="tp-dot waiting" />;
+  if (tab.claudeStatus === 'waiting') return <span className="tp-dot waiting" role="img" aria-label="Claude is waiting" />;
   if (tab.claudeStatus === 'idle') return <span className="tp-dot idle" />;
   if (tab.indicator?.color) return <span className="tp-dot" style={{ background: tab.indicator.color }} />;
   return null;
@@ -58,7 +58,7 @@ export function TabStrip({
             key={tab.id}
             role="tab"
             aria-selected={tab.id === activeId}
-            className={`tp-tab${tab.id === activeId ? ' active' : ''}${tab.exited ? ' exited' : ''}`}
+            className={`tp-tab${tab.id === activeId ? ' active' : ''}${tab.exited ? ' exited' : ''}${tab.claudeStatus === 'waiting' ? ' waiting' : ''}`}
             title={tab.waitingFor ?? tab.indicator?.text ?? tab.oscTitle ?? tab.title}
             onClick={() => onActivate(tab.id)}
             onMouseDown={(event) => {
