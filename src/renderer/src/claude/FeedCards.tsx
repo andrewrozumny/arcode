@@ -1,13 +1,17 @@
 import { memo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { FeedItem, FeedToolResult } from '@shared/claude';
 import { modelLabel } from '../layout/ClaudeBadges';
 import { openAgentTranscript } from './openFeed';
+import { questionKeys } from './feedKeys';
+import type { QuestionAnswer, ScreenPrompt } from './feedKeys';
 import { runState } from './feedModel';
 import type { FeedTask, RunState } from './feedModel';
 import type { ToolItem } from './feedTools';
 import { Chevron, Icon, Spinner } from './FeedIcons';
 import { FeedMarkdown } from './FeedMarkdown';
 import { TodoList, ToolRow, useFeedContext } from './FeedTool';
+import type { PromptControl } from './useTerminalPrompt';
 
 type Detail<T extends NonNullable<ToolItem['detail']>['type']> = Extract<NonNullable<ToolItem['detail']>, { type: T }>;
 
@@ -125,55 +129,218 @@ function answersFromText(result: FeedToolResult | undefined): Record<string, str
   return answers;
 }
 
-/** Claude's questions to the user, with the options and, once answered, the picked ones. */
+/** "Open terminal" and, once keys went out, a note; shared by the prompt cards. */
+function PromptFooter({ control, children, note }: { control: PromptControl; children?: ReactNode; note?: string | null }) {
+  return (
+    <div className="fd-prompt-actions">
+      {children}
+      {control.ptyId !== null && (
+        <button type="button" className="fd-btn" onClick={control.focusTerminal}>
+          Open terminal
+        </button>
+      )}
+      {control.sent && <span className="fd-muted">Sent to the terminal</span>}
+      {note && <span className="fd-prompt-note">{note}</span>}
+    </div>
+  );
+}
+
+/** The options of a prompt on the terminal screen as buttons; each types its number. */
+function ScreenOptions({ screen, control }: { screen: ScreenPrompt; control: PromptControl }) {
+  return (
+    <>
+      <ul className="fd-options">
+        {screen.options.map((option) => (
+          <li key={option.key}>
+            <button
+              type="button"
+              className="fd-option-btn"
+              disabled={control.sent}
+              title={option.needsText ? 'Pick this, then type in the terminal' : undefined}
+              onClick={() => control.send([option.key], option.needsText)}
+            >
+              <span className="fd-option-mark">{option.key}</span>
+              <span>
+                <span className="fd-option-label">{option.label}</span>
+                {option.needsText && <span className="fd-option-desc">Continues in the terminal</span>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <PromptFooter control={control} />
+    </>
+  );
+}
+
+/** A pending prompt this window cannot answer: point to the terminal. */
+function TerminalHint({ control }: { control: PromptControl }) {
+  return (
+    <div className="fd-prompt-actions">
+      <span className="fd-muted">Answer in the terminal.</span>
+      {control.ptyId !== null && (
+        <button type="button" className="fd-btn" onClick={control.focusTerminal}>
+          Open terminal
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Claude's questions to the user, with the options and, once answered, the picked ones. While
+ * Claude waits on them the options are buttons: a lone single-choice question is answered with
+ * one click, otherwise the picks are sent together.
+ */
 const QuestionCard = memo(function QuestionCard({ item, detail }: { item: ToolItem; detail: Detail<'question'> }) {
-  const { results, activity } = useFeedContext();
+  const { results, prompt, activity } = useFeedContext();
   const result = results[item.id];
   const answers = answersFromText(result);
+  const live = !result && prompt.pendingId === item.id && prompt.ptyId !== null;
+  const [picks, setPicks] = useState<Record<number, number[]>>({});
+  const [typed, setTyped] = useState<Record<number, string>>({});
+  const [note, setNote] = useState<string | null>(null);
+  const questions = detail.questions;
+  const lone = questions.length === 1 && questions[0]?.multiSelect === false;
+  const disabled = !live || prompt.sent;
+
+  const answerOf = (i: number, p = picks, t = typed): QuestionAnswer | undefined => {
+    const text = t[i]?.trim();
+    if (text) return { kind: 'other', text };
+    const chosen = p[i];
+    return chosen && chosen.length > 0 ? { kind: 'options', picks: chosen } : undefined;
+  };
+  const all = questions.map((_, i) => answerOf(i));
+  const steps = live ? questionKeys(questions, all) : null;
+
+  const submit = (list: (QuestionAnswer | undefined)[]): void => {
+    const keys = questionKeys(questions, list);
+    if (!keys || disabled) return;
+    // Keys only mean the right thing on the first step of this question; else the terminal decides.
+    if (!prompt.shows(questions[0]?.question ?? '')) {
+      setNote('The terminal shows another step of this question. Answer it there.');
+      prompt.focusTerminal();
+      return;
+    }
+    setNote(null);
+    prompt.send(keys);
+  };
+
+  const choose = (i: number, j: number): void => {
+    const question = questions[i];
+    if (!question || disabled) return;
+    const current = picks[i] ?? [];
+    const next = question.multiSelect ? (current.includes(j) ? current.filter((k) => k !== j) : [...current, j]) : [j];
+    const nextPicks = { ...picks, [i]: next };
+    const nextTyped = { ...typed, [i]: '' };
+    setPicks(nextPicks);
+    setTyped(nextTyped);
+    if (lone) submit([answerOf(0, nextPicks, nextTyped)]);
+  };
+
   // A question without an answer waits only while a Claude process runs the session.
   const pending = !result && activity !== 'gone';
-  const status = pending ? 'Waiting for your answer' : !result || result.isError ? 'Not answered' : 'Answered';
+  const pill = result
+    ? result.isError
+      ? 'Not answered'
+      : 'Answered'
+    : prompt.sent && live
+      ? 'Answer sent'
+      : pending
+        ? 'Waiting for your answer'
+        : 'Not answered';
   return (
     <div className={`fd-card ask${pending ? ' live' : ''}`}>
       <div className="fd-card-head static">
         <Icon name="question" className="fd-card-icon" />
-        <span className="fd-card-title">{detail.questions.length > 1 ? 'Questions for you' : 'Question for you'}</span>
-        <span className={`fd-pill ${pending ? 'running' : !result || result.isError ? 'stopped' : 'done'}`}>{status}</span>
+        <span className="fd-card-title">{questions.length > 1 ? 'Questions for you' : 'Question for you'}</span>
+        <span className={`fd-pill ${pending ? 'running' : !result || result.isError ? 'stopped' : 'done'}`}>{pill}</span>
       </div>
       <div className="fd-card-body">
-        {detail.questions.map((q, i) => {
+        {questions.map((q, i) => {
           const answer = answers[q.question];
           const known = q.options.some((o) => picked(answer, o.label));
+          const chosen = picks[i] ?? [];
           return (
             <div key={i} className="fd-question">
               {q.header && <span className="fd-chip">{q.header}</span>}
               <div className="fd-question-text">{q.question}</div>
+              {q.multiSelect && live && <div className="fd-muted">Pick one or more.</div>}
               <ul className="fd-options">
-                {q.options.map((option, j) => (
-                  <li key={j} className={picked(answer, option.label) ? 'picked' : undefined}>
-                    <span className="fd-option-mark">{picked(answer, option.label) ? <Icon name="check" /> : j + 1}</span>
-                    <span>
-                      <span className="fd-option-label">{option.label}</span>
-                      {option.description && <span className="fd-option-desc">{option.description}</span>}
-                    </span>
-                  </li>
-                ))}
+                {q.options.map((option, j) => {
+                  const done = picked(answer, option.label);
+                  const on = live && chosen.includes(j);
+                  const body = (
+                    <>
+                      <span className="fd-option-mark">{done || on ? <Icon name="check" /> : j + 1}</span>
+                      <span>
+                        <span className="fd-option-label">{option.label}</span>
+                        {option.description && <span className="fd-option-desc">{option.description}</span>}
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={j} className={done ? 'picked' : on ? 'chosen' : undefined}>
+                      {live ? (
+                        <button type="button" className="fd-option-btn" disabled={disabled} aria-pressed={on} onClick={() => choose(i, j)}>
+                          {body}
+                        </button>
+                      ) : (
+                        body
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
+              {live && !q.multiSelect && (
+                <input
+                  className="fd-other"
+                  type="text"
+                  placeholder="Or type your own answer"
+                  value={typed[i] ?? ''}
+                  disabled={disabled}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setTyped((t) => ({ ...t, [i]: value }));
+                    if (value) setPicks((p) => ({ ...p, [i]: [] }));
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && lone) submit([answerOf(0)]);
+                  }}
+                />
+              )}
+              {live && q.multiSelect && <div className="fd-muted">To type your own answer, use the terminal.</div>}
               {answer && !known && <div className="fd-answer">Answer: {answer}</div>}
             </div>
           );
         })}
+        {live && (
+          <PromptFooter control={prompt} note={note}>
+            {(!lone || Boolean(typed[0]?.trim())) && (
+              <button type="button" className="fd-btn primary" disabled={disabled || !steps} onClick={() => submit(all)}>
+                {questions.length > 1 ? 'Send answers' : 'Send answer'}
+              </button>
+            )}
+          </PromptFooter>
+        )}
+        {!result && !live && prompt.pendingId === item.id && <TerminalHint control={prompt} />}
         {result?.isError && <div className="fd-muted fd-clamp">{result.text}</div>}
       </div>
     </div>
   );
 });
 
-/** A plan Claude asks to approve, as Markdown, with the decision once made. */
+/**
+ * A plan Claude asks to approve, as Markdown, with the decision once made. While Claude waits on
+ * it, the approval options the terminal shows are buttons.
+ */
 const PlanCard = memo(function PlanCard({ item, detail }: { item: ToolItem; detail: Detail<'plan'> }) {
-  const { root, results } = useFeedContext();
+  const { root, results, plans, prompt } = useFeedContext();
   const result = results[item.id];
-  const status = !result ? 'Awaiting approval' : result.isError ? 'Not approved' : 'Approved';
+  const text = plans.get(item.id) ?? detail.plan;
+  const pending = !result && prompt.pendingId === item.id;
+  const screen = pending && prompt.screen && isPlanPrompt(prompt.screen) ? prompt.screen : null;
+  const status = !result ? (prompt.sent && pending ? 'Answer sent' : 'Awaiting approval') : result.isError ? 'Not approved' : 'Approved';
   return (
     <div className={`fd-card plan${!result ? ' live' : ''}`}>
       <div className="fd-card-head static">
@@ -182,12 +349,45 @@ const PlanCard = memo(function PlanCard({ item, detail }: { item: ToolItem; deta
         <span className={`fd-pill ${!result ? 'running' : result.isError ? 'stopped' : 'done'}`}>{status}</span>
       </div>
       <div className="fd-card-body">
-        <FeedMarkdown text={detail.plan || '(empty plan)'} root={root} />
+        <FeedMarkdown text={text || '(empty plan)'} root={root} />
+        {screen && (
+          <div className="fd-prompt">
+            {screen.title && <div className="fd-question-text">{screen.title}</div>}
+            <ScreenOptions screen={screen} control={prompt} />
+          </div>
+        )}
+        {pending && !screen && <TerminalHint control={prompt} />}
         {result?.isError && <div className="fd-feedback">{result.text}</div>}
       </div>
     </div>
   );
 });
+
+/** True for the approval Claude Code shows after ExitPlanMode ("...a plan... Would you like to proceed?"). */
+export function isPlanPrompt(screen: ScreenPrompt): boolean {
+  return /\bplan\b/i.test(screen.title ?? '');
+}
+
+/**
+ * A prompt Claude waits on that the transcript does not show yet, typically a permission: the
+ * terminal's numbered options as buttons.
+ */
+export function PromptCard({ control }: { control: PromptControl }) {
+  const screen = control.screen;
+  if (!screen) return null;
+  return (
+    <div className="fd-card ask live prompt">
+      <div className="fd-card-head static">
+        <Icon name="question" className="fd-card-icon" />
+        <span className="fd-card-title">{screen.title ?? 'Claude asks'}</span>
+        <span className="fd-pill running">{control.sent ? 'Answer sent' : 'Waiting for you'}</span>
+      </div>
+      <div className="fd-card-body">
+        <ScreenOptions screen={screen} control={control} />
+      </div>
+    </div>
+  );
+}
 
 /** A tool call drawn as a card; `tasks` is the task list when the call is the latest list update. */
 export function ToolCard({ item, tasks }: { item: ToolItem; tasks: readonly FeedTask[] }) {

@@ -8,7 +8,7 @@ export interface TabItem {
   title: string;
   /** Muted folder hint shown when two tabs share a name. */
   hint: string;
-  kind: 'file' | 'diff' | 'claude' | 'feed' | 'session';
+  kind: 'file' | 'diff' | 'claude' | 'feed' | 'session' | 'deleted';
   /** Pinned tabs have no close button and ignore middle-click. */
   pinned: boolean;
   dirty: boolean;
@@ -108,7 +108,9 @@ export function TabBar({
               setMenu({ id: tab.id, x: event.clientX, y: event.clientY });
             }}
           >
-            <span className="v-tab-title">{tab.kind === 'diff' ? `Diff: ${tab.title}` : tab.title}</span>
+            <span className="v-tab-title">
+              {tab.kind === 'diff' ? `Diff: ${tab.title}` : tab.kind === 'deleted' ? `Deleted: ${tab.title}` : tab.title}
+            </span>
             {tab.hint && <span className="v-tab-hint">{tab.hint}</span>}
             {!tab.pinned && (
             <button

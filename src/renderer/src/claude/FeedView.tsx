@@ -1,7 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FeedItem } from '@shared/claude';
-import { ToolCard } from './FeedCards';
+import { isPlanPrompt, PromptCard, ToolCard } from './FeedCards';
 import { Icon } from './FeedIcons';
 import { FeedMarkdown } from './FeedMarkdown';
 import {
@@ -11,6 +11,8 @@ import {
   endsMidTurn,
   groupFeed,
   lastPromptAt,
+  pendingPrompt,
+  planTexts,
   runningCall,
   taskList,
   taskNotices,
@@ -26,6 +28,7 @@ import { phraseText, toolPhrase } from './feedTools';
 import type { ToolItem } from './feedTools';
 import { useFeed } from './useFeed';
 import { useSessionActivity } from './useSessionActivity';
+import { NO_PROMPT, useTerminalPrompt } from './useTerminalPrompt';
 import logoUrl from '../../../../design/empty-mark.svg';
 import './feed.css';
 
@@ -226,16 +229,31 @@ interface Props {
 export function FeedView({ projectRoot, sessionId, agentId = null, visible, empty, interactive = false }: Props) {
   const { state, loadEarlier, loadingEarlier } = useFeed(sessionId, visible, agentId);
   const parent = useSessionActivity(sessionId);
-  const status = agentId ? { activity: agentActivity(state?.ended ?? null, parent.activity), waitingFor: null } : parent;
+  const status = agentId ? { activity: agentActivity(state?.ended ?? null, parent.activity), waitingFor: null, ptyId: null } : parent;
   const items = state?.items;
   const results = state?.results;
   const usage = state?.usage;
   const notices = useMemo(() => taskNotices(items ?? []), [items]);
   const tasks = useMemo(() => taskList(items ?? [], results ?? {}), [items, results]);
+  const plans = useMemo(() => planTexts(items ?? [], results ?? {}), [items, results]);
+  const pending = useMemo(() => pendingPrompt(items ?? [], results ?? {}, status.activity), [items, results, status.activity]);
+  const prompt = useTerminalPrompt(interactive ? status.ptyId : null, status.activity, pending?.id ?? null);
   const context = useMemo<FeedContextValue>(
-    () => ({ root: projectRoot, results: results ?? {}, notices, activity: status.activity, sessionId, interactive }),
-    [projectRoot, results, notices, status.activity, sessionId, interactive],
+    () => ({
+      root: projectRoot,
+      results: results ?? {},
+      notices,
+      activity: status.activity,
+      plans,
+      // Answer buttons only in the pinned feed; read-only tabs never type into a terminal.
+      prompt: interactive ? prompt : NO_PROMPT,
+      sessionId,
+      interactive,
+    }),
+    [projectRoot, results, notices, status.activity, plans, prompt, sessionId, interactive],
   );
+  // A prompt on the terminal screen that no card shows (a permission): its own card at the bottom.
+  const loosePrompt = interactive && prompt.screen && !pending && /permission/i.test(status.waitingFor ?? '') && !isPlanPrompt(prompt.screen);
 
   // Relative times under messages refresh twice a minute.
   const [now, setNow] = useState(() => Date.now());
@@ -365,6 +383,7 @@ export function FeedView({ projectRoot, sessionId, agentId = null, visible, empt
                 }
               })}
             </FeedContext.Provider>
+            {loosePrompt && <PromptCard control={prompt} />}
             {working && <Working label={current} since={turnStart} waiting={status.activity === 'waiting' ? (status.waitingFor ?? '') : null} />}
           </div>
         </div>

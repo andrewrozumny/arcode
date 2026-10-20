@@ -48,6 +48,8 @@ export interface Settings {
   projectRegistryDb?: string;
   /** Save edited files automatically. Missing means on. */
   autosave?: boolean;
+  /** Play a sound with the "Claude is waiting" notification. Missing means off. */
+  notificationSound?: boolean;
 }
 
 export interface AppState {
@@ -131,6 +133,9 @@ export function migrateState(raw: unknown): AppState {
   }
   if (isRecord(raw.settings) && typeof raw.settings.autosave === 'boolean') {
     state.settings.autosave = raw.settings.autosave;
+  }
+  if (isRecord(raw.settings) && typeof raw.settings.notificationSound === 'boolean') {
+    state.settings.notificationSound = raw.settings.notificationSound;
   }
   return state;
 }
@@ -255,6 +260,16 @@ export class StateStore {
 
   setAutosave(on: boolean): void {
     this.state.settings.autosave = on;
+    this.schedule();
+  }
+
+  /** Whether the waiting notification plays a sound; off unless the user turned it on. */
+  notificationSound(): boolean {
+    return this.state.settings.notificationSound ?? true;
+  }
+
+  setNotificationSound(on: boolean): void {
+    this.state.settings.notificationSound = on;
     this.schedule();
   }
 

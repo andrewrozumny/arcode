@@ -67,6 +67,8 @@ thinking and hook noise are hidden. It follows the active Claude terminal tab an
 - **Go to file** (Cmd+P) with fuzzy matching and `:line` jumps, and **Recent files** (Cmd+Shift+E).
 - **Find in files** (Cmd+Shift+F): live project-wide search with case, whole word and regex
   toggles and a file mask, results grouped by file; uses ripgrep when installed, else `git grep`.
+- **Changes** (Ctrl+Shift+G): every file changed against `HEAD` with +/- line counts, grouped by
+  folder and updated live; Enter opens the file with its diff already shown. Review only, no git GUI.
 - **Viewer and editor.** Syntax highlighting, type to edit with autosave and conflict detection,
   file tabs restored per project, side by side or
   unified diff against `HEAD`, Markdown preview, images with zoom and pan.
@@ -147,11 +149,13 @@ first start.
 | Cmd+Shift+O | Switch project |
 | Cmd+P | Go to file (`name:line` jumps to a line) |
 | Cmd+Shift+F | Find in files |
+| Ctrl+Shift+G | Changes against HEAD |
 | Cmd+Shift+E | Recent files |
 | Cmd+T / Cmd+W | New tab / close tab |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab |
 | Cmd+Shift+T | Reopen closed tab |
 | Ctrl+Esc | New Claude tab |
+| Cmd+Shift+J | Jump to the next Claude tab waiting for you |
 | Cmd+Shift+Enter | Composer for multi-line terminal input |
 | Cmd+1 / Cmd+2 | Toggle file tree / terminal |
 | Cmd+E / Cmd+S | Toggle edit mode / save now (autosave is on by default) |

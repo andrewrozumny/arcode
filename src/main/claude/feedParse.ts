@@ -335,6 +335,8 @@ export function resultMeta(name: string | null, meta: unknown): Partial<FeedTool
     }
     out.answers = answers;
   }
+  // Claude Code writes the plan to a file and calls ExitPlanMode without input; the result carries it.
+  if ((name === null || name === 'ExitPlanMode') && typeof meta.plan === 'string' && meta.plan.trim()) out.plan = clip(meta.plan, FIELD_CHARS);
   return out;
 }
 

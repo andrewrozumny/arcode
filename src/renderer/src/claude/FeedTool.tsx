@@ -10,6 +10,8 @@ import { phraseText, toolGroupLabel, toolPhrase } from './feedTools';
 import type { ToolItem, ToolPhrase } from './feedTools';
 import { Chevron, Icon, Spinner } from './FeedIcons';
 import { CodeBlock } from './FeedMarkdown';
+import { NO_PROMPT } from './useTerminalPrompt';
+import type { PromptControl } from './useTerminalPrompt';
 
 /** What every tool row and card needs besides its own item. */
 export interface FeedContextValue {
@@ -24,6 +26,10 @@ export interface FeedContextValue {
    * past sessions and subagents never offer actions that would answer Claude.
    */
   interactive: boolean;
+  /** Plan text per ExitPlanMode call (its input, its result or the plan file written before it). */
+  plans: Map<string, string>;
+  /** Answering the prompt Claude waits on from the feed. */
+  prompt: PromptControl;
 }
 
 export const FeedContext = createContext<FeedContextValue>({
@@ -33,6 +39,8 @@ export const FeedContext = createContext<FeedContextValue>({
   activity: 'unknown',
   sessionId: null,
   interactive: false,
+  plans: new Map(),
+  prompt: NO_PROMPT,
 });
 
 export function useFeedContext(): FeedContextValue {

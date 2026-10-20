@@ -3,6 +3,7 @@ import { shell } from 'electron';
 import type { IpcMain, WebContents } from 'electron';
 import { FilesChannel } from '@shared/files';
 import type { FileOp, FilesChangedEvent, FilesGitStatusEvent, GrepQuery } from '@shared/files';
+import { getChanges } from './changes';
 import { getBranch } from './git';
 import { grepProject } from './grep';
 import { getGitStatus } from './gitStatus';
@@ -73,8 +74,13 @@ export function grepQuery(value: unknown): GrepQuery {
 /** The running Find in files query of each window (by WebContents id); a new one aborts it. */
 const greps = new Map<number, AbortController>();
 
+export interface FilesIpcOptions {
+  /** Called with every watcher batch that names changed project paths (local history of closed files). */
+  onProjectChange?(root: string, paths: string[]): void;
+}
+
 /** Registers all `files:*` handlers. */
-export function registerFilesIpc(ipcMain: IpcMain): void {
+export function registerFilesIpc(ipcMain: IpcMain, options: FilesIpcOptions = {}): void {
   ipcMain.handle(FilesChannel.Grep, async (event, rawRoot: unknown, rawQuery: unknown) => {
     const id = event.sender.id;
     greps.get(id)?.abort();
@@ -92,7 +98,8 @@ export function registerFilesIpc(ipcMain: IpcMain): void {
     listDir(await projectRoot(root), text(relDir, 'folder')),
   );
   ipcMain.handle(FilesChannel.GitStatus, async (_e, root: unknown) => getGitStatus(await projectRoot(root)));
-  ipcMain.handle(FilesChannel.Branch, async (_e, root: unknown) => getBranch(await projectRoot(root)));
+  ipcMain.handle(FilesChannel.Changes, async (_e, root: unknown) => getChanges(await projectRoot(root)));
+  ipcMain.handle(FilesChannel.Branch,async (_e, root: unknown) => getBranch(await projectRoot(root)));
   ipcMain.handle(FilesChannel.Search, async (_e, root: unknown, query: unknown, limit: unknown) =>
     search(await projectRoot(root), text(query, 'query'), limit === undefined || limit === null ? 50 : integer(limit, 'limit')),
   );
@@ -112,6 +119,7 @@ export function registerFilesIpc(ipcMain: IpcMain): void {
           return;
         }
         if (batch.structural || batch.git) invalidateIndex(root);
+        if (batch.paths.length > 0) options.onProjectChange?.(root, batch.paths);
         if (batch.paths.length > 0) {
           const payload: FilesChangedEvent = { root, paths: batch.paths };
           sender.send(FilesChannel.Changed, payload);

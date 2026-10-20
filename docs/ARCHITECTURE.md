@@ -46,7 +46,12 @@ on PATH (or in the Homebrew folders), else `git grep -n -I --untracked`, else a 
 index; always spawned with an argv array, capped (lines, files, scanned files, preview length,
 10 s timeout), cancelled per window when a newer query arrives, and every returned path passes
 `paths.ts`. In the renderer `FindInFiles` replaces the tree in the left column (`findModel.ts` holds
-its pure row and keyboard logic) and opens matches through the bus with line and column. `external.ts` and `clipboard*.ts` serve the Import from Mac
+its pure row and keyboard logic) and opens matches through the bus with line and column. `changes.ts` serves the
+Changes mode of the left column: `git status` entries joined with `git diff --numstat -z -M HEAD`
+counts (untracked files are counted by reading them, size and number capped), all through
+`runGit`; `ChangesView` (with `changesModel.ts`) refetches on the watcher's git status events and
+opens files through the bus with a `diff` flag, which the viewer turns into the HEAD diff of the
+file tab or, for a deleted file, a read-only tab with the HEAD version. `external.ts` and `clipboard*.ts` serve the Import from Mac
 dialog, Finder copy and paste and drag and drop (ADR 0008). In the renderer `useDirectoryTree`
 loads and watches folders and `FileTree` handles selection, keyboard, menu and drops.
 
@@ -57,6 +62,32 @@ saves. All paths go through `files/paths.ts`. The renderer side is CodeMirror pl
 preview (marked and DOMPurify) and the diff tabs used by the IDE bridge. `viewer/autosave.ts` holds
 the autosave decisions (debounced save, never while a banner waits for the user) and the type to
 edit key test; saves of one file are queued so each sends the mtime the previous one produced.
+`viewer/markdownSplit.ts` backs the Markdown split view: `data-line` markers on top-level rendered
+blocks (`markedWithLines` in `markdown.ts`), the line to offset anchors used for scroll sync and
+the remembered mode in localStorage.
+
+Local history (`viewer/history.ts`, `renderer/src/viewer/HistoryMenu.tsx`) keeps copies of text
+files independent of git. `writeFile` takes hooks: before a guarded write the content on disk is
+stored as a `save` snapshot (throttled to one per file per 5 minutes unless the newest snapshot came
+from an outside change or the change is large; a restore always keeps one). The watcher of an open
+file also reports to history: when the disk content no longer matches what ARcode last knew (read
+when the file was opened, or written by a save), the known content becomes an `external` snapshot;
+ARcode's own writes are recognised by content and by a writes-in-flight count, so they never show
+up as outside changes. Files that are not open are covered through the project watcher:
+`files/ipc.ts` hands every batch of changed paths to `viewer/projectHistory.ts`, which drops
+gitignored paths (one `git check-ignore` per batch, the .gitignore fallback outside git) and
+passes each text file to `LocalHistory.projectChange`. The previous content comes from a shared
+content cache (`viewer/contentCache.ts`: least recently used, about 64 MB and 10,000 paths at
+most, filled by opens, saves and earlier changes) or, for a file seen changing for the first time,
+from its HEAD version (one `git cat-file --batch` per batch), so the first edit of a committed file
+is recoverable. These snapshots are limited to one per file per 10 seconds. A batch of more than
+100 files (checkout, rebase, formatter) is a bulk change: nothing is snapshotted, the cached
+content of those files is dropped as stale and one line is logged. Batches of one project run one
+after another and read 4 files at a time. Identical consecutive snapshots are skipped; text only, 1 MB cap, 50 per
+file, older than 14 days pruned at startup. Paths go through `files/paths.ts` and history checks
+again that a file is inside its root. List, read and restore are IPC calls; restore writes through
+the same guarded write. In the renderer the History button lists snapshots, and picking one shows
+it against the current text in `DiffView` with a Restore action.
 
 PDFs (`viewer/pdf.ts`, `viewer/pdfProtocol.ts`, `renderer/src/viewer/PdfView.tsx`) are shown by
 Chromium's built-in PDF viewer (project windows set `webPreferences.plugins: true`) in an iframe
@@ -107,7 +138,16 @@ byte ranges only: the first load reads backwards from the end until it has enoug
 live polls read the bytes appended since the last offset (whole lines only, a partial last line
 waits), and "load earlier" reads backwards from the oldest offset. The renderer merges chunks
 (`feedModel.ts`), polls once a second while the tab is visible and renders Markdown through the
-viewer pipeline, with code highlighting and file links that open in the viewer. Assistant records
+viewer's sanitizer, with code highlighting and file links that open in the viewer.
+`feedMarkdownText.ts` adapts Claude's terminal-style Markdown first (soft line breaks kept,
+`•` bullets and lists starting at 7 under a label turned into lists). Prompt cards answer in the
+terminal: `useTerminalPrompt.ts` takes the session's pty from the Claude status event, reads that
+terminal's visible screen (`terminal/ptyScreens.ts`, registered by `terminalSession.ts`) while the
+process waits, and `feedKeys.ts` maps answers to the key presses Claude Code's TUI expects, written
+one per `pty:write` with a short pause. Buttons are live only for the latest call without a result
+while the status is `waiting`; permissions, which reach the transcript only after the answer, are
+read from the screen alone.
+Assistant records
 also yield one `FeedUsage` entry each (message id, time, offset, input, output, cache read and
 write tokens) in the same byte-range read; the renderer dedupes them by message id and sums them per
 turn (prompt to next prompt, duration up to the last assistant record) and for the loaded range.
@@ -116,7 +156,7 @@ A `FeedRequest` may name an `agentId`: main then reads
 `AGENT_ID_PATTERN`) with sidechain records kept, and reports whether the latest turn record ends a
 turn so the renderer knows when the agent finished. Closable `session` viewer tabs (opened through
 the `openFeed` bus event from the Sessions list, Agent cards and the header subagent chip) render
-the same `FeedView` read-only; only the pinned feed is interactive. Session titles come from
+the same `FeedView` read-only: only the pinned feed (`interactive`) shows prompt answer buttons. Session titles come from
 `custom-title`, `ai-title` and `summary` records, in that order, before the first prompt.
 
 **Live usage via status line** (`claude/statusline.ts`, `claude/usageLive.ts`,
@@ -129,6 +169,13 @@ them to all windows (ADR 0005).
 **Notifications** (`notifications.ts`, `terminal/ipc.ts`). When a Claude process owned by a
 window's pty starts waiting for the user and the window is not focused, a system notification is
 shown once per waiting period; the dock badge counts waiting tabs that are not being looked at.
+The renderer reports its tab titles per pty (`TerminalChannel.TabTitles`, validated by
+`sanitizeTabTitles`), so the notification is titled with the project and names the tab. A click
+sends the pty back (`TerminalChannel.FocusPty`); the window turns it into the `focusPanel` and
+`focusPty` bus events. Shown notifications are held in a small set so their click handlers survive
+garbage collection. The `notificationSound` setting (state.json, off by default) maps to the
+notification's `silent` flag. Cmd+Shift+J (`shortcuts.ts`, plus a menu item) jumps to the next
+waiting tab (`terminal/waiting.ts`).
 
 **Open requests** (`openRequests.ts`). Paths from `open -a ARcode <path>`, Finder and second launches
 open folders as projects and files in the window whose root contains them, else in a window for
@@ -157,6 +204,7 @@ the enclosing git repository (ADR 0009).
 |---|---|---|
 | `~/Library/Application Support/ARcode/state.json` | yes | Recent projects, open windows, bounds, layout, terminal tabs, viewer tabs, recent files, settings (`autosave`). Atomic, debounced. |
 | `.../ARcode/paste/` | yes | Images pasted into the terminal composer; files older than 7 days removed at startup. |
+| `.../ARcode/history/<project hash>/<encoded path>/<timestamp>-<save or external>.txt` | yes | Local history snapshots of project text files (1 MB cap, 50 per file); older than 14 days removed at startup. |
 | `.../ARcode/usage/<sessionId>.json` | by the status line script | Live usage records; the script prunes them after 7 days. |
 | `.../ARcode/arcode-statusline.py` | yes | Installed copy of the status line script. |
 | `~/.claude/ide/<port>.lock` | yes | IDE bridge lock file (mode 0600), removed when the window closes. |

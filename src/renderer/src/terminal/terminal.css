@@ -116,8 +116,32 @@
   background: var(--text-muted, #6f737a);
 }
 
+/* Claude waits for the user: the brand coral with a ring that pulses outwards, so it stands out from busy. */
 .tp-dot.waiting {
-  background: #e5c07b;
+  background: #ff7a5c;
+  box-shadow: 0 0 0 0 rgba(255, 122, 92, 0.6);
+  animation: tp-waiting 1.6s ease-out infinite;
+}
+
+.tp-tab.waiting:not(.active) .tp-tab-title {
+  color: #ff9a80;
+}
+
+@keyframes tp-waiting {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 122, 92, 0.6);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 5px rgba(255, 122, 92, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-dot.waiting {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(255, 122, 92, 0.35);
+  }
 }
 
 .tp-dot.busy {

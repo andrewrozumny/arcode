@@ -347,6 +347,34 @@
 .v-fill[hidden] {
   display: none;
 }
+.v-edit-area {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.v-edit-area[hidden] {
+  display: none;
+}
+
+/* Markdown split view: editor left, live preview right (stacked when the viewer is narrow) */
+.v-split {
+  flex-direction: row;
+}
+.v-split > .v-fill {
+  min-width: 0;
+}
+.v-split > .v-md-scroll {
+  flex: 1;
+  min-width: 0;
+}
+.v-split .v-md {
+  padding: 16px 24px 48px;
+}
+.v-split.v-split-stacked {
+  flex-direction: column;
+}
 .v-cm,
 .v-diff {
   height: 100%;
@@ -719,4 +747,37 @@
   width: 100%;
   border: 0;
   background: var(--v-bg);
+}
+
+/* Local history menu in the file header */
+.v-history {
+  position: relative;
+  display: inline-flex;
+}
+.v-history-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 260px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.v-history-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.v-history-item.on {
+  background: rgba(255, 255, 255, 0.1);
+}
+.v-history-meta {
+  color: var(--v-muted);
+}
+.v-history-item:hover .v-history-meta {
+  color: inherit;
+}
+.v-history-empty {
+  padding: 6px 10px;
+  color: var(--v-muted);
+  white-space: normal;
 }

@@ -20,6 +20,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `12.4k in · 1.1k out · 38 s` (cache reads and writes in the tooltip), and a thin strip at the top
   of the feed shows the session total.
 
+- **Markdown split view.** A third Split segment in the Markdown switch shows the editor and a live
+  preview side by side (re-rendered about 150 ms after typing stops, autosave unchanged), with a
+  resizable divider and approximate scroll sync in both directions through source line markers on
+  the rendered blocks. A narrow viewer stacks the preview under the editor. The chosen mode is
+  remembered per file type.
+- **Local history.** ARcode keeps its own copies of text files in the project, independent of git:
+  before it saves a file (throttled to one per 5 minutes during autosave unless the change is large)
+  and when an open file changes on disk from outside, for example when Claude Code edits it. The
+  History button in the file header lists versions with their age; picking one shows a diff against
+  the current file with a Restore action. Text files up to 1 MB, 50 versions per file, kept 14 days
+  under `<userData>/history`.
+- **Find the Claude tab that waits for you.** Clicking a "Claude is waiting" notification brings the
+  window forward, shows the terminal and selects that exact tab. Cmd+Shift+J (Terminal > Jump to
+  Waiting Claude Tab) cycles through the waiting tabs of the window, with a short hint when none
+  waits. Waiting tabs get a pulsing coral dot. Notifications name the project and the tab and say
+  what Claude waits for. Terminal > Notification Sound (on by default, as before) plays the macOS
+  sound with them.
+- **Local history for files that are not open.** Outside changes to any project text file are kept
+  too, not only to files open in a tab. The previous content comes from a bounded in-memory cache
+  (about 64 MB) or, the first time a file is seen changing, from its HEAD version, so the first
+  Claude Code edit of a committed file can be undone. Gitignored files are skipped, one version per
+  file per 10 seconds, and bulk changes of more than 100 files (checkout, rebase) are skipped and
+  logged once.
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;
@@ -43,6 +66,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exclusions, keyboard navigation and Enter to open at the matched line and column. The editor
   selection becomes the query. Runs ripgrep when installed, else `git grep`, else a built-in scan
   that honors `.gitignore`; results are capped and a newer query cancels the running one.
+- **Answer Claude from the feed.** Question cards (AskUserQuestion), plan approvals and permission
+  prompts have buttons while Claude waits on them; ARcode types the matching keys into the Claude
+  tab's terminal. Typed answers work for single-choice questions; anything else falls back to the
+  terminal with one click.
+- Plan cards show the plan Claude Code wrote to its plan file when ExitPlanMode has no input.
+- **Changes** (Ctrl+Shift+G). A third mode of the left column that lists every file changed against
+  HEAD (modified, added, deleted, renamed, untracked) grouped by folder, with status letters in the
+  tree colours, +/- line counts from `git diff --numstat` and totals. It updates live as files change.
+  Click or Enter opens the file with its diff against HEAD already shown; a deleted file opens its
+  HEAD version as a read-only diff. Up and Down move, Esc returns to the tree, "Open all diffs"
+  opens every changed file. Read-only: no stage, commit or revert.
 
 ### Changed
 
@@ -69,6 +103,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Usage** shows plan windows and context as bars.
 - **Faster Usage refresh:** parsed sessions are cached by size and modification time, so the
   30-second refresh re-reads only sessions that grew.
+
+### Fixed
+
+- **Feed formatting.** Line breaks in Claude's replies are kept as in the terminal; numbered lists
+  that start after 1 right under a label, and `•` bullets, render as lists instead of one run-on
+  paragraph; long inline code, paths and links wrap instead of overflowing the column; wide tables
+  scroll in their own box.
 
 ## [0.2.0] - 2026-10-21
 

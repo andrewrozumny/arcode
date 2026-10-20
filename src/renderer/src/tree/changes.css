@@ -1,0 +1,153 @@
+/* Changes: the git mode of the left column. Reuses .ft-root/.ft-header (tree.css) and .ff-list/.ff-count (find.css). */
+
+.ch-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border, #393b40);
+  color: var(--fg-muted, #868a91);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ch-list {
+  outline: none;
+  padding-top: 2px;
+}
+
+.ch-add {
+  color: var(--git-added, #73bd79);
+  font-variant-numeric: tabular-nums;
+}
+.ch-del {
+  color: var(--red, #f75464);
+  font-variant-numeric: tabular-nums;
+}
+
+.ch-dir {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px 0 8px;
+  color: var(--fg-muted, #868a91);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: default;
+}
+.ch-dir-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-file {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px 0 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: default;
+}
+.ch-file:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ch-file.active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.ch-root:focus-within .ch-file.active {
+  background: var(--selection, #2e436e);
+}
+
+.ch-name {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-orig {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-faint, #6f737a);
+  font-size: 11.5px;
+}
+.ch-counts {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  font: 11px var(--font-mono, Menlo, monospace);
+}
+.ch-binary {
+  color: var(--fg-faint, #6f737a);
+}
+.ch-letter {
+  flex: none;
+  width: 14px;
+  margin-left: 6px;
+  text-align: center;
+  font: 600 11px var(--font-mono, Menlo, monospace);
+}
+.ch-name + .ch-letter,
+.ch-orig + .ch-letter {
+  margin-left: auto;
+}
+
+/* The same colours as the project tree (tree.css). */
+.ch-file.git-M,
+.ch-file.git-R {
+  --ch-color: var(--git-modified, #6c9ef8);
+}
+.ch-file.git-A,
+.ch-file.git-C {
+  --ch-color: var(--git-added, #73bd79);
+}
+.ch-file.git-untracked {
+  --ch-color: var(--git-untracked, #d1675a);
+}
+.ch-file.git-D {
+  --ch-color: var(--git-deleted, #6f737a);
+}
+.ch-file.git-D .ch-name {
+  text-decoration: line-through;
+}
+.ch-file.git-U {
+  --ch-color: var(--git-conflict, #f26522);
+}
+.ch-name,
+.ch-letter {
+  color: var(--ch-color, inherit);
+}
+
+.ch-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 14px;
+  color: var(--fg-muted, #868a91);
+  font-size: 12px;
+  line-height: 17px;
+}
+.ch-empty strong {
+  color: var(--fg, #dfe1e5);
+  font-weight: 600;
+}
+
+@keyframes ch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ch-spin {
+  animation: ch-spin 0.8s linear infinite;
+}

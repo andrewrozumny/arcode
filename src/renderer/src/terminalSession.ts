@@ -12,6 +12,7 @@ import { resolveKey } from './keys';
 import { GATE_OSC, shellEscapePath } from './terminal/commands';
 import { trackInputCaret } from './terminal/inputCaret';
 import { registerFileLinks } from './terminal/links';
+import { registerScreen } from './terminal/ptyScreens';
 import { parseGateResult, parseTabStatus } from './terminal/osc';
 import type { TabStatusOsc } from './terminal/osc';
 import { terminalApi } from './terminal/api';
@@ -300,6 +301,7 @@ export class TerminalSession {
     this.disposers.push(
       () => input.dispose(),
       () => resize.dispose(),
+      registerScreen(result.id, () => this.visibleScreen()),
     );
     const observer = new ResizeObserver(() => this.refit());
     observer.observe(this.host);
@@ -349,6 +351,14 @@ export class TerminalSession {
   sendPasted(text: string, submit: boolean): void {
     this.write(`${PASTE_START}${text.replace(/\r?\n/g, '\r')}${PASTE_END}`);
     if (submit) setTimeout(() => this.write('\r'), 60);
+  }
+
+  /** The rows on screen as text (the bottom of the buffer, where Claude Code draws its prompts). */
+  private visibleScreen(): { lines: string[]; cols: number } {
+    const buffer = this.term.buffer.active;
+    const lines: string[] = [];
+    for (let y = buffer.baseY; y < buffer.baseY + this.term.rows; y++) lines.push(buffer.getLine(y)?.translateToString(true) ?? '');
+    return { lines, cols: this.term.cols };
   }
 
   write(data: string): void {

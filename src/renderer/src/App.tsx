@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_LAYOUT, baseName } from '@shared/app';
 import type { GateTarget, PanelLayout, WindowContext } from '@shared/app';
+import type { ChangedFile } from '@shared/files';
 import type { TerminalPaneState } from '@shared/terminal';
 import { bus } from './bus';
 import { useHeaderClaude } from './claude/useHeaderClaude';
@@ -18,6 +19,7 @@ import { loadFonts } from './theme/fonts';
 import { FileSearch } from './tree/FileSearch';
 import type { FileSearchMode } from './tree/recentFiles';
 import { FileTree } from './tree/FileTree';
+import { ChangesView } from './tree/ChangesView';
 import { FindInFiles } from './tree/FindInFiles';
 import type { FindFocusRequest } from './tree/FindInFiles';
 import { prefillFromSelection } from './tree/findModel';
@@ -25,6 +27,8 @@ import { Viewer } from './viewer/Viewer';
 import type { ActiveInfo, ViewerHandle } from './viewer/types';
 
 const context: WindowContext = window.acode.app.context();
+/** How long the "no Claude tab is waiting" hint stays up. */
+const HINT_MS = 1800;
 
 export function App() {
   if (context.view === 'palette') return <ProjectPalette home={context.home} />;
@@ -58,11 +62,13 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const [searchMode, setSearchMode] = useState<FileSearchMode | null>(null);
   const [leftMode, setLeftMode] = useState<LeftMode>('tree');
   const [findRequest, setFindRequest] = useState<FindFocusRequest>({ nonce: 0, prefill: null });
+  const [changesFocus, setChangesFocus] = useState(0);
   const viewerRef = useRef<ViewerHandle>(null);
   const activeInfo = useRef<ActiveInfo | null>(null);
   const { files: gitStatus, branch } = useGitStatus(projectRoot);
   const ide = useIdeBridge(viewerRef);
   const { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId } = useHeaderClaude(projectRoot);
+  const [hint, setHint] = useState<{ text: string; nonce: number } | null>(null);
 
   useEffect(() => {
     document.title = baseName(projectRoot);
@@ -78,6 +84,33 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     });
   }, [projectRoot]);
 
+  /** Cmd+Shift+J: the next tab where Claude waits, or a short hint when none does. */
+  const jumpToWaiting = useCallback(() => {
+    const terminal = terminalRef.current;
+    if (terminal?.jumpToWaiting()) {
+      // Shows the dock when it is hidden.
+      bus.emit('focusPanel', { panel: 'terminal' });
+      return;
+    }
+    setHint((prev) => ({ text: 'No Claude tab is waiting', nonce: (prev?.nonce ?? 0) + 1 }));
+  }, []);
+
+  useEffect(() => {
+    if (!hint) return;
+    const timer = window.setTimeout(() => setHint(null), HINT_MS);
+    return () => window.clearTimeout(timer);
+  }, [hint]);
+
+  // A clicked "Claude is waiting" notification names the pty: show the dock and select its tab.
+  useEffect(
+    () =>
+      window.acode.terminal.onFocusPty((ptyId) => {
+        bus.emit('focusPanel', { panel: 'terminal' });
+        bus.emit('focusPty', { ptyId });
+      }),
+    [],
+  );
+
   // Menu tab commands, routed by focus. Inside the terminal the pane handles Cmd+T/W and
   // Cmd+Shift+]/[ on keydown, so these only arrive from menu clicks or from other panels.
   useEffect(() => {
@@ -91,16 +124,17 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         if (focusZone() === 'terminal') terminalRef.current?.stepTab(step);
         else viewerRef.current?.stepTab(step);
       }),
+      window.acode.menu.onJumpWaiting(jumpToWaiting),
     ];
     return () => {
       for (const off of offs) off();
     };
-  }, []);
+  }, [jumpToWaiting]);
 
   // Panels talk through the bus; the viewer and tree are wired here.
   useEffect(() => {
     const offs = [
-      bus.on('openFile', ({ path, line, column }) => viewerRef.current?.open(path, line, column)),
+      bus.on('openFile', ({ path, line, column, diff }) => viewerRef.current?.open(path, line, column, diff)),
       bus.on('openFeed', (request) => viewerRef.current?.openFeed(request)),
       bus.on('closeViewerTab', () => viewerRef.current?.closeActive()),
       bus.on('closeTerminalTab', () => terminalRef.current?.closeActiveTab()),
@@ -126,7 +160,14 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     bus.emit('focusPanel', { panel: 'tree' });
   }, []);
 
-  /** Esc in Find in files: back to the tree, with focus on it. */
+  /** Shows Changes in the left column and focuses its list. */
+  const openChanges = useCallback(() => {
+    setLeftMode('changes');
+    setChangesFocus((n) => n + 1);
+    bus.emit('focusPanel', { panel: 'tree' });
+  }, []);
+
+  /** Esc in Find in files or Changes: back to the tree, with focus on it. */
   const closeFind = useCallback(() => {
     setLeftMode('tree');
     window.requestAnimationFrame(() => document.querySelector<HTMLElement>('.tree-pane .ft-body')?.focus());
@@ -135,6 +176,13 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const openMatch = useCallback((path: string, line: number, column: number) => {
     bus.openFile({ path, line, column });
   }, []);
+
+  const openChange = useCallback(
+    (file: ChangedFile) => {
+      bus.openFile({ path: toAbsolute(projectRoot, file.path), diff: file.status === 'D' ? 'deleted' : 'head' });
+    },
+    [projectRoot],
+  );
 
   const onActiveChange = useCallback((info: ActiveInfo | null) => {
     activeInfo.current = info;
@@ -161,6 +209,10 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
           setSearchMode(null);
           openFind();
           break;
+        case 'changes':
+          setSearchMode(null);
+          openChanges();
+          break;
         case 'reopenTab':
           viewer?.reopenClosed();
           break;
@@ -180,6 +232,9 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
           bus.emit('focusPanel', { panel: 'terminal' });
           terminalRef.current?.newClaude();
           break;
+        case 'jumpWaiting':
+          jumpToWaiting();
+          break;
         case 'atMention': {
           const info = activeInfo.current;
           if (!info) break;
@@ -191,7 +246,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [openFind]);
+  }, [openFind, openChanges, jumpToWaiting]);
 
   /** Gate buttons. The terminal runs `scripts/gates.sh <target>` in a new tab (see the `runGate` listener). */
   const onRunGate = useCallback((target: GateTarget) => {
@@ -237,11 +292,21 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
                   onClose={closeFind}
                 />
               </div>
+              <div className="tree-host" hidden={leftMode !== 'changes'}>
+                <ChangesView
+                  projectRoot={projectRoot}
+                  visible={leftMode === 'changes'}
+                  focusNonce={changesFocus}
+                  onOpenFile={openChange}
+                  onClose={closeFind}
+                />
+              </div>
             </>
           }
           leftMode={leftMode}
           onLeftMode={setLeftMode}
           onOpenFind={openFind}
+          onOpenChanges={openChanges}
           viewer={
             <Viewer
               ref={viewerRef}
@@ -268,6 +333,11 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
+      {hint && (
+        <div key={hint.nonce} className="app-hint" role="status">
+          {hint.text}
+        </div>
+      )}
     </div>
   );
 }

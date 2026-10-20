@@ -8,6 +8,7 @@
  *   const off = bus.on('openFile', ({ path, line }) => { ... });   // the viewer
  */
 import type { GateTarget } from '@shared/app';
+import type { PtyId } from '@shared/ipc';
 
 export interface OpenFileRequest {
   /** Absolute, or relative to the project root. */
@@ -18,7 +19,14 @@ export interface OpenFileRequest {
   endLine?: number;
   /** 1-based column to place the cursor at on `line`. */
   column?: number;
+  /**
+   * Show a diff against HEAD right away: 'head' opens the file with its HEAD diff, 'deleted' opens
+   * the HEAD version of a file that is gone from the working tree as a read-only diff.
+   */
+  diff?: OpenDiff;
 }
+
+export type OpenDiff = 'head' | 'deleted';
 
 export interface BusEvents {
   /** Open a file in the viewer (and focus it). */
@@ -42,6 +50,8 @@ export interface BusEvents {
    * is set (or focus the tab already showing it). `title` is the tab title.
    */
   openFeed: { sessionId: string; agentId?: string; title: string };
+  /** Show and focus the terminal tab of a pty (the Claude feed sends the user to a prompt there). */
+  focusPty: { ptyId: PtyId };
 }
 
 type Listener<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

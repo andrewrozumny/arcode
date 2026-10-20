@@ -12,6 +12,8 @@ import { OpenRequestRouter, pathsFromArgv } from './openRequests';
 import { captureScreens } from './screens';
 import { registerClaudeIpc, startLiveUsage } from './claude/ipc';
 import { registerFilesIpc } from './files/ipc';
+import { historyDir, LocalHistory } from './viewer/history';
+import { ProjectHistory } from './viewer/projectHistory';
 import { registerViewerIpc } from './viewer/ipc';
 import { handlePdfProtocol, registerPdfScheme } from './viewer/pdfProtocol';
 import { pasteDir, prunePastedImages } from './terminal/pasteImages';
@@ -41,8 +43,10 @@ void app.whenReady().then(() => {
   if (!isPrimary) return;
   enterBackgroundMode();
   migrateLegacyUserData(app.getPath('appData'), app.getPath('userData'));
-  registerFilesIpc(ipcMain);
-  registerViewerIpc(ipcMain);
+  const localHistory = new LocalHistory(historyDir(app.getPath('userData')));
+  const projectHistory = new ProjectHistory(localHistory);
+  registerFilesIpc(ipcMain, { onProjectChange: (root, paths) => void projectHistory.changed(root, paths) });
+  registerViewerIpc(ipcMain, localHistory);
   registerClaudeIpc(ipcMain);
   const liveUsage = startLiveUsage(ipcMain);
   app.on('will-quit', () => liveUsage.stop());
@@ -59,6 +63,11 @@ void app.whenReady().then(() => {
         refreshMenu();
         const settings = state.editorSettings();
         for (const win of BrowserWindow.getAllWindows()) win.webContents.send(AppChannel.SettingsChanged, settings);
+      },
+      notificationSound: () => state.notificationSound(),
+      setNotificationSound: (on) => {
+        state.setNotificationSound(on);
+        refreshMenu();
       },
     });
   const windows = new WindowManager(state, refreshMenu);
@@ -90,6 +99,8 @@ void app.whenReady().then(() => {
 
   // Pasted images are only needed while the prompt that mentions them is fresh.
   void prunePastedImages(pasteDir(app.getPath('userData')));
+  // Local history keeps two weeks.
+  void localHistory.prune();
 
   if (process.env.ARCODE_SCREENS) captureScreens(process.env.ARCODE_SCREENS, windows, switcher);
 });

@@ -275,6 +275,10 @@ describe('structured tool calls', () => {
 
     const answers = parse(user([{ type: 'tool_result', tool_use_id: 'q', content: 'answered' }], { toolUseResult: { answers: { 'Which?': 'A' } } }));
     expect(answers.results[0]?.answers).toEqual({ 'Which?': 'A' });
+
+    // Claude Code calls ExitPlanMode without input; the approved plan comes back in the result.
+    const plan = parse(user([{ type: 'tool_result', tool_use_id: 'p', content: 'User has approved your plan.' }], { toolUseResult: { plan: '# Plan\n\n1. Step' } }));
+    expect(plan.results[0]?.plan).toBe('# Plan\n\n1. Step');
   });
 
   it('cuts Read results short and keeps other results up to FIELD_CHARS', () => {

@@ -11,7 +11,8 @@ import { claudeNewCommand, claudeResumeCommand, gateCommand, gateTitle } from '.
 import { FONT_DEFAULT, FONT_MAX, FONT_MIN, loadFontSize, saveFontSize } from './terminal/fontSize';
 import { TabStrip } from './terminal/TabStrip';
 import { TabView } from './terminal/TabView';
-import { useAttentionBadge, useClaudeStatus } from './terminal/useTabStatus';
+import { useAttentionBadge, useClaudeStatus, useTabTitlesReport } from './terminal/useTabStatus';
+import { nextWaitingTab } from './terminal/waiting';
 import type { StartCommand } from './terminal/TabView';
 import type { PersistedTab, TerminalPaneState, TerminalTab } from './terminal/types';
 import './terminal/terminal.css';
@@ -39,6 +40,11 @@ export interface TerminalPaneHandle {
   stepTab(step: number): void;
   /** Closes the active tab, asking first when a process is still running in it. */
   closeActiveTab(): void;
+  /**
+   * Activates and focuses the next tab where Claude waits for the user (cycling in strip order).
+   * False when no tab waits.
+   */
+  jumpToWaiting(): boolean;
 }
 
 export interface TerminalPaneProps {
@@ -300,6 +306,15 @@ export function TerminalPane({
     if (activeRef.current) void closeTab(activeRef.current);
   }, [closeTab]);
 
+  const jumpToWaiting = useCallback((): boolean => {
+    const id = nextWaitingTab(tabsRef.current, activeRef.current);
+    if (!id) return false;
+    commitActive(id);
+    // The dock may have just been shown; focus once it is laid out.
+    requestAnimationFrame(() => sessions.get(id)?.focus());
+    return true;
+  }, [commitActive, sessions]);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -313,13 +328,38 @@ export function TerminalPane({
       focus: focusActive,
       stepTab,
       closeActiveTab,
+      jumpToWaiting,
     }),
-    [newShell, newClaude, resumeClaude, runGate, restore, getState, toggleComposer, focusActive, stepTab, closeActiveTab],
+    [
+      newShell,
+      newClaude,
+      resumeClaude,
+      runGate,
+      restore,
+      getState,
+      toggleComposer,
+      focusActive,
+      stepTab,
+      closeActiveTab,
+      jumpToWaiting,
+    ],
   );
 
   // The Claude panel asks for a resumed session through the bus.
   useEffect(() => bus.on('resumeClaude', ({ sessionId, name }) => void resumeClaude(sessionId, name)), [resumeClaude]);
   useEffect(() => bus.on('newClaude', () => void newClaude()), [newClaude]);
+
+  // The Claude feed sends the user to the tab whose prompt needs typing.
+  useEffect(
+    () =>
+      bus.on('focusPty', ({ ptyId }) => {
+        const tab = tabsRef.current.find((t) => t.ptyId === ptyId);
+        if (!tab) return;
+        commitActive(tab.id);
+        requestAnimationFrame(() => sessions.get(tab.id)?.focus());
+      }),
+    [commitActive, sessions],
+  );
 
   // Initial tabs.
   useEffect(() => {
@@ -350,6 +390,7 @@ export function TerminalPane({
 
   useClaudeStatus(tabsRef, patchTab);
   useAttentionBadge(tabs, activeId);
+  useTabTitlesReport(tabs);
 
   // Persistable state and generic change notifications.
   useEffect(() => {

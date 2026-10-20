@@ -699,3 +699,43 @@ body.resizing-horizontal * {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
+
+/* Short status hint at the bottom of the window (e.g. Cmd+Shift+J with no Claude tab waiting). */
+.app-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 50;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--fg);
+  font-size: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: app-hint 1.8s ease-in-out forwards;
+}
+
+@keyframes app-hint {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-hint {
+    animation: none;
+  }
+}

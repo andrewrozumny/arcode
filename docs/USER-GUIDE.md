@@ -13,6 +13,7 @@ everyday use. For how the code is put together, see [ARCHITECTURE.md](ARCHITECTU
 - [Window layout](#window-layout)
 - [File tree](#file-tree)
 - [Find in files](#find-in-files)
+- [Changes](#changes)
 - [File viewer](#file-viewer)
 - [Terminal](#terminal)
 - [Claude Code integration](#claude-code-integration)
@@ -76,7 +77,7 @@ paths to the running app instead of starting a second copy.
 | Area | Contents |
 |---|---|
 | Header | Project avatar, name and path (click to switch project), current git branch, the **Claude** button, model badge, running subagents, usage bars, IDE bridge status, and the **Gate** buttons. |
-| Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Claude panel, Terminal (Cmd+2). |
+| Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Changes (Ctrl+Shift+G), Claude panel, Terminal (Cmd+2). |
 | File tree | Left column. |
 | Viewer | Right column, top. Tabs for the Claude feed, files, diffs and the Claude panel. |
 | Terminal dock | Right column, bottom. Shell, Claude and gate tabs. |
@@ -131,6 +132,27 @@ file tree to a project-wide text search. Text selected in the editor on one line
 - Very large result sets stop at 2,000 matching lines and long lines are shortened around the match;
   the status line says when results are incomplete. A search stops after 10 seconds.
 
+## Changes
+
+Ctrl+Shift+G (or the Changes button in the activity bar) switches the left column to the list of
+files that differ from the last commit, so you can review what a Claude turn changed without
+hunting for files in the tree.
+
+- Modified, added, deleted, renamed and untracked files are listed, grouped by folder. The letter
+  on the right and the name colour match the tree: M modified, A added, D deleted, R renamed,
+  U untracked, ! conflict. A renamed file shows where it came from.
+- Each file shows the lines added and removed against HEAD (for an untracked file, its line
+  count); the header shows the number of files and the totals.
+- The list updates by itself while files change. The refresh button reruns git at once.
+- Click a file or press Enter to open it with its diff against HEAD already shown (Side by side or
+  Unified; the Diff with HEAD button hides it). A deleted file opens its HEAD version as a
+  read-only diff.
+- Up and Down move through the files, Esc returns to the file tree. "Open all diffs" (the button
+  next to refresh) opens every changed file with its diff; with more than 20 files it asks first.
+- Changes only shows what changed. Staging, committing and reverting stay in the terminal.
+- In a folder that is not a git repository, the view says so.
+- Cmd+Shift+G is not used for Changes because it is Find previous in the editor.
+
 ## File viewer
 
 The viewer has tabs. The first tab, **Claude**, is the pinned [Claude feed](#claude-feed) and
@@ -155,9 +177,26 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
   automatically.
 - **Diff with HEAD:** shows the file against its last committed version, side by side or
   unified. A file that is not in HEAD is shown as entirely added.
-- **Markdown:** `.md` files open in a rendered preview with a Preview / Source switch. Relative
+- **Local history:** ARcode keeps its own copies of text files, independent of git, so you can get
+  back a version from before Claude Code (or anything else) rewrote a file. A copy is kept before
+  ARcode saves a file (at most one every 5 minutes while autosave runs, unless the change is large),
+  and whenever a file in the project changes on disk from outside ARcode, for example when Claude
+  Code edits it, whether or not it is open (the content it had before is kept, also when the file is
+  deleted). For a file that is not open and that ARcode has not seen change before, the version
+  kept is its last committed one (HEAD). Changes in gitignored files are not kept, a file changing
+  again within 10 seconds keeps only one version, and a change of more than 100 files at once (a
+  checkout or a rebase) keeps nothing. **History** in the file header lists the versions with their age
+  and why they were kept ("before save" or "changed outside"). Pick one to see it side by side with
+  the current file, then **Restore this version** writes it back after a confirmation; the content
+  it replaces is kept as a new version, and unsaved edits are saved first. Only text files up to
+  1 MB inside the project are kept, at most 50 versions per file, for 14 days.
+- **Markdown:** `.md` files open in a rendered preview with a Preview / Split / Source switch. Relative
   links open in the viewer; relative images are loaded from the project. Remote images are not
-  loaded.
+  loaded. **Split** puts the editor on the left and a live preview on the right that follows your
+  typing (autosave works as in Source). Drag the divider to resize. Scrolling either side scrolls
+  the other to the matching block, approximately. When the viewer is narrower than about 900 px
+  the preview moves under the editor instead. The mode you pick is remembered per file type
+  (`.md`, `.markdown`, `.mdx`) for files you open next.
 - **SVG:** switch between Image and Source.
 - **Images:** zoom with Cmd+= and Cmd+- (or pinch, or Cmd+scroll), Cmd+0 or Shift+1 to fit,
   Shift+0 for actual size. Hold Space and drag to pan, or Shift+drag (or the zoom-to-selection
@@ -212,7 +251,11 @@ Other features:
 - **Font size:** Cmd+= / Cmd+- / Cmd+0.
 - **Clear:** Cmd+K. Cmd+C copies when text is selected and sends Ctrl+C otherwise.
 - **Status dot:** each tab shows whether its Claude session is working or waiting for you; the
-  tooltip says what it waits for.
+  tooltip says what it waits for. A tab that waits for you gets a pulsing coral dot and a coral
+  title until you answer.
+- **Jump to a waiting tab** (Cmd+Shift+J, or Terminal > Jump to Waiting Claude Tab): selects the
+  next tab of this window where Claude waits for you, showing the terminal if it is hidden. Press it
+  again to cycle through all waiting tabs. When none waits, a short hint says so.
 - **Restore after restart:** tabs, their names and the composer state are saved per project. After
   a restart, shell tabs start fresh shells; a Claude tab whose session has a transcript asks
   whether to **Continue previous session** (`claude --resume <id>`) or start a **New session**.
@@ -281,10 +324,19 @@ window showed) as a readable conversation, live.
 ![Claude feed](screenshots/feed.png)
 
 - Your prompts and Claude's answers are rendered as Markdown with highlighted code; file references
-  are links that open in the viewer.
+  are links that open in the viewer. Line breaks show as in the terminal, numbered lines and `•`
+  bullets read as lists, long paths and links wrap, and wide tables scroll sideways in their own box.
 - Tool calls are short rows that expand into diffs, command output and other details.
 - Task lists, agent runs, questions and plans appear as cards.
 - A working indicator shows the current step, or what Claude is waiting for.
+- **Answer from the feed.** While Claude waits on a question, a plan or a permission in a Claude
+  tab of this window, the card's options are buttons. A single question with one choice is sent
+  with one click; otherwise pick an answer per question and press **Send answers**. Single-choice
+  questions also take a typed answer. Plan approvals and permissions show the options the terminal
+  shows; options that need text (feedback for Claude) pick the option and move you to the terminal
+  to type it. ARcode types the same keys you would, so the terminal shows the result as usual.
+  Typed answers to multi-choice questions, or a prompt you already started answering in the
+  terminal, are left to the terminal: **Open terminal** takes you there.
 - Thinking, system reminders, hook records and similar noise are hidden.
 - **Load earlier messages** at the top reads further back. Each message has a copy button; image
   attachments show as thumbnails you can enlarge.
@@ -304,6 +356,7 @@ answer Claude; they keep updating while the session or agent is still running. T
 tab stays first and keeps following the active Claude tab.
 
 The feed only reads the session transcript under `~/.claude/projects`; it never writes to it.
+Answers go to the Claude tab's terminal as key presses, never into Claude Code's files.
 
 ## Claude panel
 
@@ -376,9 +429,14 @@ each run stays in its terminal tab.
 
 When a Claude session in one of a window's terminals starts waiting for you (a permission prompt,
 a question, the end of a turn) and that window is not focused, ARcode shows one macOS notification
-per waiting period. Clicking it focuses the window. The Dock icon shows a badge with the number of
-waiting tabs you are not looking at. Allow notifications for ARcode in System Settings >
-Notifications if they do not appear.
+per waiting period. The notification is titled with the project name, names the terminal tab and
+says what Claude is waiting for, so several waiting sessions stay apart in Notification Center.
+Clicking it brings the window forward, shows the terminal if it is hidden and selects that exact tab.
+The Dock icon shows a badge with the number of waiting tabs you are not looking at. Allow
+notifications for ARcode in System Settings > Notifications if they do not appear.
+
+Notifications play the macOS notification sound; uncheck Terminal > Notification Sound to make them
+silent. The setting is saved in `state.json`.
 
 ## Project registry (optional)
 
@@ -402,8 +460,10 @@ database the switcher shows recent projects only.
 | Cmd+Shift+F12 | Hide all panels / bring them back |
 | Cmd+P | Go to file (works in the terminal too) |
 | Cmd+Shift+F | Find in files (works in the terminal too; Esc returns to the tree) |
+| Ctrl+Shift+G | Changes against HEAD (works in the terminal too; Esc returns to the tree) |
 | Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
+| Cmd+Shift+J | Jump to the next terminal tab where Claude waits for you (works in the terminal too) |
 | Cmd+T | New shell tab |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab (terminal or viewer, depending on focus) |
@@ -485,6 +545,7 @@ database the switcher shows recent projects only.
 |---|---|
 | `~/Library/Application Support/ARcode/state.json` | Recent projects, open windows, window bounds, panel layout, terminal tabs, viewer tabs and recent files per project, settings (Autosave). |
 | `~/Library/Application Support/ARcode/paste/` | Images pasted into the terminal composer; deleted after 7 days. |
+| `~/Library/Application Support/ARcode/history/` | Local history: copies of project text files kept before saves and on outside changes, one folder per project (a hash of its path) and per file. Max 50 per file, deleted after 14 days. |
 | `~/Library/Application Support/ARcode/usage/` | Status line records, one per session; pruned after 7 days. Only with the status line on. |
 | `~/Library/Application Support/ARcode/arcode-statusline.py` | Installed status line script. Only with the status line on. |
 | `~/.claude/ide/<port>.lock` | IDE bridge lock file per open window, removed when the window closes. |

@@ -6,8 +6,8 @@ import { app, clipboard } from 'electron';
 import type { BrowserWindow, IpcMain, WebContents } from 'electron';
 import { isRecord } from '@shared/guards';
 import { IpcChannel } from '@shared/ipc';
-import type { PtyCreateOptions } from '@shared/ipc';
-import { TerminalChannel } from '@shared/terminal';
+import type { PtyCreateOptions, PtyId } from '@shared/ipc';
+import { sanitizeTabTitles, TerminalChannel } from '@shared/terminal';
 import type { ClaudeStatusEvent, ClipboardInfo } from '@shared/terminal';
 import { integer, isInteger, isText, textOrNull } from '../ipcArgs';
 import type { PtyManager } from '../pty';
@@ -139,6 +139,11 @@ export function registerTerminalIpc(ipcMain: IpcMain, resolve: TerminalWindowRes
     updateDock(waiting > previous && !target.win.isFocused());
   });
 
+  ipcMain.on(TerminalChannel.TabTitles, (event, titles: unknown) => {
+    const target = resolve(event.sender);
+    if (target) tabTitles.set(target.win, sanitizeTabTitles(titles));
+  });
+
   // Plain-text clipboard for the terminal's copy and paste and the tree's Copy Path.
   ipcMain.handle(IpcChannel.ClipboardRead, () => clipboard.readText());
   ipcMain.on(IpcChannel.ClipboardWrite, (_event, text: unknown) => {
@@ -149,6 +154,15 @@ export function registerTerminalIpc(ipcMain: IpcMain, resolve: TerminalWindowRes
 const watchers = new Map<BrowserWindow, ClaudeSessionWatcher>();
 /** Tabs waiting for the user, per window; the dock badge shows the sum. */
 const attention = new Map<BrowserWindow, number>();
+/** Tab title per pty, per window, as the renderer last reported them; notifications name the tab. */
+const tabTitles = new Map<BrowserWindow, Map<PtyId, string>>();
+
+export interface TerminalWindowOptions {
+  /** Project name used as the notification title. */
+  project: string;
+  /** Current value of the Notification Sound setting. */
+  notificationSound(): boolean;
+}
 
 function updateDock(bounce: boolean): void {
   if (process.platform !== 'darwin' || !app.dock) return;
@@ -162,14 +176,24 @@ function updateDock(bounce: boolean): void {
  * Starts the per-window part of the terminal module: the Claude session watcher that pushes
  * status to this window. Stops by itself when the window closes; also returns a disposer.
  */
-export function attachTerminalWindow(win: BrowserWindow, ptys: PtyManager): () => void {
+export function attachTerminalWindow(win: BrowserWindow, ptys: PtyManager, options: TerminalWindowOptions): () => void {
   const transitions = new WaitingTransitions();
   const watcher = new ClaudeSessionWatcher({
     shells: () => ptys.pidMap(),
     onChange: (event: ClaudeStatusEvent) => {
       if (!win.isDestroyed()) win.webContents.send(TerminalChannel.ClaudeStatus, event);
       // Sessions of other windows or other terminal apps must not notify under this project's name.
-      if (ownedByWindow(event) && transitions.observe(event)) notifyWaiting(win, event);
+      if (ownedByWindow(event) && transitions.observe(event)) {
+        notifyWaiting(win, event, {
+          project: options.project,
+          tabTitle: event.ptyId === null ? undefined : tabTitles.get(win)?.get(event.ptyId),
+          sound: options.notificationSound(),
+          // The renderer selects the tab, showing the terminal dock first when it is hidden.
+          onClick: (ptyId) => {
+            if (!win.isDestroyed()) win.webContents.send(TerminalChannel.FocusPty, ptyId);
+          },
+        });
+      }
     },
   });
   watcher.start();
@@ -181,6 +205,7 @@ export function attachTerminalWindow(win: BrowserWindow, ptys: PtyManager): () =
     watcher.stop();
     watchers.delete(win);
     attention.delete(win);
+    tabTitles.delete(win);
     updateDock(false);
   };
   win.on('closed', dispose);

@@ -1,5 +1,5 @@
 /**
- * Window-level shortcuts for the tree, file search, Find in files and viewer. Kept free of DOM types so
+ * Window-level shortcuts for the tree, file search, Find in files, Changes and viewer. Kept free of DOM types so
  * the decision table is unit-testable; App.tsx feeds it keydown events (capture phase).
  *
  * Cmd+W and Cmd+T are not here: they come from the menu and are routed by focus in App.tsx
@@ -12,6 +12,7 @@ export type FocusZone = 'terminal' | 'viewer' | 'tree' | 'other';
 export type ShortcutAction =
   | 'fileSearch'
   | 'findInFiles'
+  | 'changes'
   | 'recentFiles'
   | 'reopenTab'
   | 'save'
@@ -19,7 +20,8 @@ export type ShortcutAction =
   | 'nextTab'
   | 'prevTab'
   | 'atMention'
-  | 'newClaude';
+  | 'newClaude'
+  | 'jumpWaiting';
 
 export interface ShortcutKey {
   /** KeyboardEvent.code, layout independent ("KeyP", "BracketRight"). */
@@ -35,6 +37,9 @@ export function resolveShortcut(key: ShortcutKey, zone: FocusZone): ShortcutActi
   if (key.code === 'Escape' && key.ctrlKey && !key.metaKey && !key.shiftKey && !key.altKey) {
     return zone === 'terminal' ? null : 'newClaude';
   }
+  // Ctrl+Shift+G opens Changes from anywhere, the terminal included (VS Code's Source Control key).
+  // Cmd+Shift+G is taken: it is "find previous" in the editor and diff views.
+  if (key.code === 'KeyG' && key.ctrlKey && key.shiftKey && !key.metaKey && !key.altKey) return 'changes';
   if (!key.metaKey || key.ctrlKey) return null;
   const { code, shiftKey: shift, altKey: alt } = key;
 
@@ -43,6 +48,8 @@ export function resolveShortcut(key: ShortcutKey, zone: FocusZone): ShortcutActi
   if (code === 'KeyF' && shift && !alt) return 'findInFiles';
   // Cmd+E is edit mode here, so Recent Files (JetBrains Cmd+E) takes Cmd+Shift+E.
   if (code === 'KeyE' && shift && !alt) return 'recentFiles';
+  // Terminal > Jump to Waiting Claude Tab; handled here so it works in the terminal and the editor alike.
+  if (code === 'KeyJ' && shift && !alt) return 'jumpWaiting';
 
   if (zone === 'terminal') return null;
 
