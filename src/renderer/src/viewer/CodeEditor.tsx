@@ -1,8 +1,10 @@
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { defaultKeymap, history, historyKeymap, indentWithTab, moveLineDown, moveLineUp } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { gotoLine, highlightSelectionMatches, search, searchKeymap, selectNextOccurrence } from '@codemirror/search';
 import { Compartment, EditorState, StateEffect, StateField } from '@codemirror/state';
 import {
+  crosshairCursor,
   Decoration,
   drawSelection,
   EditorView,
@@ -11,6 +13,7 @@ import {
   highlightSpecialChars,
   keymap,
   lineNumbers,
+  rectangularSelection,
 } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { classHighlighter } from '@lezer/highlight';
@@ -102,6 +105,11 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
           foldGutter(),
           history(),
           drawSelection(),
+          // Several cursors: Ctrl+G, Cmd+click, Alt+drag for a column selection.
+          EditorState.allowMultipleSelections.of(true),
+          rectangularSelection(),
+          crosshairCursor(),
+          closeBrackets(),
           indentOnInput(),
           bracketMatching(),
           highlightActiveLine(),
@@ -117,6 +125,9 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
             // JetBrains habits: Cmd+D duplicates, Ctrl+G adds the next occurrence (CodeMirror's Cmd+D).
             { key: 'Mod-d', run: duplicateLineOrSelection, preventDefault: true },
             { mac: 'Ctrl-g', key: 'Alt-j', run: selectNextOccurrence, preventDefault: true },
+            { key: 'Mod-Shift-ArrowUp', run: moveLineUp, preventDefault: true },
+            { key: 'Mod-Shift-ArrowDown', run: moveLineDown, preventDefault: true },
+            ...closeBracketsKeymap,
             indentWithTab,
             ...defaultKeymap,
             ...historyKeymap,
