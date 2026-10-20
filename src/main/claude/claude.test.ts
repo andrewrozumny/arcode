@@ -279,6 +279,13 @@ describe('summarizeUsage', () => {
     // The Oct 3 turn is inside the seven-day window; the Sep 1 turn is not.
     expect(usage.last7Days).toMatchObject({ messages: 3, outputTokens: 87, sessions: 2 });
     expect(usage.limitsNote).toContain('Plan percentages are not stored on disk');
+
+    // A session that grew is re-read; an unchanged one comes from the cache.
+    writeFileSync(join(dir, 'new.jsonl'), line('m5', todayTs, 3) + '\n', { flag: 'a' });
+    utimesSync(join(dir, 'new.jsonl'), recent, new Date(2026, 9, 9, 11, 30, 0));
+    const grown = await summarizeUsage(root, home, now);
+    expect(grown.today).toMatchObject({ messages: 3, outputTokens: 60 });
+    expect(grown.last7Days).toMatchObject({ messages: 4, outputTokens: 90 });
   });
 
   it('reports the newest rejected limit and keeps limit records out of the counts', async () => {

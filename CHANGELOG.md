@@ -41,6 +41,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and a summary line.
 - **CLAUDE.md** files show as cards with line counts, and missing files say how to create them.
 - **Usage** shows plan windows and context as bars.
+- **Faster Usage refresh:** parsed sessions are cached by size and modification time, so the
+  30-second refresh re-reads only sessions that grew.
 
 ## [0.2.0] - 2026-10-21
 

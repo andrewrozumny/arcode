@@ -104,6 +104,29 @@ async function readTranscript(file: string): Promise<Transcript> {
   return { turns: [...byId.values()], hits };
 }
 
+/**
+ * Parsed transcripts keyed by path and checked against size and mtime, so a refresh re-reads only
+ * the sessions that grew. The Usage view refreshes every 30 s and a week of sessions can be large.
+ */
+const parsed = new Map<string, { size: number; mtime: number; transcript: Transcript }>();
+const CACHE_LIMIT = 500;
+
+async function cachedTranscript(file: string, size: number, mtime: number): Promise<Transcript> {
+  const hit = parsed.get(file);
+  if (hit && hit.size === size && hit.mtime === mtime) return hit.transcript;
+  const transcript = await readTranscript(file);
+  parsed.delete(file);
+  parsed.set(file, { size, mtime, transcript });
+  // Oldest insertions go first; a working set of recent sessions stays well below the cap.
+  while (parsed.size > CACHE_LIMIT) parsed.delete(parsed.keys().next().value as string);
+  return transcript;
+}
+
+/** Test hook: forget every parsed transcript. */
+export function clearUsageCache(): void {
+  parsed.clear();
+}
+
 function windowOf(label: string, turns: Turn[]): UsageWindow {
   const window: UsageWindow = {
     label,
@@ -129,12 +152,13 @@ function windowOf(label: string, turns: Turn[]): UsageWindow {
  */
 export async function summarizeUsage(root: string, home: string, now: Date = new Date()): Promise<UsageSummary> {
   const dir = await projectDir(root, home);
-  let files: { file: string; mtime: number }[] = [];
+  let files: { file: string; mtime: number; size: number }[] = [];
   try {
     const names = (await readdir(dir)).filter((name) => name.endsWith('.jsonl'));
     files = await mapLimit(names, READ_CONCURRENCY, async (name) => {
       const file = join(dir, name);
-      return { file, mtime: (await stat(file)).mtimeMs };
+      const info = await stat(file);
+      return { file, mtime: info.mtimeMs, size: info.size };
     });
   } catch {
     // No transcripts for this project yet.
@@ -148,11 +172,11 @@ export async function summarizeUsage(root: string, home: string, now: Date = new
 
   // Only files touched in the last week can hold turns or hits inside the windows.
   const recentFiles = files.filter((f) => f.mtime >= weekAgo);
-  const recent = await mapLimit(recentFiles, READ_CONCURRENCY, (f) => readTranscript(f.file));
+  const recent = await mapLimit(recentFiles, READ_CONCURRENCY, (f) => cachedTranscript(f.file, f.size, f.mtime));
   const recentTurns = recent.flatMap((t) => t.turns);
   const latest = files[0];
   // The newest file is usually among the recent ones; read it only when it is older than a week.
-  const latestTurns = !latest ? [] : latest === recentFiles[0] ? (recent[0]?.turns ?? []) : (await readTranscript(latest.file)).turns;
+  const latestTurns = !latest ? [] : latest === recentFiles[0] ? (recent[0]?.turns ?? []) : (await cachedTranscript(latest.file, latest.size, latest.mtime)).turns;
 
   const newest = recent
     .flatMap((t) => t.hits)
