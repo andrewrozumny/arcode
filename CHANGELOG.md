@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **PDF viewer.** `.pdf` files open in a read-only viewer tab (from the tree, Go to file, paths in
+  the terminal and the Claude feed, and `open -a ARcode file.pdf`) with paging, zoom, thumbnails and
+  scrolling from Chromium's built-in PDF viewer. The tab reloads when the file changes on disk.
+  When `foo.md` sits next to `foo.pdf`, a button opens the Markdown source. PDFs are served
+  through a guarded `arcode-pdf:` protocol that reads only PDFs inside open projects.
+
 ## [0.2.0] - 2026-10-21
 
 ### Changed

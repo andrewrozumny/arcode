@@ -12,9 +12,11 @@ import { captureScreens } from './screens';
 import { registerClaudeIpc, startLiveUsage } from './claude/ipc';
 import { registerFilesIpc } from './files/ipc';
 import { registerViewerIpc } from './viewer/ipc';
+import { handlePdfProtocol, registerPdfScheme } from './viewer/pdfProtocol';
 import { pasteDir, prunePastedImages } from './terminal/pasteImages';
 
 app.setName('ARcode');
+registerPdfScheme();
 
 // One running instance: a second `open -a ARcode <path>` forwards its arguments here.
 const openRequests = new OpenRequestRouter();
@@ -52,6 +54,7 @@ void app.whenReady().then(() => {
       recent: () => state.get().recent.map((r) => r.root),
     });
   const windows = new WindowManager(state, refreshMenu);
+  handlePdfProtocol(() => windows.roots());
   registerWindowIpc(ipcMain, windows);
   const switcher = new ProjectSwitcher(state, windows);
   registerProjectsIpc(ipcMain, switcher, windows, state);

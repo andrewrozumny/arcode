@@ -664,3 +664,12 @@
 .acode-viewer .cm-merge-a .cm-changedText {
   background: color-mix(in srgb, #f75464 34%, transparent) !important;
 }
+
+/* PDF tab: Chromium's PDF viewer fills the pane. */
+.v-pdf {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: var(--v-bg);
+}
