@@ -155,6 +155,15 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
   automatically.
 - **Diff with HEAD:** shows the file against its last committed version, side by side or
   unified. A file that is not in HEAD is shown as entirely added.
+- **Local history:** ARcode keeps its own copies of text files, independent of git, so you can get
+  back a version from before Claude Code (or anything else) rewrote a file. A copy is kept before
+  ARcode saves a file (at most one every 5 minutes while autosave runs, unless the change is large),
+  and whenever an open file changes on disk from outside ARcode (the content you last had is kept,
+  also when the file is deleted). **History** in the file header lists the versions with their age
+  and why they were kept ("before save" or "changed outside"). Pick one to see it side by side with
+  the current file, then **Restore this version** writes it back after a confirmation; the content
+  it replaces is kept as a new version, and unsaved edits are saved first. Only text files up to
+  1 MB inside the project are kept, at most 50 versions per file, for 14 days.
 - **Markdown:** `.md` files open in a rendered preview with a Preview / Source switch. Relative
   links open in the viewer; relative images are loaded from the project. Remote images are not
   loaded.
@@ -471,6 +480,7 @@ database the switcher shows recent projects only.
 |---|---|
 | `~/Library/Application Support/ARcode/state.json` | Recent projects, open windows, window bounds, panel layout, terminal tabs, viewer tabs and recent files per project, settings (Autosave). |
 | `~/Library/Application Support/ARcode/paste/` | Images pasted into the terminal composer; deleted after 7 days. |
+| `~/Library/Application Support/ARcode/history/` | Local history: copies of project text files kept before saves and on outside changes, one folder per project (a hash of its path) and per file. Max 50 per file, deleted after 14 days. |
 | `~/Library/Application Support/ARcode/usage/` | Status line records, one per session; pruned after 7 days. Only with the status line on. |
 | `~/Library/Application Support/ARcode/arcode-statusline.py` | Installed status line script. Only with the status line on. |
 | `~/.claude/ide/<port>.lock` | IDE bridge lock file per open window, removed when the window closes. |

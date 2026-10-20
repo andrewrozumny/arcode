@@ -1,5 +1,5 @@
 import type { EditorView } from '@codemirror/view';
-import type { ReadFileResult } from '@shared/viewer';
+import type { ReadFileResult, SnapshotInfo } from '@shared/viewer';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { viewerApi } from './api';
 import { AUTOSAVE_DELAY_MS, canAutosave, debounced } from './autosave';
@@ -7,6 +7,8 @@ import { CodeEditor } from './CodeEditor';
 import type { CodeEditorHandle } from './CodeEditor';
 import { DiffView } from './DiffView';
 import type { DiffMode } from './DiffView';
+import { formatDayTime } from '../format';
+import { HistoryMenu, snapshotAge, sourceLabel } from './HistoryMenu';
 import { DiffIcon, PencilIcon, SaveIcon } from './Icons';
 import { languageNameForPath } from './languages';
 import { MarkdownPreview } from './MarkdownPreview';
@@ -59,6 +61,8 @@ interface DiffState {
   original: string;
   modified: string;
   isNew: boolean;
+  /** Set when the left side is a local history snapshot instead of HEAD. */
+  snapshot?: SnapshotInfo;
 }
 
 const isMarkdown = (path: string): boolean => ['md', 'markdown', 'mdx'].includes(extension(path));
@@ -326,12 +330,50 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
     });
   };
 
+  const openSnapshotDiff = async (snapshot: SnapshotInfo): Promise<void> => {
+    const content = await api.readSnapshot(root, path, snapshot.id);
+    if (content === null) {
+      setBanner({ type: 'error', message: 'This version is no longer in local history' });
+      return;
+    }
+    setDiff({
+      mode: diff?.mode ?? 'split',
+      original: content,
+      modified: editorRef.current?.getValue() ?? savedRef.current,
+      isNew: false,
+      snapshot,
+    });
+  };
+
+  const restoreSnapshot = async (snapshot: SnapshotInfo): Promise<void> => {
+    const when = snapshotAge(snapshot);
+    const question = dirtyRef.current
+      ? `Restore the version from ${when}? Your unsaved edits are saved first, and the current file stays in local history.`
+      : `Restore the version from ${when}? The current file stays in local history.`;
+    if (!window.confirm(question)) return;
+    if (dirtyRef.current) {
+      await save();
+      if (dirtyRef.current) return;
+    }
+    const result = await api.restoreSnapshot(root, path, snapshot.id, mtimeRef.current);
+    if (result.ok) {
+      setDiff(null);
+      await load();
+    } else {
+      setBanner({
+        type: 'error',
+        message: result.reason === 'conflict' ? 'the file changed on disk meanwhile, try again' : result.message,
+      });
+    }
+  };
+
   if (!data) return <div className="v-pane v-loading" />;
 
   const text = data.kind === 'text';
   const svg = data.kind === 'image' && data.svgSource !== undefined;
   const showPreview = text && md && mdMode === 'preview' && !diff;
   const editorHidden = !text || showPreview || diff !== null;
+  const shownSnapshot = diff?.snapshot ?? null;
 
   return (
     <div className="v-pane">
@@ -399,11 +441,19 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
           </div>
         )}
         {text && (
+          <HistoryMenu
+            root={root}
+            path={path}
+            selected={diff?.snapshot?.id ?? null}
+            onPick={(snapshot) => void openSnapshotDiff(snapshot)}
+          />
+        )}
+        {text && (
           <button
             type="button"
-            className={diff ? 'v-btn on' : 'v-btn'}
+            className={diff && !diff.snapshot ? 'v-btn on' : 'v-btn'}
             title="Diff with HEAD"
-            onClick={() => (diff ? setDiff(null) : void openHeadDiff('split'))}
+            onClick={() => (diff && !diff.snapshot ? setDiff(null) : void openHeadDiff(diff?.mode ?? 'split'))}
           >
             <DiffIcon /> Diff with HEAD
           </button>
@@ -454,6 +504,20 @@ export const FilePane = forwardRef<FilePaneHandle, Props>(function FilePane(
         </div>
       )}
       {diff?.isNew && <div className="v-banner v-banner-info">Not in HEAD: showing the whole file as added.</div>}
+      {shownSnapshot && (
+        <div className="v-banner v-banner-info">
+          <span>
+            Left: local history from {formatDayTime(shownSnapshot.timestamp)} ({sourceLabel(shownSnapshot)}). Right: current file.
+          </span>
+          <span className="v-spacer" />
+          <button type="button" className="v-btn" onClick={() => setDiff(null)}>
+            Close
+          </button>
+          <button type="button" className="v-btn v-btn-primary" onClick={() => void restoreSnapshot(shownSnapshot)}>
+            Restore this version
+          </button>
+        </div>
+      )}
 
       <div className="v-body">
         {text && editorShown && (

@@ -9,6 +9,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Local history.** ARcode keeps its own copies of text files in the project, independent of git:
+  before it saves a file (throttled to one per 5 minutes during autosave unless the change is large)
+  and when an open file changes on disk from outside, for example when Claude Code edits it. The
+  History button in the file header lists versions with their age; picking one shows a diff against
+  the current file with a Restore action. Text files up to 1 MB, 50 versions per file, kept 14 days
+  under `<userData>/history`.
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;

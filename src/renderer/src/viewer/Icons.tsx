@@ -52,3 +52,12 @@ export function ZoomAreaIcon() {
     </svg>
   );
 }
+
+export function HistoryIcon() {
+  return (
+    <svg {...base} aria-hidden>
+      <path d="M2.5 8a5.5 5.5 0 105.5-5.5A5.5 5.5 0 004 4.3" />
+      <path d="M3.6 1.8v2.7h2.7M8 5v3.2l2.2 1.4" />
+    </svg>
+  );
+}

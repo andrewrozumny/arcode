@@ -6,6 +6,7 @@ import { basename, dirname, extname, relative, resolve, sep } from 'node:path';
 import { IMAGE_SIZE_LIMIT, TEXT_SIZE_LIMIT } from '@shared/viewer';
 import type { ReadFileResult, WriteFileResult } from '@shared/viewer';
 import { resolveInside } from '../files/paths';
+import type { WriteHooks } from './history';
 import { isPdfPath, markdownSourceFor, pdfUrl } from './pdf';
 
 const BINARY_SNIFF_BYTES = 8 * 1024;
@@ -100,6 +101,7 @@ export async function writeFile(
   relPath: string,
   content: string,
   expectedMtime: number | null,
+  hooks?: WriteHooks,
 ): Promise<WriteFileResult> {
   try {
     const abs = await resolveInside(root, relPath);
@@ -110,7 +112,14 @@ export async function writeFile(
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
     if (current !== expectedMtime) return { ok: false, reason: 'conflict', mtime: current };
-    await fsWriteFile(abs, content, 'utf-8');
+    await hooks?.beforeWrite(abs, content);
+    let written = false;
+    try {
+      await fsWriteFile(abs, content, 'utf-8');
+      written = true;
+    } finally {
+      hooks?.afterWrite(abs, written);
+    }
     return { ok: true, mtime: (await stat(abs)).mtimeMs };
   } catch (error) {
     return { ok: false, reason: 'error', message: error instanceof Error ? error.message : String(error) };
