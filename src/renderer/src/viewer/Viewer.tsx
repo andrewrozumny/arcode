@@ -365,6 +365,8 @@ const ViewerInner = forwardRef<ViewerHandle, ViewerProps>(function ViewerInner(
         onReveal={(id) => onRevealInTree?.(pathOf(id))}
       />
       <div className="v-content">
+        {/* The app mark in the corner of every tab; the feed and the Claude panel place their own. */}
+        {activeTab?.kind !== 'feed' && activeTab?.kind !== 'claude' && <img className="v-corner-logo" src={logoUrl} alt="" draggable={false} />}
         {tabs.map((tab) => (
           <div key={tab.id} className={tab.id === activeId ? 'v-slot active' : 'v-slot'}>
             {tab.kind === 'feed' ? (

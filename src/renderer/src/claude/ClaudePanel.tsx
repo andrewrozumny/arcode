@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import logoUrl from '../../../../design/empty-mark.svg';
 import { AgentsView, HooksView, McpView, MemoryView, PluginsView, SkillsView } from './ConfigViews';
 import { Icon } from './FeedIcons';
 import { GatesView } from './GatesView';
@@ -83,6 +84,7 @@ function Nav({ section, onSelect }: { section: SectionId; onSelect(id: SectionId
           })}
         </div>
       ))}
+      <img className="cl-nav-logo" src={logoUrl} alt="" draggable={false} />
     </nav>
   );
 }

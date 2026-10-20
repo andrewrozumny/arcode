@@ -21,11 +21,25 @@
 /* Navigation */
 
 .cl-nav {
+  display: flex;
+  flex-direction: column;
   flex: none;
   width: 184px;
   padding: 12px 8px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
+}
+
+/* The app mark at the foot of the section list; the content area stays clear. */
+.cl-nav-logo {
+  align-self: flex-start;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  margin: auto 0 6px 8px;
+  opacity: 0.4;
+  pointer-events: none;
+  user-select: none;
 }
 
 .cl-nav-group + .cl-nav-group {
@@ -1136,6 +1150,7 @@ button.cl-card-aside {
 
   .cl-nav {
     display: flex;
+    flex-direction: row;
     width: auto;
     padding: 6px 8px;
     overflow-x: auto;
@@ -1152,7 +1167,8 @@ button.cl-card-aside {
     margin: 0 0 0 2px;
   }
 
-  .cl-nav-title {
+  .cl-nav-title,
+  .cl-nav-logo {
     display: none;
   }
 

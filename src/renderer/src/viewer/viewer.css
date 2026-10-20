@@ -256,6 +256,23 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  container-type: inline-size;
+}
+.v-corner-logo {
+  position: absolute;
+  right: 26px;
+  bottom: 18px;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  opacity: 0.35;
+  pointer-events: none;
+  user-select: none;
+}
+@container (max-width: 700px) {
+  .v-corner-logo {
+    display: none;
+  }
 }
 .v-slot {
   position: absolute;

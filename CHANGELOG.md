@@ -35,7 +35,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- The pinned Claude feed tab is highlighted in coral so it is easy to find among file tabs.
+- The pinned Claude feed tab and the Claude button in the activity bar are coral, so they are easy
+  to find. The ARcode mark sits in the corner of every viewer tab.
 - **Friendlier Claude panel.** Sections now sit in a side navigation with icons, item counts and a
   red dot on sections with a problem, under a title and a one-line explanation of each section.
   The panel remembers the last section.
