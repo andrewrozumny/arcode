@@ -17,6 +17,14 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut(key('KeyP'), 'viewer')).toBe('fileSearch');
   });
 
+  it('opens Find in files on Cmd+Shift+F from anywhere, plain Cmd+F stays with the panel', () => {
+    expect(resolveShortcut(key('KeyF', { shiftKey: true }), 'terminal')).toBe('findInFiles');
+    expect(resolveShortcut(key('KeyF', { shiftKey: true }), 'viewer')).toBe('findInFiles');
+    expect(resolveShortcut(key('KeyF', { shiftKey: true }), 'tree')).toBe('findInFiles');
+    expect(resolveShortcut(key('KeyF'), 'viewer')).toBeNull();
+    expect(resolveShortcut(key('KeyF', { shiftKey: true, altKey: true }), 'viewer')).toBeNull();
+  });
+
   it('leaves other keys in the terminal alone', () => {
     expect(resolveShortcut(key('KeyT', { shiftKey: true }), 'terminal')).toBeNull();
     expect(resolveShortcut(key('KeyS'), 'terminal')).toBeNull();

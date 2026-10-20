@@ -10,12 +10,16 @@ import { TerminalDock } from './layout/TerminalDock';
 import { useGitStatus } from './layout/useGitStatus';
 import type { TerminalPaneHandle } from './TerminalPane';
 import { Workspace } from './layout/Workspace';
+import type { LeftMode } from './layout/Workspace';
 import { ProjectPalette } from './projects/ProjectPalette';
 import { mentionLines, resolveShortcut } from './shortcuts';
 import type { FocusZone } from './shortcuts';
 import { loadFonts } from './theme/fonts';
 import { FileSearch } from './tree/FileSearch';
 import { FileTree } from './tree/FileTree';
+import { FindInFiles } from './tree/FindInFiles';
+import type { FindFocusRequest } from './tree/FindInFiles';
+import { prefillFromSelection } from './tree/findModel';
 import { Viewer } from './viewer/Viewer';
 import type { ActiveInfo, ViewerHandle } from './viewer/types';
 
@@ -51,6 +55,8 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const [activePath, setActivePath] = useState<string | undefined>(undefined);
   const [revealPath, setRevealPath] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [leftMode, setLeftMode] = useState<LeftMode>('tree');
+  const [findRequest, setFindRequest] = useState<FindFocusRequest>({ nonce: 0, prefill: null });
   const viewerRef = useRef<ViewerHandle>(null);
   const activeInfo = useRef<ActiveInfo | null>(null);
   const { files: gitStatus, branch } = useGitStatus(projectRoot);
@@ -93,7 +99,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   // Panels talk through the bus; the viewer and tree are wired here.
   useEffect(() => {
     const offs = [
-      bus.on('openFile', ({ path, line }) => viewerRef.current?.open(path, line)),
+      bus.on('openFile', ({ path, line, column }) => viewerRef.current?.open(path, line, column)),
       bus.on('closeViewerTab', () => viewerRef.current?.closeActive()),
       bus.on('closeTerminalTab', () => terminalRef.current?.closeActiveTab()),
       bus.on('runGate', ({ target }) => {
@@ -109,6 +115,23 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
 
   const openFile = useCallback((path: string, line?: number) => {
     bus.openFile(line === undefined ? { path } : { path, line });
+  }, []);
+
+  /** Shows Find in files in the left column and focuses its query, prefilled with the editor selection. */
+  const openFind = useCallback(() => {
+    setLeftMode('find');
+    setFindRequest((prev) => ({ nonce: prev.nonce + 1, prefill: prefillFromSelection(activeInfo.current?.text) }));
+    bus.emit('focusPanel', { panel: 'tree' });
+  }, []);
+
+  /** Esc in Find in files: back to the tree, with focus on it. */
+  const closeFind = useCallback(() => {
+    setLeftMode('tree');
+    window.requestAnimationFrame(() => document.querySelector<HTMLElement>('.tree-pane .ft-body')?.focus());
+  }, []);
+
+  const openMatch = useCallback((path: string, line: number, column: number) => {
+    bus.openFile({ path, line, column });
   }, []);
 
   const onActiveChange = useCallback((info: ActiveInfo | null) => {
@@ -128,6 +151,10 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
       switch (action) {
         case 'fileSearch':
           setSearchOpen(true);
+          break;
+        case 'findInFiles':
+          setSearchOpen(false);
+          openFind();
           break;
         case 'reopenTab':
           viewer?.reopenClosed();
@@ -159,7 +186,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, []);
+  }, [openFind]);
 
   /** Gate buttons. The terminal runs `scripts/gates.sh <target>` in a new tab (see the `runGate` listener). */
   const onRunGate = useCallback((target: GateTarget) => {
@@ -188,14 +215,27 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
           projectRoot={projectRoot}
           initialLayout={layout}
           tree={
-            <div className="tree-host">
-              <FileTree
-                projectRoot={projectRoot}
-                onOpenFile={openFile}
-                {...(treePath ? { activePath: treePath } : {})}
-              />
-            </div>
+            <>
+              <div className="tree-host" hidden={leftMode !== 'tree'}>
+                <FileTree
+                  projectRoot={projectRoot}
+                  onOpenFile={openFile}
+                  {...(treePath ? { activePath: treePath } : {})}
+                />
+              </div>
+              <div className="tree-host" hidden={leftMode !== 'find'}>
+                <FindInFiles
+                  projectRoot={projectRoot}
+                  focusRequest={findRequest}
+                  onOpenMatch={openMatch}
+                  onClose={closeFind}
+                />
+              </div>
+            </>
           }
+          leftMode={leftMode}
+          onLeftMode={setLeftMode}
+          onOpenFind={openFind}
           viewer={
             <Viewer
               ref={viewerRef}

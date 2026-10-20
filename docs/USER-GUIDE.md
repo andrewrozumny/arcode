@@ -12,6 +12,7 @@ everyday use. For how the code is put together, see [ARCHITECTURE.md](ARCHITECTU
 - [Open projects](#open-projects)
 - [Window layout](#window-layout)
 - [File tree](#file-tree)
+- [Find in files](#find-in-files)
 - [File viewer](#file-viewer)
 - [Terminal](#terminal)
 - [Claude Code integration](#claude-code-integration)
@@ -75,7 +76,7 @@ paths to the running app instead of starting a second copy.
 | Area | Contents |
 |---|---|
 | Header | Project avatar, name and path (click to switch project), current git branch, the **Claude** button, model badge, running subagents, usage bars, IDE bridge status, and the **Gate** buttons. |
-| Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Claude panel, Terminal (Cmd+2). |
+| Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Claude panel, Terminal (Cmd+2). |
 | File tree | Left column. |
 | Viewer | Right column, top. Tabs for the Claude feed, files, diffs and the Claude panel. |
 | Terminal dock | Right column, bottom. Shell, Claude and gate tabs. |
@@ -108,6 +109,23 @@ disk.
 - **Go to file:** Cmd+P opens a fuzzy file search over the whole project.
 
 ![File search](screenshots/search.png)
+
+## Find in files
+
+Cmd+Shift+F (or the Find in files button in the activity bar) switches the left column from the
+file tree to a project-wide text search. Text selected in the editor on one line becomes the query.
+
+- Results update as you type and are grouped by file, with the number of matches per file and the
+  matched text highlighted. Click a file header to fold it.
+- **Aa** matches case, **W** matches whole words, **.\*** treats the query as a regular expression.
+- **File mask** limits the search: comma-separated globs such as `*.ts, src/**`; a leading `!`
+  excludes (`!*.test.ts`). A glob without `/` matches the file name in any folder.
+- Up and Down move through the matches, Enter or a click opens the file at that line and column.
+  Esc returns to the file tree.
+- Ignored files (`.gitignore`) and binary files are skipped. ARcode uses ripgrep when it is
+  installed (`brew install ripgrep`), otherwise `git grep`, otherwise its own scan.
+- Very large result sets stop at 2,000 matching lines and long lines are shortened around the match;
+  the status line says when results are incomplete. A search stops after 10 seconds.
 
 ## File viewer
 
@@ -356,6 +374,7 @@ database the switcher shows recent projects only.
 | Cmd+2 | Show or hide the terminal |
 | Cmd+Shift+F12 | Hide all panels / bring them back |
 | Cmd+P | Go to file (works in the terminal too) |
+| Cmd+Shift+F | Find in files (works in the terminal too; Esc returns to the tree) |
 | Ctrl+Esc | New Claude tab |
 | Cmd+T | New shell tab |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |

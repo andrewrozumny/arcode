@@ -1,0 +1,161 @@
+/* Find in files: the search mode of the left column. Reuses .ft-root and .ft-header from tree.css. */
+
+.ff-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+  padding: 8px 8px 6px;
+  border-bottom: 1px solid var(--border, #393b40);
+}
+
+.ff-field {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 3px 0 0;
+  border: 1px solid var(--border-strong, #43454a);
+  border-radius: var(--radius, 4px);
+  background: var(--bg, #1e1f22);
+}
+.ff-field:focus-within {
+  border-color: var(--focus-ring, #3574f0);
+}
+
+.ff-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--fg, #dfe1e5);
+  font: 13px var(--font-ui, -apple-system, sans-serif);
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.ff-input::placeholder {
+  color: var(--fg-faint, #6f737a);
+}
+.ff-include {
+  font-size: 12px;
+}
+
+.ff-toggle {
+  flex: none;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fg-muted, #868a91);
+  font: 600 11px/18px var(--font-mono, Menlo, monospace);
+  cursor: pointer;
+}
+.ff-toggle:hover {
+  background: var(--bg-hover, #393b40);
+  color: var(--fg, #dfe1e5);
+}
+.ff-toggle.on {
+  border-color: var(--accent, #3574f0);
+  background: rgba(53, 116, 240, 0.22);
+  color: var(--fg, #dfe1e5);
+}
+
+.ff-status {
+  min-height: 16px;
+  padding: 0 2px;
+  color: var(--fg-muted, #868a91);
+  font-size: 11.5px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ff-status.error {
+  color: var(--red, #f75464);
+}
+
+.ff-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+
+.ff-file {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px 0 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+.ff-file:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ff-file-name {
+  flex: none;
+  margin-right: 6px;
+}
+.ff-file-dir {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-faint, #6f737a);
+  font-size: 12px;
+}
+.ff-count {
+  flex: none;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--bg-hover, #393b40);
+  color: var(--fg-muted, #868a91);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.ff-match {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  height: 22px;
+  padding: 0 8px 0 26px;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: default;
+}
+.ff-match:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ff-match.active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.ff-root:focus-within .ff-match.active {
+  background: var(--selection, #2e436e);
+}
+.ff-line {
+  flex: none;
+  min-width: 24px;
+  color: var(--fg-faint, #6f737a);
+  font: 11px var(--font-mono, Menlo, monospace);
+  text-align: right;
+}
+.ff-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 12px/22px var(--font-mono, Menlo, monospace);
+  white-space: pre;
+}
+.ff-text mark {
+  border-radius: 2px;
+  background: rgba(229, 192, 123, 0.28);
+  color: var(--fg, #dfe1e5);
+  box-shadow: 0 0 0 1px rgba(229, 192, 123, 0.45);
+}

@@ -18,6 +18,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   scrolling from Chromium's built-in PDF viewer. The tab reloads when the file changes on disk.
   When `foo.md` sits next to `foo.pdf`, a button opens the Markdown source. PDFs are served
   through a guarded `arcode-pdf:` protocol that reads only PDFs inside open projects.
+- **Find in files** (Cmd+Shift+F). A search mode in the left column with live results grouped by
+  file, match counts and highlighting, case, whole word and regex toggles, a file mask with
+  exclusions, keyboard navigation and Enter to open at the matched line and column. The editor
+  selection becomes the query. Runs ripgrep when installed, else `git grep`, else a built-in scan
+  that honors `.gitignore`; results are capped and a newer query cancels the running one.
 
 ### Changed
 

@@ -9,6 +9,7 @@ export const filesApi: FilesApi = {
   gitStatus: (root) => ipcRenderer.invoke(FilesChannel.GitStatus, root),
   branch: (root) => ipcRenderer.invoke(FilesChannel.Branch, root),
   search: (root, query, limit) => ipcRenderer.invoke(FilesChannel.Search, root, query, limit),
+  grep: (root, query) => ipcRenderer.invoke(FilesChannel.Grep, root, query),
   watch: (root) => ipcRenderer.invoke(FilesChannel.Watch, root),
   unwatch: (root) => ipcRenderer.invoke(FilesChannel.Unwatch, root),
   reveal: (root, relPath) => ipcRenderer.invoke(FilesChannel.Reveal, root, relPath),

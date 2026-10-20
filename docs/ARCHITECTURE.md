@@ -39,7 +39,12 @@ through a symlink. `service.ts` lists folders (ignored entries from `git check-i
 `watcher.ts` wraps a recursive `fs.watch` with debounce and heavy-folder filtering and tells
 the renderer which folders changed and when git status must be recomputed. `git.ts` runs git
 with `GIT_OPTIONAL_LOCKS=0` (ADR 0007); `gitStatus.ts` parses porcelain v2. `index.ts` keeps a
-cached fuzzy file index per project. `external.ts` and `clipboard*.ts` serve the Import from Mac
+cached fuzzy file index per project. `grep.ts` serves Find in files: `rg --json` when ripgrep is
+on PATH (or in the Homebrew folders), else `git grep -n -I --untracked`, else a scan of the cached
+index; always spawned with an argv array, capped (lines, files, scanned files, preview length,
+10 s timeout), cancelled per window when a newer query arrives, and every returned path passes
+`paths.ts`. In the renderer `FindInFiles` replaces the tree in the left column (`findModel.ts` holds
+its pure row and keyboard logic) and opens matches through the bus with line and column. `external.ts` and `clipboard*.ts` serve the Import from Mac
 dialog, Finder copy and paste and drag and drop (ADR 0008). In the renderer `useDirectoryTree`
 loads and watches folders and `FileTree` handles selection, keyboard, menu and drops.
 

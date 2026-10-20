@@ -16,6 +16,8 @@ export interface OpenFileRequest {
   line?: number;
   /** 1-based last line of a range to highlight. */
   endLine?: number;
+  /** 1-based column to place the cursor at on `line`. */
+  column?: number;
 }
 
 export interface BusEvents {
