@@ -315,3 +315,43 @@ export function lastPromptAt(items: readonly FeedItem[]): string | null {
   }
   return null;
 }
+
+/** A plan file Claude Code writes in plan mode before it calls ExitPlanMode without input. */
+const PLAN_FILE = /\/\.claude\/plans\/[^/]+\.md$/;
+
+/**
+ * Text of each plan card by the ExitPlanMode call's id: its own input, else the approved plan
+ * from its result, else the plan file written last before the call.
+ */
+export function planTexts(items: readonly FeedItem[], results: Record<string, FeedToolResult>): Map<string, string> {
+  const plans = new Map<string, string>();
+  let written: string | null = null;
+  for (const item of items) {
+    if (item.kind !== 'tool') continue;
+    const detail = item.detail;
+    if (detail?.type === 'write' && PLAN_FILE.test(detail.path)) written = detail.content;
+    // An edited plan file is no longer what the write said; the result tells the final text.
+    else if (detail?.type === 'edit' && PLAN_FILE.test(detail.path)) written = null;
+    if (detail?.type !== 'plan') continue;
+    const text = detail.plan.trim() || results[item.id]?.plan?.trim() || written?.trim() || '';
+    if (text) plans.set(item.id, text);
+    written = null;
+  }
+  return plans;
+}
+
+/**
+ * The question or plan call Claude waits on right now: the latest item of the feed (notices
+ * aside), without a result, while the session's process waits for the user. Only that card takes
+ * answers; in any other state the answer is left to the terminal.
+ */
+export function pendingPrompt(items: readonly FeedItem[], results: Record<string, FeedToolResult>, activity: SessionActivity): ToolItem | null {
+  if (activity !== 'waiting') return null;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (!item || item.kind === 'notice') continue;
+    if (item.kind !== 'tool' || results[item.id]) return null;
+    return item.detail?.type === 'question' || item.detail?.type === 'plan' ? item : null;
+  }
+  return null;
+}

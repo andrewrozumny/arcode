@@ -321,6 +321,18 @@ export function TerminalPane({
   useEffect(() => bus.on('resumeClaude', ({ sessionId, name }) => void resumeClaude(sessionId, name)), [resumeClaude]);
   useEffect(() => bus.on('newClaude', () => void newClaude()), [newClaude]);
 
+  // The Claude feed sends the user to the tab whose prompt needs typing.
+  useEffect(
+    () =>
+      bus.on('focusPty', ({ ptyId }) => {
+        const tab = tabsRef.current.find((t) => t.ptyId === ptyId);
+        if (!tab) return;
+        commitActive(tab.id);
+        requestAnimationFrame(() => sessions.get(tab.id)?.focus());
+      }),
+    [commitActive, sessions],
+  );
+
   // Initial tabs.
   useEffect(() => {
     if (initialized.current) return;

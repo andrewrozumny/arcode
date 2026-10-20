@@ -238,8 +238,11 @@ export function allow(key: string, limit = 60, windowMs = 60_000): boolean {
 `,
 };
 
-/** A made-up Claude Code conversation in the transcript format Claude Code writes. */
-function transcript(root, sessionId) {
+/**
+ * A made-up Claude Code conversation in the transcript format Claude Code writes. `waitOn`
+ * ('question', 'plan' or 'permission') appends a list-heavy reply and a prompt Claude waits on.
+ */
+function transcript(root, sessionId, waitOn) {
   const records = [];
   let clock = Date.parse('2026-10-15T09:12:00.000Z');
   let parent = null;
@@ -321,8 +324,112 @@ function transcript(root, sessionId) {
   tool('Write', { file_path: `${root}/src/rateLimit.ts`, content: PROJECT_CHANGES['src/rateLimit.ts'] }, 'File created successfully.');
   tool('Bash', { command: 'pnpm vitest run --reporter=dot', description: 'Run all tests' }, '·\n\n Test Files  1 passed (1)\n      Tests  1 passed (1)');
   say([{ type: 'text', text: 'The fixed-window limiter is in `src/rateLimit.ts`. Next I am adding the 400 for `min > 90`.' }]);
+  if (waitOn) {
+    prompt('What is left before we can ship, and how should the limiter be configured?');
+    say([{ type: 'text', text: LIST_HEAVY_REPLY.replaceAll('<root>', root) }]);
+    if (waitOn === 'question') say([{ type: 'tool_use', id: 'toolu_demo_question', name: 'AskUserQuestion', input: { questions: DEMO_QUESTIONS } }]);
+    if (waitOn === 'plan') {
+      const planFile = join(dirname(dirname(root)), '.claude', 'plans', 'calm-orbit-plan.md');
+      tool('Write', { file_path: planFile, content: DEMO_PLAN }, `File created successfully at: ${planFile}`);
+      say([{ type: 'tool_use', id: 'toolu_demo_plan', name: 'ExitPlanMode', input: {} }]);
+    }
+  }
   return records.map((r) => JSON.stringify(r)).join('\n') + '\n';
 }
+
+/** Reply shapes that used to render badly in the feed: lists under labels, "•" bullets, long paths, a wide table. */
+const LIST_HEAVY_REPLY = `**Done so far:**
+1. Validation of \`min\` with a 400 above 90 degrees.
+2. The fixed-window limiter in \`src/rateLimit.ts\`.
+
+**Still to do:**
+7. Wire the limiter into \`src/server.ts\` before the router.
+8. Return \`429\` with a \`Retry-After\` header.
+9. Add tests for the window reset.
+
+Notes from the review:
+• Keys are read from the \`x-api-key\` header
+• Anonymous callers share one bucket
+  - which is strict on purpose
+  - and logged once per minute
+
+**Config**
+The limit lives in one place: \`<root>/src/config/rate-limits/per-key-defaults.generated.json\`, see https://example.com/docs/orbit-api/rate-limiting/fixed-window-configuration-reference-for-operators
+
+| Key tier | Requests per minute | Burst | Window | Applies to | Notes |
+|---|---|---|---|---|---|
+| free | 30 | 10 | 60 s | \`GET /passes\` and \`GET /stations\` | shared by anonymous callers |
+| pro | 600 | 100 | 60 s | every endpoint | per key |`;
+
+const DEMO_QUESTIONS = [
+  {
+    question: 'Which limit should anonymous callers get?',
+    header: 'Anonymous',
+    multiSelect: false,
+    options: [
+      { label: 'Same as free', description: '30 requests per minute, shared' },
+      { label: 'Stricter', description: '10 requests per minute' },
+      { label: 'Blocked', description: 'An API key is required' },
+    ],
+  },
+  {
+    question: 'Which responses should carry rate limit headers?',
+    header: 'Headers',
+    multiSelect: true,
+    options: [
+      { label: '429 responses', description: 'Retry-After only' },
+      { label: 'Every response', description: 'X-RateLimit-Remaining as well' },
+      { label: 'Debug mode only', description: null },
+    ],
+  },
+];
+
+const DEMO_PLAN = `# Plan: wire the rate limiter
+
+1. Read the key from \`x-api-key\` in \`src/server.ts\`.
+2. Call \`allow(key)\` before routing; answer \`429\` with \`Retry-After\` when it says no.
+3. Add tests for the window reset and the anonymous bucket.`;
+
+/** What the stand-in claude draws for a waiting prompt (ARCODE_DEMO_PROMPT), like Claude Code 2.1 does. */
+const PROMPT_SCREENS = {
+  question: `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+\u2190  \u2610 Anonymous  \u2610 Headers  \u2714 Submit  \u2192
+
+Which limit should anonymous callers get?
+
+\u276f 1. Same as free
+     30 requests per minute, shared
+  2. Stricter
+     10 requests per minute
+  3. Blocked
+     An API key is required
+  4. Type something.
+\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  5. Chat about this
+
+Enter to select \u00b7 Tab/Arrow keys to navigate \u00b7 Esc to cancel`,
+  plan: `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+ Claude has written up a plan and is ready to execute. Would you like to proceed?
+
+ \u276f 1. Yes, and use auto mode
+   2. Yes, manually approve edits
+   3. Tell Claude what to change
+      shift+tab to approve with this feedback
+
+ ctrl+g to edit in Vim`,
+  permission: `\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+ Bash command
+
+   pnpm vitest run test/rateLimit.test.ts
+   Run the rate limiter tests
+
+ Do you want to proceed?
+ \u276f 1. Yes
+   2. Yes, and don't ask again for pnpm vitest commands in this project
+   3. No, and tell Claude what to do differently (esc)
+
+ Esc to cancel`,
+};
 
 /**
  * Stand-in for the `claude` CLI: registers itself in ~/.claude/sessions/<pid>.json exactly like
@@ -350,8 +457,20 @@ if [ -n "$NEW" ] && [ "$NEW" != "$SID" ]; then
 fi
 mkdir -p "$HOME/.claude/sessions"
 REG="$HOME/.claude/sessions/$$.json"
-printf '{"pid":%d,"sessionId":"%s","cwd":"%s","status":"%s","startedAt":%d}' $$ "$SID" "$PWD" "\${ARCODE_DEMO_STATUS:-idle}" "$(date +%s)000" > "$REG"
+printf '{"pid":%d,"sessionId":"%s","cwd":"%s","status":"%s","waitingFor":"%s","startedAt":%d}' $$ "$SID" "$PWD" "\${ARCODE_DEMO_STATUS:-idle}" "\${ARCODE_DEMO_WAITING:-}" "$(date +%s)000" > "$REG"
 trap 'rm -f "$REG"; exit 0' INT TERM HUP EXIT
+# A waiting prompt: draw it and log every key the terminal sends, one line per read with a timestamp.
+if [ -n "$ARCODE_DEMO_PROMPT" ] && [ -f "$HOME/.demo-prompt-$ARCODE_DEMO_PROMPT.txt" ]; then
+  echo
+  cat "$HOME/.demo-prompt-$ARCODE_DEMO_PROMPT.txt"
+  stty raw -echo
+  exec python3 -c 'import os,sys,time
+log=open(os.path.expanduser("~/demo-keys.log"),"a",buffering=1)
+while True:
+    data=os.read(0,256)
+    if not data: break
+    log.write("%.3f %r\\n" % (time.time(), data))'
+fi
 O=$'\\e[38;2;215;119;87m'; D=$'\\e[2m'; B=$'\\e[1m'; R=$'\\e[0m'; G=$'\\e[32m'; RED=$'\\e[31m'
 HR="$(printf '─%.0s' $(seq 1 78))"
 echo
@@ -377,7 +496,11 @@ echo "  \${D}? for shortcuts\${R}"
 while true; do sleep 3600; done
 `;
 
-export function buildSandbox(dir) {
+/**
+ * `options.prompt` ('question', 'plan' or 'permission') ends the demo session with a reply full of
+ * lists and a prompt Claude waits on, and writes the screen the stand-in claude draws for it.
+ */
+export function buildSandbox(dir, options = {}) {
   rmSync(dir, { recursive: true, force: true });
   const home = join(dir, 'home');
   const root = join(home, 'code', 'orbit-api');
@@ -396,7 +519,8 @@ export function buildSandbox(dir) {
   for (const [path, text] of Object.entries(PROJECT_CHANGES)) write(join(root, path), text);
 
   const claude = join(home, '.claude');
-  write(join(claude, 'projects', slugOf(root), `${sessionId}.jsonl`), transcript(root, sessionId));
+  write(join(claude, 'projects', slugOf(root), `${sessionId}.jsonl`), transcript(root, sessionId, options.prompt));
+  for (const [name, screen] of Object.entries(PROMPT_SCREENS)) write(join(home, `.demo-prompt-${name}.txt`), `${screen}\n`);
   // Older sessions for the Sessions list.
   const older = [
     ['Add a /health endpoint that also reports uptime', 1],

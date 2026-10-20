@@ -237,6 +237,7 @@
 
 /* Assistant text: plain Markdown on the page background, with a meta row shown on hover. */
 .fd-assistant {
+  min-width: 0;
   margin: 6px 0 0;
 }
 .fd-meta {
@@ -351,12 +352,31 @@
   border-left: 3px solid var(--border-strong);
   color: var(--fg-muted);
 }
+/* Long words, paths and URLs wrap instead of widening the column. In tables they keep the cell
+   wide and the table scrolls sideways in its own box, so columns are not squeezed letter by letter. */
+.fd-root .fd-md {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.fd-root .fd-md code,
+.fd-root .fd-md a {
+  overflow-wrap: anywhere;
+}
+.fd-root .fd-md table code,
+.fd-root .fd-md table a {
+  overflow-wrap: break-word;
+}
 .fd-root .fd-md table {
   display: block;
   max-width: 100%;
   overflow-x: auto;
   font-size: 13.5px;
   line-height: 1.5;
+}
+.fd-root .fd-md td,
+.fd-root .fd-md th {
+  min-width: 4em;
+  vertical-align: top;
 }
 .fd-root .fd-md th,
 .fd-root .fd-md td {
@@ -1062,6 +1082,106 @@
 .fd-answer {
   color: #8fd093;
   font-size: 13px;
+}
+
+/* Answering from the feed: options are buttons while Claude waits on them. */
+.fd-options li:has(> .fd-option-btn) {
+  padding: 0;
+}
+.fd-option-btn {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fd-option-btn:hover:not(:disabled) {
+  background: rgba(111, 156, 245, 0.1);
+}
+.fd-option-btn:hover:not(:disabled) .fd-option-mark {
+  background: rgba(111, 156, 245, 0.25);
+  color: var(--fg);
+}
+.fd-option-btn:focus-visible {
+  outline: 2px solid var(--fd-ask);
+  outline-offset: -2px;
+}
+.fd-option-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.fd-card.ask .fd-options li.chosen,
+.fd-options li.chosen {
+  background: rgba(111, 156, 245, 0.12);
+}
+.fd-options li.chosen .fd-option-mark {
+  background: var(--fd-ask);
+  color: var(--bg);
+}
+.fd-other {
+  align-self: stretch;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--fg);
+  font: 13.5px var(--font-ui);
+  outline: none;
+}
+.fd-other:focus {
+  border-color: rgba(111, 156, 245, 0.6);
+}
+.fd-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.fd-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.fd-prompt-note {
+  color: var(--yellow);
+  font-size: 12.5px;
+}
+.fd-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  font: 500 12.5px var(--font-ui);
+  cursor: pointer;
+}
+.fd-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+.fd-btn.primary {
+  border-color: transparent;
+  background: #3574f0;
+  color: #fff;
+}
+.fd-btn.primary:hover:not(:disabled) {
+  background: #4682fa;
+}
+.fd-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.fd-card.prompt .fd-card-title {
+  white-space: normal;
 }
 
 /* Working indicator at the bottom while the session is mid-turn. */

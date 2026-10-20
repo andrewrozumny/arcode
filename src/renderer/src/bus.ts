@@ -8,6 +8,7 @@
  *   const off = bus.on('openFile', ({ path, line }) => { ... });   // the viewer
  */
 import type { GateTarget } from '@shared/app';
+import type { PtyId } from '@shared/ipc';
 
 export interface OpenFileRequest {
   /** Absolute, or relative to the project root. */
@@ -37,6 +38,8 @@ export interface BusEvents {
   resumeClaude: { sessionId: string; name: string };
   /** Open a new Claude tab in the terminal dock. */
   newClaude: undefined;
+  /** Show and focus the terminal tab of a pty (the Claude feed sends the user to a prompt there). */
+  focusPty: { ptyId: PtyId };
 }
 
 type Listener<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

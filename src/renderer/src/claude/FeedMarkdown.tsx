@@ -3,8 +3,19 @@ import type { MouseEvent } from 'react';
 import { bus } from '../bus';
 import { findLinkMatches } from '../terminal/links';
 import { terminalApi } from '../terminal/api';
+import DOMPurify from 'dompurify';
 import { highlightBlocks } from '../viewer/highlight';
-import { renderMarkdown } from '../viewer/markdown';
+import { keepTaskCheckboxes, MARKDOWN_SANITIZE } from '../viewer/markdown';
+import { feedMarkdownHtml } from './feedMarkdownText';
+
+/** A reply as sanitized HTML: the viewer's sanitizer over the feed's terminal-style Markdown. */
+function renderFeedMarkdown(text: string): string {
+  const fragment = DOMPurify.sanitize(feedMarkdownHtml(text), { ...MARKDOWN_SANITIZE, RETURN_DOM_FRAGMENT: true });
+  keepTaskCheckboxes(fragment);
+  const host = document.createElement('div');
+  host.append(fragment);
+  return host.innerHTML;
+}
 
 /** File references linked per message at most; each needs one existence check in main. */
 const MAX_FILE_LINKS = 60;
@@ -172,12 +183,12 @@ function onClick(event: MouseEvent<HTMLDivElement>): void {
 /** One Markdown message of the feed: sanitized HTML, highlighted code blocks, clickable links. */
 export const FeedMarkdown = memo(function FeedMarkdown({ text, root, className }: { text: string; root: string; className?: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const html = useMemo(() => renderMarkdown(text), [text]);
+  const html = useMemo(() => renderFeedMarkdown(text), [text]);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    // Sanitized by DOMPurify in renderMarkdown.
+    // Sanitized by DOMPurify in renderFeedMarkdown.
     host.innerHTML = html;
     for (const anchor of host.querySelectorAll('a[href]')) anchor.setAttribute('title', anchor.getAttribute('href') ?? '');
     frameCodeBlocks(host);

@@ -107,7 +107,15 @@ byte ranges only: the first load reads backwards from the end until it has enoug
 live polls read the bytes appended since the last offset (whole lines only, a partial last line
 waits), and "load earlier" reads backwards from the oldest offset. The renderer merges chunks
 (`feedModel.ts`), polls once a second while the tab is visible and renders Markdown through the
-viewer pipeline, with code highlighting and file links that open in the viewer.
+viewer's sanitizer, with code highlighting and file links that open in the viewer.
+`feedMarkdownText.ts` adapts Claude's terminal-style Markdown first (soft line breaks kept,
+`•` bullets and lists starting at 7 under a label turned into lists). Prompt cards answer in the
+terminal: `useTerminalPrompt.ts` takes the session's pty from the Claude status event, reads that
+terminal's visible screen (`terminal/ptyScreens.ts`, registered by `terminalSession.ts`) while the
+process waits, and `feedKeys.ts` maps answers to the key presses Claude Code's TUI expects, written
+one per `pty:write` with a short pause. Buttons are live only for the latest call without a result
+while the status is `waiting`; permissions, which reach the transcript only after the answer, are
+read from the screen alone.
 
 **Live usage via status line** (`claude/statusline.ts`, `claude/usageLive.ts`,
 `resources/arcode-statusline.py`). Plan percentages exist only in Claude Code's status line input.

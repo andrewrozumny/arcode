@@ -32,6 +32,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   exclusions, keyboard navigation and Enter to open at the matched line and column. The editor
   selection becomes the query. Runs ripgrep when installed, else `git grep`, else a built-in scan
   that honors `.gitignore`; results are capped and a newer query cancels the running one.
+- **Answer Claude from the feed.** Question cards (AskUserQuestion), plan approvals and permission
+  prompts have buttons while Claude waits on them; ARcode types the matching keys into the Claude
+  tab's terminal. Typed answers work for single-choice questions; anything else falls back to the
+  terminal with one click.
+- Plan cards show the plan Claude Code wrote to its plan file when ExitPlanMode has no input.
 
 ### Changed
 
@@ -58,6 +63,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Usage** shows plan windows and context as bars.
 - **Faster Usage refresh:** parsed sessions are cached by size and modification time, so the
   30-second refresh re-reads only sessions that grew.
+
+### Fixed
+
+- **Feed formatting.** Line breaks in Claude's replies are kept as in the terminal; numbered lists
+  that start after 1 right under a label, and `•` bullets, render as lists instead of one run-on
+  paragraph; long inline code, paths and links wrap instead of overflowing the column; wide tables
+  scroll in their own box.
 
 ## [0.2.0] - 2026-10-21
 

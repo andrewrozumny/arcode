@@ -351,6 +351,8 @@ export interface FeedToolResult {
   agent?: { agentId: string | null; model: string | null; async: boolean };
   /** AskUserQuestion: the user's answer per question text. */
   answers?: Record<string, string>;
+  /** ExitPlanMode: the approved plan as Claude Code reports it (the call's own input may be empty). */
+  plan?: string;
 }
 
 /**

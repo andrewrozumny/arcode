@@ -1,16 +1,17 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { FeedItem } from '@shared/claude';
-import { ToolCard } from './FeedCards';
+import { isPlanPrompt, PromptCard, ToolCard } from './FeedCards';
 import { Icon } from './FeedIcons';
 import { FeedMarkdown } from './FeedMarkdown';
-import { canLoadEarlier, endsMidTurn, groupFeed, lastPromptAt, runningCall, taskList, taskNotices } from './feedModel';
+import { canLoadEarlier, endsMidTurn, groupFeed, lastPromptAt, pendingPrompt, planTexts, runningCall, taskList, taskNotices } from './feedModel';
 import { FeedContext, ToolGroup } from './FeedTool';
 import type { FeedContextValue } from './FeedTool';
 import { phraseText, toolPhrase } from './feedTools';
 import type { ToolItem } from './feedTools';
 import { useFeed } from './useFeed';
 import { useSessionActivity } from './useSessionActivity';
+import { useTerminalPrompt } from './useTerminalPrompt';
 import logoUrl from '../../../../design/empty-mark.svg';
 import './feed.css';
 
@@ -200,10 +201,15 @@ export function FeedView({ projectRoot, sessionId, visible, empty }: Props) {
   const blocks = useMemo(() => groupFeed(items ?? []), [items]);
   const notices = useMemo(() => taskNotices(items ?? []), [items]);
   const tasks = useMemo(() => taskList(items ?? [], results ?? {}), [items, results]);
+  const plans = useMemo(() => planTexts(items ?? [], results ?? {}), [items, results]);
+  const pending = useMemo(() => pendingPrompt(items ?? [], results ?? {}, status.activity), [items, results, status.activity]);
+  const prompt = useTerminalPrompt(status.ptyId, status.activity, pending?.id ?? null);
   const context = useMemo<FeedContextValue>(
-    () => ({ root: projectRoot, results: results ?? {}, notices, activity: status.activity }),
-    [projectRoot, results, notices, status.activity],
+    () => ({ root: projectRoot, results: results ?? {}, notices, activity: status.activity, plans, prompt }),
+    [projectRoot, results, notices, status.activity, plans, prompt],
   );
+  // A prompt on the terminal screen that no card shows (a permission): its own card at the bottom.
+  const loosePrompt = prompt.screen && !pending && /permission/i.test(status.waitingFor ?? '') && !isPlanPrompt(prompt.screen);
 
   // Relative times under messages refresh twice a minute.
   const [now, setNow] = useState(() => Date.now());
@@ -312,6 +318,7 @@ export function FeedView({ projectRoot, sessionId, visible, empty }: Props) {
                 }
               })}
             </FeedContext.Provider>
+            {loosePrompt && <PromptCard control={prompt} />}
             {working && <Working label={current} since={turnStart} waiting={status.activity === 'waiting' ? (status.waitingFor ?? '') : null} />}
           </div>
         </div>
