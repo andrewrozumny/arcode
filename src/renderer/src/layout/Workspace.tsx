@@ -13,9 +13,16 @@ interface Props {
   viewer: ReactNode;
   terminal: ReactNode;
   searchOpen: boolean;
+  /** What the left column shows: the project tree or Find in files. */
+  leftMode: LeftMode;
+  onLeftMode(mode: LeftMode): void;
+  /** Opens Find in files (shows the column, switches to it and focuses the query). */
+  onOpenFind(): void;
   onOpenSearch(): void;
   onOpenClaude(): void;
 }
+
+export type LeftMode = 'tree' | 'find';
 
 type Visibility = Pick<PanelLayout, 'treeVisible' | 'terminalVisible'>;
 
@@ -37,7 +44,19 @@ function useSize(ref: React.RefObject<HTMLElement | null>): { width: number; hei
  * Three zones: tree on the left and viewer on the right in the top row, terminal dock
  * across the full width below them. Panels stay mounted while hidden.
  */
-export function Workspace({ projectRoot, initialLayout, tree, viewer, terminal, searchOpen, onOpenSearch, onOpenClaude }: Props) {
+export function Workspace({
+  projectRoot,
+  initialLayout,
+  tree,
+  viewer,
+  terminal,
+  searchOpen,
+  leftMode,
+  onLeftMode,
+  onOpenFind,
+  onOpenSearch,
+  onOpenClaude,
+}: Props) {
   const [layout, setLayout] = useState<PanelLayout>(initialLayout);
   const remembered = useRef<Visibility | null>(null);
   const dragStart = useRef(0);
@@ -96,15 +115,27 @@ export function Workspace({ projectRoot, initialLayout, tree, viewer, terminal, 
 
   const toggleTree = (): void => update((prev) => ({ ...prev, treeVisible: !prev.treeVisible }));
   const toggleTerminal = (): void => update((prev) => ({ ...prev, terminalVisible: !prev.terminalVisible }));
+  // The tree and Find in files share the left column: the button of the hidden mode switches to it,
+  // the button of the shown mode behaves as before (the tree hides the column, Find goes back to the tree).
+  const onTreeButton = (): void => {
+    if (layout.treeVisible && leftMode !== 'tree') onLeftMode('tree');
+    else toggleTree();
+  };
+  const onFindButton = (): void => {
+    if (layout.treeVisible && leftMode === 'find') onLeftMode('tree');
+    else onOpenFind();
+  };
 
   return (
     <div className="workspace" ref={rootRef}>
       <div className="workspace-main">
         <ActivityBar
           treeVisible={layout.treeVisible}
+          findVisible={leftMode === 'find'}
           terminalVisible={layout.terminalVisible}
           searchOpen={searchOpen}
-          onToggleTree={toggleTree}
+          onToggleTree={onTreeButton}
+          onToggleFind={onFindButton}
           onToggleTerminal={toggleTerminal}
           onOpenSearch={onOpenSearch}
           onOpenClaude={onOpenClaude}

@@ -6,6 +6,8 @@ export const FilesChannel = {
   /** Current branch name (or short sha on a detached HEAD); null outside a repository. */
   Branch: 'files:branch',
   Search: 'files:search',
+  /** Content search (Find in files). A new query from the same window cancels the previous one. */
+  Grep: 'files:grep',
   Watch: 'files:watch',
   Unwatch: 'files:unwatch',
   Reveal: 'files:reveal',
@@ -90,6 +92,55 @@ export interface SearchResult {
   ranges: SearchRange[];
 }
 
+/** A Find in files query. */
+export interface GrepQuery {
+  query: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  /** Treat `query` as a regular expression (otherwise it is a literal string). */
+  regex: boolean;
+  /** Comma-separated globs such as `*.ts, src/**`; a leading `!` excludes. Empty means all files. */
+  include: string;
+}
+
+export interface GrepMatch {
+  /** 1-based line number. */
+  line: number;
+  /** 1-based column (UTF-16 units) of the first match in the full line. */
+  column: number;
+  /** The line as shown: leading whitespace removed, long lines trimmed around the match with an ellipsis. */
+  text: string;
+  /** Matched ranges in `text` (end exclusive). */
+  ranges: SearchRange[];
+}
+
+export interface GrepFileResult {
+  /** Project-relative path with forward slashes. */
+  path: string;
+  /** Matching lines in line order. */
+  matches: GrepMatch[];
+  /** Occurrences in these lines (a line can match more than once). */
+  count: number;
+}
+
+export type GrepEngine = 'rg' | 'git' | 'node';
+
+export interface GrepResult {
+  files: GrepFileResult[];
+  /** Matching lines across all files. */
+  totalLines: number;
+  /** Occurrences across all files. */
+  totalCount: number;
+  /** A cap (lines, files or scanned files) cut the search short. */
+  truncated: boolean;
+  timedOut: boolean;
+  /** A newer query from the same window replaced this one. */
+  cancelled: boolean;
+  engine: GrepEngine;
+  /** Set when the query could not run, for example an invalid regular expression. */
+  error?: string;
+}
+
 export type FileOp =
   | { type: 'createFile'; relPath: string }
   | { type: 'createDir'; relPath: string }
@@ -136,6 +187,8 @@ export interface FilesApi {
   gitStatus(root: string): Promise<GitStatusMap>;
   branch(root: string): Promise<GitBranch | null>;
   search(root: string, query: string, limit?: number): Promise<SearchResult[]>;
+  /** Find in files. Resolves with `cancelled: true` when a newer grep from this window replaced it. */
+  grep(root: string, query: GrepQuery): Promise<GrepResult>;
   watch(root: string): Promise<void>;
   unwatch(root: string): Promise<void>;
   reveal(root: string, relPath: string): Promise<void>;

@@ -2,8 +2,9 @@ import os from 'node:os';
 import { shell } from 'electron';
 import type { IpcMain, WebContents } from 'electron';
 import { FilesChannel } from '@shared/files';
-import type { FileOp, FilesChangedEvent, FilesGitStatusEvent } from '@shared/files';
+import type { FileOp, FilesChangedEvent, FilesGitStatusEvent, GrepQuery } from '@shared/files';
 import { getBranch } from './git';
+import { grepProject } from './grep';
 import { getGitStatus } from './gitStatus';
 import { dropIndex, getIndex, invalidateIndex, search } from './index';
 import { importFiles, listExternal, previewExternal, readScreenshotLocation, resolvePlaces } from './external';
@@ -11,7 +12,7 @@ import { resolveEntryInside, resolveInside } from './paths';
 import { applyFileOp, listDir } from './service';
 import { readClipboardFiles, writeFilesToClipboard } from './clipboard';
 import { isRecord } from '@shared/guards';
-import { integer, projectRoot, text, textList, textOrNull } from '../ipcArgs';
+import { flag, integer, projectRoot, text, textList, textOrNull } from '../ipcArgs';
 import { watchProject } from './watcher';
 import type { ProjectWatcher } from './watcher';
 
@@ -52,8 +53,41 @@ function fileOp(value: unknown): FileOp {
   }
 }
 
+const MAX_GREP_QUERY = 1000;
+
+/** A GrepQuery from the renderer, checked field by field. */
+export function grepQuery(value: unknown): GrepQuery {
+  if (!isRecord(value)) throw new Error('Invalid search query');
+  const query = text(value.query, 'query');
+  const include = text(value.include, 'include');
+  if (query.length > MAX_GREP_QUERY || include.length > MAX_GREP_QUERY) throw new Error('Search query too long');
+  return {
+    query,
+    include,
+    caseSensitive: flag(value.caseSensitive, 'case sensitive'),
+    wholeWord: flag(value.wholeWord, 'whole word'),
+    regex: flag(value.regex, 'regex'),
+  };
+}
+
+/** The running Find in files query of each window (by WebContents id); a new one aborts it. */
+const greps = new Map<number, AbortController>();
+
 /** Registers all `files:*` handlers. */
 export function registerFilesIpc(ipcMain: IpcMain): void {
+  ipcMain.handle(FilesChannel.Grep, async (event, rawRoot: unknown, rawQuery: unknown) => {
+    const id = event.sender.id;
+    greps.get(id)?.abort();
+    const controller = new AbortController();
+    greps.set(id, controller);
+    try {
+      const root = await projectRoot(rawRoot);
+      return await grepProject(root, grepQuery(rawQuery), { signal: controller.signal });
+    } finally {
+      if (greps.get(id) === controller) greps.delete(id);
+    }
+  });
+
   ipcMain.handle(FilesChannel.ListDir, async (_e, root: unknown, relDir: unknown) =>
     listDir(await projectRoot(root), text(relDir, 'folder')),
   );

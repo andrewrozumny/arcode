@@ -33,6 +33,12 @@ export function integer(value: unknown, name: string): number {
   return value;
 }
 
+/** A boolean; throws `Invalid <name>` otherwise. */
+export function flag(value: unknown, name: string): boolean {
+  if (typeof value !== 'boolean') throw new Error(`Invalid ${name}`);
+  return value;
+}
+
 export function textList(value: unknown, name: string): string[] {
   if (!Array.isArray(value) || !value.every(isText)) throw new Error(`Invalid ${name}`);
   return value;

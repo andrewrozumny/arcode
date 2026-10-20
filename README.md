@@ -62,6 +62,8 @@ thinking and hook noise are hidden. It follows the active Claude terminal tab an
   move to Trash, copy and paste with Finder, drag and drop, Import from Mac (Downloads, Recent,
   Screenshots).
 - **Go to file** (Cmd+P) with fuzzy matching and `:line` jumps.
+- **Find in files** (Cmd+Shift+F): live project-wide search with case, whole word and regex
+  toggles and a file mask, results grouped by file; uses ripgrep when installed, else `git grep`.
 - **Viewer and editor.** Syntax highlighting, edit mode with conflict detection, side by side or
   unified diff against `HEAD`, Markdown preview, images with zoom and pan.
 
@@ -140,6 +142,7 @@ first start.
 |---|---|
 | Cmd+Shift+O | Switch project |
 | Cmd+P | Go to file (`name:line` jumps to a line) |
+| Cmd+Shift+F | Find in files |
 | Cmd+T / Cmd+W | New tab / close tab |
 | Cmd+Shift+] / Cmd+Shift+[ | Next / previous tab |
 | Cmd+Shift+T | Reopen closed tab |

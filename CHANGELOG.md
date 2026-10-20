@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Find in files** (Cmd+Shift+F). A search mode in the left column with live results grouped by
+  file, match counts and highlighting, case, whole word and regex toggles, a file mask with
+  exclusions, keyboard navigation and Enter to open at the matched line and column. The editor
+  selection becomes the query. Runs ripgrep when installed, else `git grep`, else a built-in scan
+  that honors `.gitignore`; results are capped and a newer query cancels the running one.
+
 ## [0.2.0] - 2026-10-21
 
 ### Changed

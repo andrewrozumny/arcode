@@ -1,5 +1,5 @@
 /**
- * Window-level shortcuts for the tree, file search and viewer. Kept free of DOM types so
+ * Window-level shortcuts for the tree, file search, Find in files and viewer. Kept free of DOM types so
  * the decision table is unit-testable; App.tsx feeds it keydown events (capture phase).
  *
  * Cmd+W and Cmd+T are not here: they come from the menu and are routed by focus in App.tsx
@@ -11,6 +11,7 @@ export type FocusZone = 'terminal' | 'viewer' | 'tree' | 'other';
 
 export type ShortcutAction =
   | 'fileSearch'
+  | 'findInFiles'
   | 'reopenTab'
   | 'save'
   | 'toggleEdit'
@@ -38,6 +39,7 @@ export function resolveShortcut(key: ShortcutKey, zone: FocusZone): ShortcutActi
 
   // Anywhere, including the terminal.
   if (code === 'KeyP' && !shift && !alt) return 'fileSearch';
+  if (code === 'KeyF' && shift && !alt) return 'findInFiles';
 
   if (zone === 'terminal') return null;
 
