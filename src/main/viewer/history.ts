@@ -15,6 +15,10 @@
  * - `external`: a file open in a viewer changed on disk from outside ARcode. The content ARcode last
  *   knew (from opening, saving or the previous change) is kept, never throttled. A deleted file
  *   keeps its last known content the same way.
+ * - `external` for files that are not open: `projectChange`, fed by the project watcher through
+ *   `projectHistory.ts`. The previous content comes from the same cache (filled by earlier changes)
+ *   or, the first time a file is seen changing, from its HEAD version. One per file per
+ *   `PROJECT_SNAPSHOT_COOLDOWN_MS`, so a file rewritten in a loop does not churn the history.
  * Identical consecutive snapshots are never stored twice. Only text files up to
  * `HISTORY_MAX_BYTES` are kept, at most `HISTORY_MAX_PER_FILE` per file, and snapshots older than
  * `HISTORY_MAX_AGE_MS` are removed at startup.
@@ -28,6 +32,7 @@ import { mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/pr
 import { join, relative, resolve, sep } from 'node:path';
 import type { SnapshotInfo, SnapshotSource } from '@shared/viewer';
 import { isInside, normalizeRel } from '../files/paths';
+import { ContentCache } from './contentCache';
 import { looksBinary } from './service';
 
 export const HISTORY_MAX_BYTES = 1024 * 1024;
@@ -40,8 +45,10 @@ export const LARGE_CHANGE_CHARS = 2000;
 /** Smaller files: a change counts as large from this share of the file, if it is at least `LARGE_CHANGE_MIN_CHARS`. */
 export const LARGE_CHANGE_RATIO = 0.3;
 export const LARGE_CHANGE_MIN_CHARS = 200;
-/** How many files' last known content is kept in memory. */
-const KNOWN_LIMIT = 200;
+/** Shortest gap between two snapshots of one closed file taken from project watcher changes. */
+export const PROJECT_SNAPSHOT_COOLDOWN_MS = 10 * 1000;
+/** How many files' last project snapshot time is remembered for the cooldown. */
+const COOLDOWN_LIMIT = 2000;
 /** Encoded paths longer than this are shortened and made unique with a hash (file names max out at 255 bytes). */
 const MAX_ENCODED_LENGTH = 180;
 
@@ -127,7 +134,7 @@ export function shouldSnapshot({ newest, content, source, now, force = false }: 
 }
 
 /** Text content of `abs`, or null when it is missing, not a regular file, binary or over the cap. */
-async function readText(abs: string): Promise<string | null> {
+export async function readText(abs: string): Promise<string | null> {
   try {
     const info = await stat(abs);
     if (!info.isFile() || info.size > HISTORY_MAX_BYTES) return null;
@@ -148,8 +155,10 @@ export interface WriteHooks {
 }
 
 export class LocalHistory {
-  /** Last content ARcode knows to be on disk, per absolute path (open or saved files). */
-  private readonly known = new Map<string, string | null>();
+  /** Last content ARcode knows to be on disk, per absolute path (open, saved or changed files). */
+  private readonly known: ContentCache;
+  /** When `projectChange` last stored a snapshot, per absolute path. */
+  private readonly lastProjectSnapshot = new Map<string, number>();
   private readonly newest = new Map<string, NewestSnapshot | null>();
   private readonly queues = new Map<string, Promise<unknown>>();
   /** ARcode writes in progress per absolute path; a disk change seen meanwhile is our own. */
@@ -158,7 +167,10 @@ export class LocalHistory {
   constructor(
     private readonly baseDir: string,
     private readonly now: () => number = Date.now,
-  ) {}
+    cache?: ContentCache,
+  ) {
+    this.known = cache ?? new ContentCache(undefined, undefined, now);
+  }
 
   /** Folder holding the snapshots of `abs`; throws when `abs` is outside `root`. */
   fileDir(root: string, abs: string): string {
@@ -177,12 +189,21 @@ export class LocalHistory {
   }
 
   private remember(abs: string, content: string | null): void {
-    this.known.delete(abs);
     this.known.set(abs, content);
-    if (this.known.size > KNOWN_LIMIT) {
-      const oldest = this.known.keys().next().value;
-      if (oldest !== undefined) this.known.delete(oldest);
-    }
+  }
+
+  /** Whether the content of `abs` is remembered (so no HEAD seed is needed). */
+  isKnown(abs: string): boolean {
+    return this.known.has(abs);
+  }
+
+  /**
+   * Drops what is remembered about `abs` (a bulk change made it stale), unless it was remembered
+   * at `notBefore` or later: an open file's watcher may already have caught up with the change.
+   */
+  forget(abs: string, notBefore = Infinity): void {
+    const at = this.known.setAt(abs);
+    if (at !== undefined && at < notBefore) this.known.delete(abs);
   }
 
   private async entries(dir: string): Promise<{ name: string; timestamp: number; source: SnapshotSource }[]> {
@@ -283,6 +304,43 @@ export class LocalHistory {
       this.remember(abs, current);
       if (previous === undefined || previous === null || previous === current) return false;
       return this.store(dir, previous, 'external');
+    }).catch(() => false);
+  }
+
+  /**
+   * A project file (usually not open in a viewer) changed on disk. The previous content is the
+   * remembered one or, when nothing is remembered, `seed` (its HEAD version, null when not in HEAD).
+   * When the disk content differs from it, the previous content becomes an "external change"
+   * snapshot, at most one per file per `PROJECT_SNAPSHOT_COOLDOWN_MS`. The cache always moves on
+   * to the current content.
+   */
+  async projectChange(root: string, abs: string, seed: string | null = null): Promise<boolean> {
+    let dir: string;
+    try {
+      dir = this.fileDir(root, abs);
+    } catch {
+      return false;
+    }
+    return this.serial(dir, async () => {
+      if (this.writing.has(abs)) return false;
+      const current = await readText(abs);
+      if (this.writing.has(abs)) return false;
+      const previous = this.known.has(abs) ? this.known.get(abs) : seed;
+      this.remember(abs, current);
+      if (previous === undefined || previous === null || previous === current) return false;
+      const now = this.now();
+      const last = this.lastProjectSnapshot.get(abs);
+      if (last !== undefined && now - last < PROJECT_SNAPSHOT_COOLDOWN_MS && now >= last) return false;
+      const stored = await this.store(dir, previous, 'external');
+      if (stored) {
+        this.lastProjectSnapshot.delete(abs);
+        this.lastProjectSnapshot.set(abs, now);
+        if (this.lastProjectSnapshot.size > COOLDOWN_LIMIT) {
+          const oldest = this.lastProjectSnapshot.keys().next().value;
+          if (oldest !== undefined) this.lastProjectSnapshot.delete(oldest);
+        }
+      }
+      return stored;
     }).catch(() => false);
   }
 

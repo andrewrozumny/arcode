@@ -13,6 +13,7 @@ import { captureScreens } from './screens';
 import { registerClaudeIpc, startLiveUsage } from './claude/ipc';
 import { registerFilesIpc } from './files/ipc';
 import { historyDir, LocalHistory } from './viewer/history';
+import { ProjectHistory } from './viewer/projectHistory';
 import { registerViewerIpc } from './viewer/ipc';
 import { handlePdfProtocol, registerPdfScheme } from './viewer/pdfProtocol';
 import { pasteDir, prunePastedImages } from './terminal/pasteImages';
@@ -42,8 +43,9 @@ void app.whenReady().then(() => {
   if (!isPrimary) return;
   enterBackgroundMode();
   migrateLegacyUserData(app.getPath('appData'), app.getPath('userData'));
-  registerFilesIpc(ipcMain);
   const localHistory = new LocalHistory(historyDir(app.getPath('userData')));
+  const projectHistory = new ProjectHistory(localHistory);
+  registerFilesIpc(ipcMain, { onProjectChange: (root, paths) => void projectHistory.changed(root, paths) });
   registerViewerIpc(ipcMain, localHistory);
   registerClaudeIpc(ipcMain);
   const liveUsage = startLiveUsage(ipcMain);

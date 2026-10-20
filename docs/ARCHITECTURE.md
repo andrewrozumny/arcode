@@ -70,7 +70,17 @@ from an outside change or the change is large; a restore always keeps one). The 
 file also reports to history: when the disk content no longer matches what ARcode last knew (read
 when the file was opened, or written by a save), the known content becomes an `external` snapshot;
 ARcode's own writes are recognised by content and by a writes-in-flight count, so they never show
-up as outside changes. Identical consecutive snapshots are skipped; text only, 1 MB cap, 50 per
+up as outside changes. Files that are not open are covered through the project watcher:
+`files/ipc.ts` hands every batch of changed paths to `viewer/projectHistory.ts`, which drops
+gitignored paths (one `git check-ignore` per batch, the .gitignore fallback outside git) and
+passes each text file to `LocalHistory.projectChange`. The previous content comes from a shared
+content cache (`viewer/contentCache.ts`: least recently used, about 64 MB and 10,000 paths at
+most, filled by opens, saves and earlier changes) or, for a file seen changing for the first time,
+from its HEAD version (one `git cat-file --batch` per batch), so the first edit of a committed file
+is recoverable. These snapshots are limited to one per file per 10 seconds. A batch of more than
+100 files (checkout, rebase, formatter) is a bulk change: nothing is snapshotted, the cached
+content of those files is dropped as stale and one line is logged. Batches of one project run one
+after another and read 4 files at a time. Identical consecutive snapshots are skipped; text only, 1 MB cap, 50 per
 file, older than 14 days pruned at startup. Paths go through `files/paths.ts` and history checks
 again that a file is inside its root. List, read and restore are IPC calls; restore writes through
 the same guarded write. In the renderer the History button lists snapshots, and picking one shows

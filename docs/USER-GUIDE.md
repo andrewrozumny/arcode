@@ -180,8 +180,12 @@ cannot be closed. With no file open, the viewer shows its main shortcuts.
 - **Local history:** ARcode keeps its own copies of text files, independent of git, so you can get
   back a version from before Claude Code (or anything else) rewrote a file. A copy is kept before
   ARcode saves a file (at most one every 5 minutes while autosave runs, unless the change is large),
-  and whenever an open file changes on disk from outside ARcode (the content you last had is kept,
-  also when the file is deleted). **History** in the file header lists the versions with their age
+  and whenever a file in the project changes on disk from outside ARcode, for example when Claude
+  Code edits it, whether or not it is open (the content it had before is kept, also when the file is
+  deleted). For a file that is not open and that ARcode has not seen change before, the version
+  kept is its last committed one (HEAD). Changes in gitignored files are not kept, a file changing
+  again within 10 seconds keeps only one version, and a change of more than 100 files at once (a
+  checkout or a rebase) keeps nothing. **History** in the file header lists the versions with their age
   and why they were kept ("before save" or "changed outside"). Pick one to see it side by side with
   the current file, then **Restore this version** writes it back after a confirmation; the content
   it replaces is kept as a new version, and unsaved edits are saved first. Only text files up to

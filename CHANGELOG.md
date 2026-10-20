@@ -19,7 +19,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   window forward, shows the terminal and selects that exact tab. Cmd+Shift+J (Terminal > Jump to
   Waiting Claude Tab) cycles through the waiting tabs of the window, with a short hint when none
   waits. Waiting tabs get a pulsing coral dot. Notifications name the project and the tab and say
-  what Claude waits for. Terminal > Notification Sound (on by default, as before) plays the macOS sound with them.
+  what Claude waits for. Terminal > Notification Sound (on by default, as before) plays the macOS
+  sound with them.
+- **Local history for files that are not open.** Outside changes to any project text file are kept
+  too, not only to files open in a tab. The previous content comes from a bounded in-memory cache
+  (about 64 MB) or, the first time a file is seen changing, from its HEAD version, so the first
+  Claude Code edit of a committed file can be undone. Gitignored files are skipped, one version per
+  file per 10 seconds, and bulk changes of more than 100 files (checkout, rebase) are skipped and
+  logged once.
 - **Autosave.** Edited files are saved about a second after the last change, when the window loses
   focus, when another tab is selected and when the tab closes, so Claude Code reads what you see.
   Never while a changed-on-disk, conflict, deleted or error banner is shown. On by default;
