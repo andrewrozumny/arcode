@@ -1,7 +1,7 @@
 {
   "name": "arcode",
   "productName": "ARcode",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "A lightweight macOS workspace for Claude Code and other terminal coding agents.",
   "keywords": [

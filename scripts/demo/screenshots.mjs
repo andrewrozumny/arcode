@@ -121,6 +121,20 @@ await page.keyboard.type('pass');
 await shot('search');
 await page.keyboard.press('Escape');
 
+// Find in files, then the Changes list with a file opened on its diff.
+await activity('Find in files').click();
+await page.keyboard.type('station');
+await page.waitForSelector('.fif-match, [class*="find"] mark', { timeout: 10_000 }).catch(() => undefined);
+await sleep(800);
+await shot('find');
+await activity('Changes').click();
+await sleep(1200);
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('Enter');
+await sleep(1200);
+await shot('changes');
+await activity('Project files').click();
+
 // Project switcher.
 await page.locator('[title^="Switch project"]').first().click();
 const palette = await windowOf('view=palette');

@@ -93,6 +93,8 @@ restored after a restart.
 | Go to file | Project switcher |
 |---|---|
 | ![Go to file](docs/screenshots/search.png) | ![Project switcher](docs/screenshots/switcher.png) |
+| **Find in files** | **Changes** |
+| ![Find in files](docs/screenshots/find.png) | ![Changes against HEAD](docs/screenshots/changes.png) |
 
 Out of scope on purpose: debugger, database client, git GUI, language intelligence.
 
