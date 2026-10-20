@@ -5,6 +5,8 @@ export const ClaudeChannel = {
   Skills: 'claude:skills',
   Plugins: 'claude:plugins',
   Mcp: 'claude:mcp',
+  McpConfigured: 'claude:mcpConfigured',
+  ReadConfigFile: 'claude:readConfigFile',
   Usage: 'claude:usage',
   Agents: 'claude:agents',
   Hooks: 'claude:hooks',
@@ -184,6 +186,9 @@ export interface StatusLineState {
   command: string | null;
 }
 
+/** Text of a skill, agent or CLAUDE.md file for the panel's inline preview. */
+export type ConfigFileContent = { ok: true; text: string; truncated: boolean } | { ok: false; reason: string };
+
 export type StatusLineResult = { ok: true } | { ok: false; reason: string };
 
 export interface ClaudeApi {
@@ -191,6 +196,13 @@ export interface ClaudeApi {
   plugins(root: string): Promise<PluginInfo[]>;
   /** Runs `claude mcp list` for the project; slow, so the UI should call it on demand. */
   mcp(root: string): Promise<McpServerInfo[]>;
+  /** MCP servers from the settings files only (fast, no CLI run); every state is 'unknown' or 'disabled'. */
+  mcpConfigured(root: string): Promise<McpServerInfo[]>;
+  /**
+   * Read-only preview of a Markdown, JSON or text file under `~/.claude` or the project, for files
+   * the viewer cannot open because they are outside the project folder.
+   */
+  readConfigFile(root: string, path: string): Promise<ConfigFileContent>;
   usage(root: string): Promise<UsageSummary>;
   agents(root: string): Promise<AgentInfo[]>;
   hooks(root: string): Promise<HookInfo[]>;

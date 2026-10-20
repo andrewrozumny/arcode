@@ -5,7 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-10-21
+## [Unreleased]
+
+### Changed
+
+- **Friendlier Claude panel.** Sections now sit in a side navigation with icons, item counts and a
+  red dot on sections with a problem, under a title and a one-line explanation of each section.
+  The panel remembers the last section.
+- **Overview section** (new, first): the current session with model and bars for context, the
+  5-hour and the weekly limit; quick actions (resume last session, new Claude tab, open CLAUDE.md,
+  check MCP servers); setup tiles with counts per kind; a list of things worth a look (failing MCP
+  servers, missing CLAUDE.md, hooks that run, plan usage hidden); recent sessions; and one search
+  across skills, agents, plugins, MCP servers and hooks.
+- **Item rows** show a readable name, a one-line description, a scope badge and the file path with a
+  copy button. Clicking opens the file in the viewer when it is inside the project, otherwise it
+  expands a read-only preview.
+- **Empty sections** explain what the feature is and where its files go instead of showing a blank
+  list.
+- **Sessions** are grouped by day, show relative age, message count and start time, mark the
+  latest one, and have a New Claude tab button.
+- **MCP servers** are listed from the settings files right away; the status check adds live state
+  and a summary line.
+- **CLAUDE.md** files show as cards with line counts, and missing files say how to create them.
+- **Usage** shows plan windows and context as bars.
+
+
 
 ### Changed
 

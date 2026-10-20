@@ -252,20 +252,50 @@ The feed only reads the session transcript under `~/.claude/projects`; it never 
 
 Click **Claude** in the header (or the activity bar) to open the panel as a viewer tab. It is a
 read-only view of Claude Code's configuration for this project, except for the status line switch.
+Sections are listed on the left with their item counts (when the viewer is narrow they move into
+a row of tabs at the top); a red dot marks a section with a problem. The panel remembers the last
+section you opened. The reload button at the top right reads everything from disk again.
+
+![Claude panel overview](screenshots/panel-overview.png)
+
+**Overview** is the first section:
+
+- **Current session:** the newest session's first prompt, its model, and bars for context fill,
+  the 5-hour limit and the weekly limit with the time until each resets (plan figures need the
+  [status line](#status-line-opt-in)).
+- **Quick actions:** Resume last session, New Claude tab, Open CLAUDE.md (or, when the project has
+  none, a pointer to `/init`) and Check MCP servers.
+- **Setup:** one tile per kind (CLAUDE.md, skills, agents, plugins, MCP servers, hooks) with a
+  count and a short summary such as "1 project · 2 user". The MCP tile turns red when a server
+  fails. Click a tile to open its section.
+- **Worth a look:** failing MCP servers and servers that need sign-in, a missing project
+  CLAUDE.md, hooks that run automatically, and plan usage that is hidden because the status line
+  is off. Click an entry to go to its section.
+- **Recent sessions** with Resume buttons.
+- **Search** at the top looks through skills, agents, plugins, MCP servers and hooks at once.
 
 | Section | What it shows |
 |---|---|
-| Sessions | Past Claude Code sessions of this project, newest first, with age and message count. Filter, and **Resume** to continue one in a new terminal tab. |
-| Skills | User, project and plugin skills. |
-| Plugins | Installed plugins. |
-| MCP | MCP servers from your settings and `.mcp.json`. A check button runs `claude mcp list` to report their status. |
-| Agents | Custom subagents with their model and description. |
-| Hooks | Hooks from `~/.claude/settings.json`, `.claude/settings.json` and `.claude/settings.local.json`, with event, matcher and command. |
-| CLAUDE.md | The CLAUDE.md files that apply to the project. Files inside the project open in the viewer for editing. |
-| Usage | Live 5-hour, weekly and context usage (with the status line on), the status line switch, and token counts for the current session, today and the last 7 days, read from transcripts. Refreshes every 30 seconds. |
+| Sessions | Past Claude Code sessions of this project, grouped into Today, Yesterday, Earlier this week and Older. Each is titled by its first prompt, with relative age, message count and start time. **Resume** continues one in a new terminal tab; the copy button copies its session id. |
+| Usage | Live 5-hour, weekly and context usage as bars (with the status line on), the status line switch, and token counts for the current session, today and the last 7 days, read from transcripts. Refreshes every 30 seconds. |
 | Gates | What each gate runs and, for projects with a `src/main`, `src/preload`, `src/shared` or `src/renderer/src` folder, an approximate count of tests per area. |
+| CLAUDE.md | The global, project and local CLAUDE.md files, with line counts and their text. Files that do not exist say what they are for and how to create them. Project files open in the viewer for editing. |
+| Skills | User, project and plugin skills, grouped by scope. |
+| Agents | Custom subagents with their model and description. |
+| Plugins | Installed plugins, enabled or disabled, with marketplace, version and install age. |
+| MCP servers | Servers from your settings and `.mcp.json`, listed at once with "Not checked". **Check status** runs `claude mcp list` (a few seconds), marks each server Connected, Needs auth or Failed, adds servers from plugins and claude.ai, and shows a summary line. |
+| Hooks | Hooks from `~/.claude/settings.json`, `.claude/settings.json` and `.claude/settings.local.json`, with event, matcher, command and the file they come from. |
+
+In the item lists every row shows a readable name, a one-line description and the file it comes
+from; on hover a button copies the path. Clicking a row opens its file in the viewer when the file
+is inside the project. Files outside the project (for example skills and agents in `~/.claude`)
+cannot be opened in the viewer, so the row expands into a read-only preview instead. Each list has
+a filter box (Esc clears it). An empty section explains what the feature is and where its files
+go, for example `~/.claude/skills/<name>/SKILL.md` for skills.
 
 ![Skills](screenshots/panel-skills.png)
+
+![MCP servers](screenshots/panel-mcp.png)
 
 ![Usage](screenshots/panel-usage.png)
 

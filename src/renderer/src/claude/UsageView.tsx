@@ -4,7 +4,8 @@ import { formatAge, formatCount, formatLocalTime } from '../format';
 import { modelFamily } from '../layout/modelFamily';
 import { claudeApi } from './api';
 import { pickLiveUsage, useLiveUsage } from './liveUsage';
-import { Notice } from './ui';
+import { usePanel } from './panelData';
+import { Meter, Notice } from './ui';
 import { useLoad } from './useLoad';
 
 const USAGE_REFRESH_MS = 30_000;
@@ -63,9 +64,8 @@ function LimitCard({ limit }: { limit: UsageLimit }) {
   );
 }
 
-function windowText(win: LiveUsage['fiveHour']): string {
-  if (!win || win.usedPercent === null) return 'n/a';
-  return `${win.usedPercent}%`;
+function windowValue(win: LiveUsage['fiveHour']): string {
+  return win?.usedPercent == null ? 'n/a' : `${win.usedPercent}%`;
 }
 
 function windowReset(win: LiveUsage['fiveHour']): string | null {
@@ -74,12 +74,9 @@ function windowReset(win: LiveUsage['fiveHour']): string | null {
 }
 
 function LiveCard({ title, win }: { title: string; win: LiveUsage['fiveHour'] }) {
-  const reset = windowReset(win);
   return (
     <div className="cl-card">
-      <div className="cl-card-title">{title}</div>
-      <div className="cl-card-main">{windowText(win)}</div>
-      {reset && <div className="cl-card-sub">{reset}</div>}
+      <Meter label={title} percent={win?.usedPercent ?? null} value={windowValue(win)} sub={windowReset(win) ?? 'No data yet'} />
     </div>
   );
 }
@@ -92,6 +89,7 @@ function LiveCard({ title, win }: { title: string; win: LiveUsage['fiveHour'] })
 function LiveUsageSection({ root }: { root: string }) {
   const records = useLiveUsage();
   const live = pickLiveUsage(records, null, root);
+  const panel = usePanel();
   const [state, setState] = useState<StatusLineState | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -112,6 +110,7 @@ function LiveUsageSection({ root }: { root: string }) {
       const result = state.state === 'acode' ? await claudeApi().statusLineDisable() : await claudeApi().statusLineEnable();
       if (!result.ok) setMessage(result.reason);
       refreshState();
+      panel.statusLine.reload();
     } catch (err: unknown) {
       setMessage(String(err));
     } finally {
@@ -122,18 +121,20 @@ function LiveUsageSection({ root }: { root: string }) {
   const age = live ? formatAge(new Date(live.updatedAt).toISOString()) : null;
   return (
     <>
-      <div className="cl-cards">
+      <div className="cl-cards three">
         <LiveCard title="5-hour window" win={live?.fiveHour ?? null} />
         <LiveCard title="Weekly window" win={live?.sevenDay ?? null} />
         <div className="cl-card">
-          <div className="cl-card-title">Context</div>
-          <div className="cl-card-main">{live?.contextPercent !== null && live?.contextPercent !== undefined ? `${live.contextPercent}%` : 'n/a'}</div>
-          {live?.contextUsed !== null && live?.contextUsed !== undefined && (
-            <div className="cl-card-sub">
-              {formatCount(live.contextUsed)}
-              {live.contextSize ? ` of ${formatCount(live.contextSize)} tokens` : ' tokens'}
-            </div>
-          )}
+          <Meter
+            label="Context"
+            percent={live?.contextPercent ?? null}
+            value={live?.contextPercent != null ? `${live.contextPercent}%` : 'n/a'}
+            sub={
+              live?.contextUsed != null
+                ? `${formatCount(live.contextUsed)}${live.contextSize ? ` of ${formatCount(live.contextSize)}` : ''} tokens`
+                : 'No data yet'
+            }
+          />
           {live && (
             <div className="cl-card-sub">
               <span className={live.modelName ? `model-family-${modelFamily(live.modelName)}` : undefined}>
@@ -176,7 +177,8 @@ export function UsageView({ root }: { root: string }) {
     <>
       <LiveUsageSection root={root} />
       <div className="cl-toolbar">
-        <span className="cl-desc cl-grow">Refreshes every 30 s.</span>
+        <h3 className="cl-group-title cl-grow">Tokens from transcripts</h3>
+        <span className="cl-toolbar-note">Refreshes every 30 s</span>
         <button type="button" className="cl-btn" onClick={reload} disabled={loading}>
           Refresh
         </button>

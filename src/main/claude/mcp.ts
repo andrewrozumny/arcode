@@ -168,3 +168,8 @@ export async function listMcp(root: string, home: string): Promise<McpServerInfo
   const statuses = output === null ? null : parseMcpList(output);
   return mergeMcp(listMcpDefinitions(root, home), statuses, disabledMcpNames(root, home));
 }
+
+/** Servers from the settings files alone, without running the CLI: states stay unknown (or disabled). */
+export function listMcpConfigured(root: string, home: string): McpServerInfo[] {
+  return mergeMcp(listMcpDefinitions(root, home), [], disabledMcpNames(root, home));
+}

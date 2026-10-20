@@ -404,7 +404,7 @@ export function buildSandbox(dir) {
     ['Explain how the TLE cache decides when to refetch', 5],
   ];
   older.forEach(([text, days], i) => {
-    const id = `0b7e4c1a-9d2f-4a6b-8c3e-5f1a2b3c4d5${i}`;
+    const id = `${['0b7e4c1a', '3d91f6b2', '9a2c7e05'][i]}-9d2f-4a6b-8c3e-5f1a2b3c4d5${i}`;
     const at = new Date(Date.now() - days * 86_400_000);
     const lines = [
       { type: 'user', uuid: randomUUID(), sessionId: id, cwd: root, timestamp: at.toISOString(), message: { role: 'user', content: text } },

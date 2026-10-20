@@ -33,6 +33,8 @@ export interface BusEvents {
   focusPanel: { panel: 'tree' | 'viewer' | 'terminal' };
   /** Open a terminal tab that resumes a past Claude session (or focus the tab already running it). */
   resumeClaude: { sessionId: string; name: string };
+  /** Open a new Claude tab in the terminal dock. */
+  newClaude: undefined;
 }
 
 type Listener<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

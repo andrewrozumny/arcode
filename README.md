@@ -45,14 +45,17 @@ thinking and hook noise are hidden. It follows the active Claude terminal tab an
   get the port, so diff review, open file, selection sharing and @-mentions work out of the box.
 - **Header at a glance.** The active tab's model, context and 5-hour / weekly plan usage bars, and
   running subagents.
-- **Claude panel.** Sessions (with resume), skills, plugins, MCP servers with live status, agents,
+- **Claude panel.** An overview of the current session, plan usage and setup with problems
+  highlighted, plus sessions (with resume), skills, plugins, MCP servers with live status, agents,
   hooks, CLAUDE.md files, token usage and the project's quality gates.
 - **Live status per tab.** Busy, idle or waiting for you, with a notification and a dock badge when
   Claude needs input and the window is in the background.
 
-| Sessions | MCP servers |
+| Overview | Sessions |
 |---|---|
-| ![Sessions](docs/screenshots/panel-sessions.png) | ![MCP servers](docs/screenshots/panel-mcp.png) |
+| ![Claude panel overview](docs/screenshots/panel-overview.png) | ![Sessions](docs/screenshots/panel-sessions.png) |
+| **MCP servers** | **Skills** |
+| ![MCP servers](docs/screenshots/panel-mcp.png) | ![Skills](docs/screenshots/panel-skills.png) |
 | **Usage** | **Gates** |
 | ![Usage](docs/screenshots/panel-usage.png) | ![Gates](docs/screenshots/panel-gates.png) |
 

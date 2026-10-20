@@ -67,7 +67,11 @@ waits for the user's decision; selection changes and @-mentions go the other way
 **Claude panel readers** (`main/claude`, `renderer/src/claude`). Read-only views of Claude
 Code's files: skills, plugins, MCP servers (plus `claude mcp list` on demand), agents, hooks,
 CLAUDE.md files, past sessions, token usage from transcripts, subagents of the active session, the
-Claude feed and the gates overview. The gates overview (`claude/gates.ts`, `shared/gates.ts`)
+Claude feed and the gates overview. The renderer loads the panel's lists once per open panel
+(`panelData.tsx`) and keeps its pure logic (sections, session buckets, attention list, search) in
+`panelModel.ts`. `claude/configFile.ts` serves the panel's inline preview of files the viewer cannot
+open: Markdown, JSON or text files under `~/.claude` or the project only, read-only and capped at
+256 KB. The gates overview (`claude/gates.ts`, `shared/gates.ts`)
 derives what each gate runs from `package.json` scripts and, only when the project has `src/main`,
 `src/preload`, `src/shared` or `src/renderer/src`, counts tests per area. `transcripts.ts` is the single place that locates and reads
 `~/.claude/projects` (slugs, session lookup, tail reads, JSON Lines). Readers on IPC and timer

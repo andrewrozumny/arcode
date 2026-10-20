@@ -79,25 +79,40 @@ await shot('markdown');
 
 // Claude panel sections.
 await activity('Claude').click();
+// Hide the terminal dock so each section is shown at full height.
+await activity('Terminal').click();
 await sleep(800);
+await page.waitForSelector('.cl-tile');
+await shot('panel-overview');
 for (const [section, name] of [
   ['Skills', 'panel-skills'],
-  ['MCP', 'panel-mcp'],
+  ['MCP servers', 'panel-mcp'],
   ['Hooks', 'panel-hooks'],
+  ['CLAUDE.md', 'panel-memory'],
   ['Usage', 'panel-usage'],
   ['Sessions', 'panel-sessions'],
   ['Gates', 'panel-gates'],
 ]) {
-  const tab = page.getByRole('tab', { name: section, exact: true }).first();
+  const tab = page.locator('.cl-nav-item', { has: page.locator('.cl-nav-label', { hasText: new RegExp(`^${section.replace('.', '\\.')}$`) }) }).first();
   if (await tab.count()) {
     await tab.click();
-    if (section === 'MCP') {
+    if (section === 'MCP servers') {
       await page.getByRole('button', { name: 'Check status' }).click();
-      await page.waitForSelector('.cl-badge', { timeout: 15_000 }).catch(() => undefined);
+      await page.waitForSelector('.cl-summary', { timeout: 15_000 }).catch(() => undefined);
+    }
+    if (section === 'Skills') {
+      // Expand a user skill to show the read-only preview of a file outside the project.
+      await page
+        .locator('.cl-item.clickable .cl-item-head', { has: page.locator('.cl-name', { hasText: /^changelog$/ }) })
+        .first()
+        .click();
+      await page.waitForSelector('.cl-preview .cl-pre', { timeout: 5_000 }).catch(() => undefined);
     }
     await shot(name);
   }
 }
+
+await activity('Terminal').click();
 
 // Go to file, over the code viewer.
 await page.locator('.v-tab', { hasText: 'passes.ts' }).first().click();
