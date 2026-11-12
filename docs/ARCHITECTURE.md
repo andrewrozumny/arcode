@@ -112,6 +112,31 @@ split into two columns: `terminal/split.ts` is the pure model (column per tab, a
 column, focused column) and every tab cell stays a child of one CSS grid, so moving a tab between
 columns only changes its grid column and the xterm session survives. The split is saved as
 `TerminalPaneState.split` (validated by `sanitizeTerminalState`; state without it loads as one column).
+`terminal/activity.ts` (`ActivityMonitor`, one per window) runs one `ps -A` every 1.5 s while the
+window has ptys and reports per pty what runs there: direct children of the shell, and for a Claude
+Code process only its Bash tool shells (the evaluated command is unwrapped), never its MCP servers
+or helpers. The header's activity lamp (`layout/activityModel.ts`, `layout/HeaderControls.tsx`)
+combines it with tab status, gate state and running subagents. The same file holds the model picker
+and the Remote Control button: both type a command into the active Claude tab through the
+`sendToPty` bus event, only while its status is `idle`; Remote Control reads `bridgeSessionId` from
+the registry (`ClaudeStatusEvent.remoteControl`).
+
+**Voice input** (`main/voice`, `renderer/src/terminal/useVoiceInput.ts`, `terminal/wav.ts`). The
+composer records with MediaRecorder, decodes and renders the audio to 16 kHz mono with an
+OfflineAudioContext and sends a 16-bit PCM WAV over `voice:transcribe` (checked: Uint8Array,
+RIFF/WAVE, 50 MB cap). `voice/transcribe.ts` finds `whisper-cli` (`ARCODE_WHISPER_CLI`, Homebrew
+folders, PATH) and a ggml model (`ARCODE_WHISPER_MODEL`, `~/models/whisper`, `<userData>/whisper`),
+writes the WAV into a fresh `mkdtemp` folder, runs whisper-cli with an argv array (2 minute timeout,
+killed after), deletes the folder and returns cleaned text or a typed error. One transcription runs
+at a time. `voice:requestMic` asks macOS for microphone access before `getUserMedia`.
+Voice chat (`renderer/src/voice`) keeps the microphone open through a ScriptProcessorNode:
+`vad.ts` is an energy voice activity detector (noise floor measured for 0.6 s, then followed;
+a 1.5 s pause ends a phrase), half a second of pre-roll keeps the first syllable, `wav.ts`
+`downsample` brings the phrase to 16 kHz and it goes through the same `voice:transcribe`.
+`phrases.ts` drops whisper's stock phantoms. `useVoiceChat` sends a phrase through the `sendToPty`
+bus event only while the target Claude tab is `idle` and then waits for it to be busy and idle again;
+`VoiceChatButton` is the draggable button (position in localStorage, measured from the window's
+bottom right corner).
 
 **IDE bridge** (`main/ide`, `ideHost.ts`, `renderer/src/ide`). Each project window runs a
 WebSocket MCP server on 127.0.0.1 with a random auth token and a lock file in `~/.claude/ide`, the

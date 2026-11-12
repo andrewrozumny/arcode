@@ -14,6 +14,8 @@ export const TerminalChannel = {
   Attention: 'terminal:attention',
   TabTitles: 'terminal:tabTitles',
   FocusPty: 'terminal:focusPty',
+  Activity: 'terminal:activity',
+  ActivitySnapshot: 'terminal:activitySnapshot',
 } as const;
 
 /** Status values of a Claude Code process as written to ~/.claude/sessions/<pid>.json, plus `ended`. */
@@ -33,6 +35,30 @@ export interface ClaudeStatusEvent {
   modelName: string | null;
   /** Pty whose shell is an ancestor of the process, when it could be determined. */
   ptyId: PtyId | null;
+  /**
+   * Remote Control session id (`bridgeSessionId` in the registry) while `/remote-control` is active;
+   * the session is then reachable at `https://claude.ai/code/<id>`. Optional: older events lack it.
+   */
+  remoteControl?: string | null;
+}
+
+/** A process running in a pty, as the activity monitor reports it. */
+export interface PtyJob {
+  /** What runs: the command line of a shell's child, or the command a Claude Code Bash tool runs. */
+  command: string;
+  /** `shell`: started from the tab's shell; `claude`: a shell command started by Claude Code. */
+  source: 'shell' | 'claude';
+}
+
+/** Processes running in one pty of the window (empty `jobs` means the tab is idle). */
+export interface PtyActivity {
+  ptyId: PtyId;
+  jobs: PtyJob[];
+}
+
+/** URL a Remote Control session opens at. */
+export function remoteControlUrl(bridgeSessionId: string): string {
+  return `https://claude.ai/code/${encodeURIComponent(bridgeSessionId)}`;
 }
 
 export interface ClipboardInfo {
@@ -92,6 +118,10 @@ export interface TerminalApi {
   onFocusPty(listener: (ptyId: PtyId) => void): () => void;
   /** Absolute path of a dropped File object. */
   pathForFile(file: File): string;
+  /** Processes running in this window's ptys right now. */
+  activitySnapshot(): Promise<PtyActivity[]>;
+  /** Fires when the processes running in this window's ptys change. */
+  onActivity(listener: (activity: PtyActivity[]) => void): () => void;
 }
 
 /** Tab data worth keeping across restarts (no pty ids, no live status). */

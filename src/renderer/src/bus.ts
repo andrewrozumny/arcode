@@ -52,6 +52,8 @@ export interface BusEvents {
   openFeed: { sessionId: string; agentId?: string; title: string };
   /** Show and focus the terminal tab of a pty (the Claude feed sends the user to a prompt there). */
   focusPty: { ptyId: PtyId };
+  /** Type a line into the terminal of a pty and press Enter (the header's model and Remote Control controls). */
+  sendToPty: { ptyId: PtyId; text: string };
 }
 
 type Listener<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

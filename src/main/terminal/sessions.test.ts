@@ -36,6 +36,7 @@ describe('parseSessionFile', () => {
       waitingFor: 'permission',
       model: null,
       modelName: null,
+      remoteControl: null,
     });
   });
 
@@ -49,7 +50,13 @@ describe('parseSessionFile', () => {
       waitingFor: null,
       model: null,
       modelName: null,
+      remoteControl: null,
     });
+  });
+
+  it('reads the Remote Control session id', () => {
+    const parsed = parseSessionFile('{"pid":7,"status":"idle","bridgeSessionId":"session_017abc"}');
+    expect(parsed?.remoteControl).toBe('session_017abc');
   });
 
   it('rejects malformed input', () => {

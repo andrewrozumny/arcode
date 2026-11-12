@@ -46,6 +46,7 @@ export function parseSessionFile(text: string): Omit<ClaudeStatusEvent, 'ptyId'>
     cwd: str(record.cwd),
     model: null,
     modelName: null,
+    remoteControl: str(record.bridgeSessionId),
   };
 }
 
@@ -214,7 +215,7 @@ export class ClaudeSessionWatcher {
       if (seen.has(pid)) continue;
       this.known.delete(pid);
       this.transcriptMtimes.delete(pid);
-      this.options.onChange({ ...previous, status: 'ended', waitingFor: null });
+      this.options.onChange({ ...previous, status: 'ended', waitingFor: null, remoteControl: null });
     }
   }
 
@@ -276,7 +277,8 @@ function sameState(a: ClaudeStatusEvent, b: ClaudeStatusEvent): boolean {
     a.sessionId === b.sessionId &&
     a.model === b.model &&
     a.modelName === b.modelName &&
-    a.ptyId === b.ptyId
+    a.ptyId === b.ptyId &&
+    (a.remoteControl ?? null) === (b.remoteControl ?? null)
   );
 }
 

@@ -16,6 +16,7 @@ everyday use. For how the code is put together, see [ARCHITECTURE.md](ARCHITECTU
 - [Changes](#changes)
 - [File viewer](#file-viewer)
 - [Terminal](#terminal)
+- [Voice input](#voice-input)
 - [Claude Code integration](#claude-code-integration)
 - [Claude feed](#claude-feed)
 - [Claude panel](#claude-panel)
@@ -76,7 +77,7 @@ paths to the running app instead of starting a second copy.
 
 | Area | Contents |
 |---|---|
-| Header | Project avatar, name and path (click to switch project), current git branch, the **Claude** button, model badge, running subagents, usage bars, IDE bridge status, and the **Gate** buttons. |
+| Header | Project avatar, name and path (click to switch project), the activity lamp, current git branch, the **Claude** button, model picker, Remote Control button, running subagents, usage bars, IDE bridge status, and the **Gate** buttons. |
 | Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Changes (Ctrl+Shift+G), Claude panel, Terminal (Cmd+2). |
 | File tree | Left column. |
 | Viewer | Right column, top. Tabs for the Claude feed, files, diffs and the Claude panel. |
@@ -278,6 +279,47 @@ Terminals do not inherit Anthropic API keys, provider switches (Bedrock, Vertex 
 markers of a parent Claude Code session from the environment ARcode was launched in, so `claude`
 inside ARcode uses your normal subscription login and starts as a top-level session.
 
+## Voice input
+
+Dictate a prompt into the composer instead of typing it. Speech is recognised on your Mac with
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp); the audio never leaves the computer.
+
+- **Use:** click the microphone button next to **Send** (or press Cmd+Shift+M in the composer).
+  The button turns red and counts the seconds. Click it again (or Cmd+Shift+M) to stop; after
+  "Transcribing..." the text is inserted at the caret, ready to edit and send. Esc while recording
+  discards it. A recording stops by itself after 5 minutes.
+- **Microphone access:** macOS asks once. If you declined, allow ARcode in System Settings >
+  Privacy & Security > Microphone.
+- **Requirements:** `whisper-cli` (`brew install whisper-cpp`) and a ggml model, for example
+  `ggml-large-v3-turbo-q5_0.bin` from the whisper.cpp models on Hugging Face, placed in
+  `~/models/whisper` (or `~/Library/Application Support/ARcode/whisper`). When several models are
+  there, one with `large-v3-turbo` in its name wins, then the largest.
+- **Language:** Russian by default. Set `ARCODE_WHISPER_LANG` (for example `en`, or `auto` to
+  detect) in the environment ARcode is started from to change it.
+- **Other settings:** `ARCODE_WHISPER_CLI` points to a specific `whisper-cli`, `ARCODE_WHISPER_MODEL`
+  to a specific model file.
+- **Errors** show as a short line under the composer with the fix (install whisper.cpp, add a
+  model, allow the microphone). Transcription gives up after 2 minutes.
+
+### Voice chat with Claude
+
+A floating microphone button lets you talk to Claude hands-free. It starts just above the arCode
+mark in the bottom right corner of the viewer; drag it anywhere in the window and it stays there.
+
+- **Use:** click the button (or press Cmd+Shift+Space anywhere in the window). It turns green and
+  listens. Speak; a pause of about 1.5 seconds ends the phrase, which is recognised locally and typed
+  into the Claude tab with Enter. Click again to stop.
+- **Which tab:** the active terminal tab when it runs Claude, otherwise the last Claude tab.
+- **Turn taking:** a phrase is only sent while Claude waits at an empty prompt. After a phrase the
+  button turns orange until Claude has answered, then listens again. While Claude is working, or
+  asks something in the terminal (a permission, a question), listening pauses and the bubble says
+  why; answer such prompts in the terminal or in the feed.
+- **What you see:** the ring around the button follows your voice, the bubble next to it shows the
+  state and, for a few seconds, the phrase that was sent. Answers are not read aloud; read them in
+  the Claude feed.
+- Stock phrases whisper invents on silence ("Thanks for watching" and its Russian versions) are
+  dropped. Requirements and settings are the same as for voice input above.
+
 ## Claude Code integration
 
 ### IDE bridge without /ide
@@ -300,7 +342,9 @@ What it gives you:
 
 | Item | Source | When it shows |
 |---|---|---|
-| Model badge (for example "Opus 5.5") | The active Claude tab's session transcript | While a Claude tab is active. |
+| Activity lamp (next to the project name) | Claude status of every tab plus the processes running in each terminal | Always. Blinking orange while anything runs: Claude working, a command in a shell tab, a gate, or a shell command Claude left running in the background. Steady orange when nothing runs but Claude waits for you. Green when everything is done. Click it for the list; a row shows its tab. |
+| Model badge (for example "Opus 5.5") | The active Claude tab's session transcript | While a Claude tab is active. Click it to pick another model (Fable, Opus, Sonnet, Haiku or the account default): ARcode types `/model <id>` into that tab. Only while Claude waits at an empty prompt, so the command never lands as a message or as an answer. |
+| **RC** button | `bridgeSessionId` in Claude Code's process registry | While a Claude tab is active. A click types `/remote-control` into the tab. `RC…` while it starts (answer in the terminal if Claude asks to confirm), **RC on** once Claude Code reports the Remote Control session, with **Open in browser** and **Copy link** for `claude.ai/code/<session>`, and **RC failed** when no session shows up within 30 seconds. |
 | Subagents chip | Subagent transcripts of the active session | While subagents are running; the tooltip lists name, model and age. Click it for a list with **Open transcript** per agent. |
 | Usage bars `ctx`, `5h`, `wk` | The opt-in status line | Context fill, 5-hour and weekly plan usage, once the status line is on and a reply has arrived. |
 | IDE indicator | The bridge | Number of connected Claude Code clients. |
@@ -333,7 +377,9 @@ cannot break Claude Code. Records older than seven days are pruned.
 ## Claude feed
 
 The pinned **Claude** tab in the viewer shows the active Claude tab's session (or the last one this
-window showed) as a readable conversation, live.
+window showed) as a readable conversation, live. A `claude` you start by hand counts too: quitting
+Claude Code and running it again in the same tab moves the feed to the new session, and a shell
+tab you run `claude` in becomes a Claude tab.
 
 ![Claude feed](screenshots/feed.png)
 
@@ -478,6 +524,7 @@ database the switcher shows recent projects only.
 | Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
 | Cmd+Shift+J | Jump to the next terminal tab where Claude waits for you (works in the terminal too) |
+| Cmd+Shift+Space | Turn voice chat with Claude on or off |
 | Cmd+T | New shell tab |
 | Cmd+\ | Split the terminal into two columns, or focus the other column when it is split |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |
@@ -551,6 +598,8 @@ database the switcher shows recent projects only.
 | Enter / Shift+Enter | Next / previous match |
 | Esc | Close search |
 | Cmd+Enter | Send the composer text |
+| Cmd+Shift+M | Start / stop voice input |
+| Esc (while recording) | Discard the recording |
 | Up / Down (empty composer) | Previous / next composer entry |
 | Esc | Back to the terminal |
 
@@ -584,8 +633,10 @@ requests of its own.
 - **What it writes:** the files listed in [Where data lives](#where-data-lives), plus project files
   you create, edit, import, paste, rename or trash yourself.
 - **Programs it runs:** your login shell in each terminal; `git` (with `GIT_OPTIONAL_LOCKS=0`, so it
-  never blocks your own git commands); `ps` and `pgrep` to match Claude processes to tabs;
-  `defaults` to find your screenshots folder; `sqlite3` for the optional registry; and
+  never blocks your own git commands); `ps` and `pgrep` to match Claude processes to tabs and, every 1.5 seconds while terminals are
+  open, to see what runs in them for the activity lamp;
+  `defaults` to find your screenshots folder; `sqlite3` for the optional registry; `whisper-cli`
+  for voice input, on a temporary audio file that is deleted right after; and
   `claude mcp list` only when you click the MCP check, which is Claude Code contacting the MCP
   servers you configured.
 

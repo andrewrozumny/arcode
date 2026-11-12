@@ -1,0 +1,135 @@
+/* Floating voice chat button: off grey, listening green, Claude answering orange, error red. */
+.vc-root {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: row-reverse;
+  pointer-events: none;
+}
+.vc-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-panel);
+  color: var(--fg-muted);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+.vc-button:hover {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+.vc-button:active {
+  cursor: grabbing;
+}
+.vc-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  transform: scale(calc(1 + var(--vc-ring, 0) * 0.35));
+  transition: transform 90ms linear, opacity 120ms;
+  pointer-events: none;
+}
+.vc-button.vc-listening,
+.vc-button.vc-hearing {
+  color: #4caf7d;
+  border-color: rgba(76, 175, 125, 0.7);
+  background: rgba(76, 175, 125, 0.16);
+}
+.vc-button.vc-listening .vc-ring {
+  opacity: 0.35;
+}
+.vc-button.vc-hearing .vc-ring {
+  opacity: 0.8;
+}
+.vc-button.vc-transcribing,
+.vc-button.vc-claude,
+.vc-button.vc-starting {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.14);
+}
+.vc-button.vc-claude {
+  animation: vc-breathe 1.4s ease-in-out infinite;
+}
+.vc-button.vc-paused {
+  color: var(--fg-muted);
+  border-style: dashed;
+}
+.vc-button.vc-error {
+  color: #e5534b;
+  border-color: rgba(229, 83, 75, 0.7);
+}
+@keyframes vc-breathe {
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.15), 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+}
+.vc-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: vc-spin 0.8s linear infinite;
+}
+@keyframes vc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-button.vc-claude,
+  .vc-spinner {
+    animation-duration: 3s;
+  }
+}
+.vc-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  font: 12px var(--font-ui);
+  pointer-events: auto;
+}
+.vc-bubble-label {
+  color: var(--fg);
+  font-weight: 600;
+}
+.vc-bubble-note {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  color: var(--fg-muted);
+}
+.vc-bubble.vc-error .vc-bubble-note,
+.vc-bubble-error {
+  color: #e5534b;
+}
+.vc-bubble-error {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}

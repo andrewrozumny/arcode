@@ -14,12 +14,16 @@ export function useHeaderClaude(projectRoot: string) {
   const [claudeModel, setClaudeModel] = useState<BadgeModel | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [feedSessionId, setFeedSessionId] = useState<string | null>(null);
+  const [allTabs, setAllTabs] = useState<readonly TerminalTab[]>([]);
+  const [activeTab, setActiveTab] = useState<TerminalTab | null>(null);
   const subagents = useSubagents(activeSessionId);
   const running = useMemo(() => runningAgents(subagents), [subagents]);
 
   // Model of the active Claude tab in this window's terminal; hidden for shells and gates.
   const onTabsChange = useCallback((tabs: readonly TerminalTab[], activeTabId: string | null) => {
     const active = tabs.find((t) => t.id === activeTabId);
+    setAllTabs(tabs);
+    setActiveTab(active ?? null);
     setClaudeModel((prev) => {
       const next = active?.kind === 'claude' && active.claudeModel
         ? { id: active.claudeModel, name: active.claudeModelName ?? null }
@@ -59,5 +63,5 @@ export function useHeaderClaude(projectRoot: string) {
     [claudeModel, usage, activeSessionId, clock],
   );
 
-  return { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId };
+  return { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId, tabs: allTabs, activeTab };
 }

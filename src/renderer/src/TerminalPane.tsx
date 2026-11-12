@@ -454,6 +454,15 @@ export function TerminalPane({
     [commitActive, sessions],
   );
 
+  useEffect(
+    () =>
+      bus.on('sendToPty', ({ ptyId, text }) => {
+        const tab = tabsRef.current.find((t) => t.ptyId === ptyId);
+        if (tab) sessions.get(tab.id)?.sendPasted(text, true);
+      }),
+    [sessions],
+  );
+
   // Initial tabs.
   useEffect(() => {
     if (initialized.current) return;

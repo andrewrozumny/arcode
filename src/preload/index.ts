@@ -10,6 +10,7 @@ import { filesApi } from './files';
 import { ideApi } from './ide';
 import { terminalApi } from './terminal';
 import { viewerApi } from './viewer';
+import { voiceApi } from './voice';
 
 // The preload is type-checked without DOM types; the page URL carries the window context.
 const pageLocation = (globalThis as unknown as { location: { search: string } }).location;
@@ -76,6 +77,7 @@ const api: AcodeApi & AcodeAppApi = {
   ide: ideApi,
   terminal: terminalApi,
   claude: claudeApi,
+  voice: voiceApi,
 };
 
 contextBridge.exposeInMainWorld('acode', api);

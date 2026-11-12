@@ -32,7 +32,6 @@ export interface TabViewProps {
 export function TabView({ tab, active, sessions, startCommands, fontSize, propsRef, patchTab, onStarted }: TabViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tabId = tab.id;
-  const kind = tab.kind;
   const title = tab.title;
   const initialFontSize = useRef(fontSize);
 
@@ -76,9 +75,10 @@ export function TabView({ tab, active, sessions, startCommands, fontSize, propsR
       if (sessions.get(tabId) === session) sessions.delete(tabId);
       session.dispose();
     };
-    // The session is created once per tab; later prop changes are read through refs.
+    // The session is created once per tab; later prop changes are read through refs. The kind is
+    // not a dependency either: a shell tab becomes a Claude tab when `claude` is run in it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabId, kind]);
+  }, [tabId]);
 
   // Coming on screen refits; focus is the pane's call, since with two columns a tab can become
   // visible in the column that does not have focus.

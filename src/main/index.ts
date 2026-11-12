@@ -17,6 +17,7 @@ import { ProjectHistory } from './viewer/projectHistory';
 import { registerViewerIpc } from './viewer/ipc';
 import { handlePdfProtocol, registerPdfScheme } from './viewer/pdfProtocol';
 import { pasteDir, prunePastedImages } from './terminal/pasteImages';
+import { registerVoiceIpc } from './voice/ipc';
 
 app.setName('ARcode');
 registerPdfScheme();
@@ -48,6 +49,7 @@ void app.whenReady().then(() => {
   registerFilesIpc(ipcMain, { onProjectChange: (root, paths) => void projectHistory.changed(root, paths) });
   registerViewerIpc(ipcMain, localHistory);
   registerClaudeIpc(ipcMain);
+  registerVoiceIpc(ipcMain);
   const liveUsage = startLiveUsage(ipcMain);
   app.on('will-quit', () => liveUsage.stop());
   const state = new StateStore(join(app.getPath('userData'), 'state.json'));

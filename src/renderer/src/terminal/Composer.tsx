@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { ClipboardEvent, DragEvent, KeyboardEvent } from 'react';
 import { terminalApi } from './api';
 import { loadHistory, pushHistory, saveHistory, searchHistory } from './history';
+import { useVoiceInput } from './useVoiceInput';
+import { formatElapsed } from './wav';
 
 const MAX_ROWS = 10;
 
@@ -17,7 +19,8 @@ interface Props {
 
 /**
  * Multi-line prompt editor shown above the terminal. Cmd+Enter sends, Shift+Enter inserts a newline,
- * Up/Down step through this project's history, Ctrl+R searches it.
+ * Up/Down step through this project's history, Ctrl+R searches it. The microphone button (or
+ * Cmd+Shift+M) dictates: speech is transcribed locally and inserted at the caret; Esc cancels.
  */
 export function Composer({ projectRoot, onSend, onEscape, autoFocus }: Props) {
   const [value, setValue] = useState('');
@@ -54,6 +57,38 @@ export function Composer({ projectRoot, onSend, onEscape, autoFocus }: Props) {
     setValue(area.value);
     cursor.current = null;
   }, []);
+
+  const voice = useVoiceInput(
+    useCallback(
+      (text: string) => {
+        const area = areaRef.current;
+        if (!area) return;
+        const before = area.value.slice(0, area.selectionStart);
+        insert(before === '' || /\s$/.test(before) ? text : ` ${text}`);
+        area.focus();
+      },
+      [insert],
+    ),
+  );
+  const recording = voice.state.kind === 'recording';
+
+  /** Cmd+Shift+M toggles dictation; Esc while recording cancels it. True when the key was handled. */
+  const onVoiceKey = (event: KeyboardEvent<HTMLElement>): boolean => {
+    if (event.code === 'KeyM' && event.metaKey && event.shiftKey && !event.altKey && !event.ctrlKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      voice.toggle();
+      return true;
+    }
+    if (event.key === 'Escape' && (recording || voice.state.kind === 'starting')) {
+      event.preventDefault();
+      event.stopPropagation();
+      voice.cancel();
+      areaRef.current?.focus();
+      return true;
+    }
+    return false;
+  };
 
   const send = useCallback(() => {
     const text = value.trim();
@@ -115,6 +150,7 @@ export function Composer({ projectRoot, onSend, onEscape, autoFocus }: Props) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (onVoiceKey(event)) return;
     if (event.key === 'r' && event.ctrlKey && !event.metaKey) {
       event.preventDefault();
       setSearch({ query: value.trim(), index: 0, entries: history.current });
@@ -207,9 +243,36 @@ export function Composer({ projectRoot, onSend, onEscape, autoFocus }: Props) {
         }}
         onDrop={onDrop}
       />
+      <button
+        type="button"
+        className={`tp-btn tp-composer-mic${recording ? ' recording' : ''}${voice.state.kind === 'transcribing' ? ' busy' : ''}`}
+        onClick={voice.toggle}
+        onKeyDown={(event) => void onVoiceKey(event)}
+        disabled={voice.state.kind === 'transcribing' || voice.state.kind === 'starting'}
+        title={recording ? 'Stop and transcribe (Cmd+Shift+M), Esc cancels' : 'Dictate (Cmd+Shift+M)'}
+        aria-label={recording ? 'Stop dictation' : 'Start dictation'}
+        aria-pressed={recording}
+      >
+        <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
+          <rect x="3.5" y="0.5" width="5" height="8.5" rx="2.5" fill="currentColor" />
+          <path d="M1 6.5a5 5 0 0 0 10 0M6 11.5V13.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+        {voice.state.kind === 'recording' && (
+          <span className="tp-composer-mic-time">{formatElapsed(voice.state.seconds)}</span>
+        )}
+        {voice.state.kind === 'transcribing' && <span className="tp-composer-mic-time">Transcribing...</span>}
+      </button>
       <button type="button" className="tp-btn tp-composer-send" onClick={send} disabled={value.trim() === ''}>
         Send
       </button>
+      {voice.error && (
+        <div className="tp-composer-voice-error" role="alert">
+          <span>{voice.error}</span>
+          <button type="button" className="tp-composer-voice-dismiss" onClick={voice.dismissError} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

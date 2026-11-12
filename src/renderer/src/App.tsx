@@ -24,6 +24,7 @@ import { FindInFiles } from './tree/FindInFiles';
 import type { FindFocusRequest } from './tree/FindInFiles';
 import { prefillFromSelection } from './tree/findModel';
 import { Viewer } from './viewer/Viewer';
+import { VoiceChatButton } from './voice/VoiceChatButton';
 import type { ActiveInfo, ViewerHandle } from './viewer/types';
 
 const context: WindowContext = window.acode.app.context();
@@ -67,7 +68,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const activeInfo = useRef<ActiveInfo | null>(null);
   const { files: gitStatus, branch } = useGitStatus(projectRoot);
   const ide = useIdeBridge(viewerRef);
-  const { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId } = useHeaderClaude(projectRoot);
+  const { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId, tabs, activeTab } = useHeaderClaude(projectRoot);
   const [hint, setHint] = useState<{ text: string; nonce: number } | null>(null);
 
   useEffect(() => {
@@ -280,6 +281,8 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         usage={usage}
         subagents={running}
         subagentSessionId={activeSessionId}
+        tabs={tabs}
+        activeTab={activeTab}
       />
       {layout && (
         <Workspace
@@ -343,6 +346,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
+      {layout && <VoiceChatButton tabs={tabs} activeTab={activeTab} />}
       {hint && (
         <div key={hint.nonce} className="app-hint" role="status">
           {hint.text}

@@ -4,6 +4,45 @@ import { terminalApi } from './api';
 import type { TerminalTab } from './types';
 import { tabTitlesOf } from './waiting';
 
+/**
+ * The tab a status event belongs to: the one whose pty started the process, else the one that
+ * already shows the session (a process started outside this window's shells, matched by id).
+ */
+export function tabOfStatus(tabs: readonly TerminalTab[], event: ClaudeStatusEvent): TerminalTab | undefined {
+  const own = event.ptyId !== null ? tabs.find((t) => t.ptyId === event.ptyId) : undefined;
+  return own ?? (event.sessionId !== null ? tabs.find((t) => t.claude?.sessionId === event.sessionId) : undefined);
+}
+
+/**
+ * What a status event changes on its tab. A `claude` started by hand is followed like one the tab
+ * started itself: a Claude tab whose previous process was quit takes the new session id, and a
+ * shell tab becomes a Claude tab, so the feed, the header and resume on restart follow the
+ * process that actually runs there.
+ */
+export function claudeStatusPatch(tab: TerminalTab, event: ClaudeStatusEvent): Partial<TerminalTab> {
+  if (event.status === 'ended') {
+    return { claudeStatus: undefined, waitingFor: undefined, claudeModel: undefined, claudeModelName: undefined, remoteControl: undefined };
+  }
+  const patch: Partial<TerminalTab> = {
+    claudeStatus: event.status,
+    waitingFor: event.waitingFor ?? undefined,
+    claudeModel: event.model ?? undefined,
+    claudeModelName: event.modelName ?? undefined,
+    remoteControl: event.remoteControl ?? undefined,
+  };
+  const ownPty = event.ptyId !== null && tab.ptyId === event.ptyId;
+  if (!ownPty || !event.sessionId) return patch;
+  if (tab.claude) {
+    if (tab.claude.sessionId !== event.sessionId) patch.claude = { ...tab.claude, sessionId: event.sessionId, resumed: false };
+  } else if (tab.kind === 'shell') {
+    const name = event.name ?? tab.title;
+    patch.kind = 'claude';
+    patch.title = name;
+    patch.claude = { sessionId: event.sessionId, name, resumed: false };
+  }
+  return patch;
+}
+
 /** Applies Claude status events from the main process (and the snapshot on mount) to the matching tab. */
 export function useClaudeStatus(
   tabsRef: { readonly current: readonly TerminalTab[] },
@@ -11,22 +50,8 @@ export function useClaudeStatus(
 ): void {
   useEffect(() => {
     const apply = (event: ClaudeStatusEvent): void => {
-      const tab = tabsRef.current.find(
-        (t) =>
-          (event.ptyId !== null && t.ptyId === event.ptyId) ||
-          (event.sessionId !== null && t.claude?.sessionId === event.sessionId),
-      );
-      if (!tab) return;
-      if (event.status === 'ended') {
-        patchTab(tab.id, { claudeStatus: undefined, waitingFor: undefined, claudeModel: undefined, claudeModelName: undefined });
-      } else {
-        patchTab(tab.id, {
-          claudeStatus: event.status,
-          waitingFor: event.waitingFor ?? undefined,
-          claudeModel: event.model ?? undefined,
-          claudeModelName: event.modelName ?? undefined,
-        });
-      }
+      const tab = tabOfStatus(tabsRef.current, event);
+      if (tab) patchTab(tab.id, claudeStatusPatch(tab, event));
     };
     const off = terminalApi().onClaudeStatus(apply);
     void terminalApi()

@@ -323,6 +323,78 @@
   border-color: var(--border, #393b40);
 }
 
+/* Dictation: the microphone button pulses red while recording, the error line spans the row. */
+.tp-composer {
+  flex-wrap: wrap;
+}
+
+.tp-composer-mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  border-color: var(--border, #393b40);
+}
+
+.tp-composer-mic.recording {
+  border-color: var(--red, #f75464);
+  color: var(--red, #f75464);
+  animation: tp-mic-pulse 1.2s ease-in-out infinite;
+}
+
+.tp-composer-mic.busy:disabled {
+  opacity: 0.8;
+}
+
+.tp-composer-mic-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+@keyframes tp-mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(247 84 100 / 45%);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgb(247 84 100 / 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-composer-mic.recording {
+    animation: none;
+  }
+}
+
+.tp-composer-voice-error {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 6px;
+  color: var(--red, #f75464);
+  font-size: 12px;
+}
+
+.tp-composer-voice-error > span {
+  flex: 1;
+  min-width: 0;
+  user-select: text;
+}
+
+.tp-composer-voice-dismiss {
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #6f737a);
+  font: inherit;
+  cursor: default;
+}
+
+.tp-composer-voice-dismiss:hover {
+  color: var(--text, #bcbec4);
+}
+
 /* One cell per tab; the cells of a column share its grid area and only the active one is visible. */
 .tp-cell {
   position: relative;

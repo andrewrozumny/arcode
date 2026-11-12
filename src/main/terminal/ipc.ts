@@ -15,6 +15,7 @@ import { notifyWaiting, ownedByWindow, WaitingTransitions } from '../notificatio
 import { expandPath } from './linkPaths';
 import { pasteDir, savePastedImage } from './pasteImages';
 import { findSessionTranscript } from '../claude/transcripts';
+import { ActivityMonitor } from './activity';
 import { ClaudeSessionWatcher } from './sessions';
 
 /** One project window as seen by the terminal channels. */
@@ -129,6 +130,7 @@ export function registerTerminalIpc(ipcMain: IpcMain, resolve: TerminalWindowRes
   });
 
   ipcMain.handle(TerminalChannel.ClaudeSnapshot, (event) => watchers.get(owner(event.sender).win)?.snapshot() ?? []);
+  ipcMain.handle(TerminalChannel.ActivitySnapshot, (event) => monitors.get(owner(event.sender).win)?.snapshot() ?? []);
 
   ipcMain.on(TerminalChannel.Attention, (event, request: unknown) => {
     const target = resolve(event.sender);
@@ -152,6 +154,7 @@ export function registerTerminalIpc(ipcMain: IpcMain, resolve: TerminalWindowRes
 }
 
 const watchers = new Map<BrowserWindow, ClaudeSessionWatcher>();
+const monitors = new Map<BrowserWindow, ActivityMonitor>();
 /** Tabs waiting for the user, per window; the dock badge shows the sum. */
 const attention = new Map<BrowserWindow, number>();
 /** Tab title per pty, per window, as the renderer last reported them; notifications name the tab. */
@@ -198,12 +201,22 @@ export function attachTerminalWindow(win: BrowserWindow, ptys: PtyManager, optio
   });
   watcher.start();
   watchers.set(win, watcher);
+  const monitor = new ActivityMonitor({
+    shells: () => ptys.pidMap(),
+    onChange: (activity) => {
+      if (!win.isDestroyed()) win.webContents.send(TerminalChannel.Activity, activity);
+    },
+  });
+  monitor.start();
+  monitors.set(win, monitor);
   let disposed = false;
   const dispose = (): void => {
     if (disposed) return;
     disposed = true;
     watcher.stop();
     watchers.delete(win);
+    monitor.stop();
+    monitors.delete(win);
     attention.delete(win);
     tabTitles.delete(win);
     updateDock(false);

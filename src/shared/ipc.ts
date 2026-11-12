@@ -4,6 +4,7 @@ import type { FilesApi } from './files';
 import type { IdeApi } from './ide-ipc';
 import type { TerminalApi } from './terminal';
 import type { ViewerApi } from './viewer';
+import type { VoiceApi } from './voice';
 
 export const IpcChannel = {
   PtyCreate: 'pty:create',
@@ -92,4 +93,6 @@ export interface AcodeApi {
   terminal: TerminalApi;
   /** Read-only Claude Code configuration and usage for the project. */
   claude: ClaudeApi;
+  /** Voice input: local dictation with whisper.cpp. */
+  voice: VoiceApi;
 }

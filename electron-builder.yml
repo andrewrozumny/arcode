@@ -27,3 +27,4 @@ mac:
   extendInfo:
     NSHighResolutionCapable: true
     LSMinimumSystemVersion: "12.0"
+    NSMicrophoneUsageDescription: ARcode records your voice for dictation in the prompt composer. Audio is transcribed locally and never leaves your Mac.

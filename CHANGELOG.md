@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Voice input in the composer.** A microphone button (or Cmd+Shift+M) records a prompt and
+  inserts the recognised text at the caret. Recognition runs locally with whisper.cpp
+  (`whisper-cli` plus a ggml model in `~/models/whisper`), Russian by default
+  (`ARCODE_WHISPER_LANG` changes it). Esc discards a recording; missing tools, models or
+  microphone access are explained inline.
+- **Voice chat with Claude.** A floating microphone (drag it anywhere; it starts above the arCode
+  mark) or Cmd+Shift+Space turns on hands-free talk: each phrase is sent to the Claude tab after a
+  pause, recognised locally like dictation, and listening resumes once Claude has answered.
+- **Switch the model from the header.** Click the model badge of the active Claude tab and pick
+  Fable, Opus, Sonnet, Haiku or the account default; ARcode types `/model <id>` into the tab.
+  Offered only while Claude waits at an empty prompt.
+- **Remote Control button.** **RC** types `/remote-control` into the active Claude tab and shows
+  whether it came up (`RC…`, **RC on** with Open in browser and Copy link, or **RC failed** after
+  30 seconds), read from the bridge session id Claude Code writes to its process registry.
+- **Activity lamp.** A light next to the project name blinks orange while anything runs in the
+  window's terminals (Claude working, a command, a gate, a shell command Claude left running in the
+  background), stays orange while Claude waits for you and turns green when everything is done. A
+  click lists what runs and jumps to its tab.
+
+### Fixed
+
+- **The feed follows a `claude` started by hand.** Quitting Claude Code and running `claude`
+  again in the same tab used to leave the Claude feed on the old session; the tab now takes the
+  new session id. Running `claude` in a shell tab turns it into a Claude tab, so the feed, the
+  header and resume after a restart follow it as well.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added

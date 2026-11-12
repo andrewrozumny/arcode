@@ -739,3 +739,198 @@ body.resizing-horizontal * {
     animation: none;
   }
 }
+
+/* Header menus shared by the model picker, Remote Control and the activity lamp. */
+.header-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+.header-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 200px;
+  max-width: 460px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+}
+.header-menu-left {
+  right: auto;
+  left: 0;
+}
+.header-menu-note {
+  padding: 5px 8px;
+  color: var(--fg-faint);
+  font-size: 11px;
+}
+.header-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.header-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.header-menu-item:disabled {
+  cursor: default;
+  color: var(--fg-muted);
+}
+.header-menu-item.current {
+  color: var(--fg);
+}
+.header-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-menu-meta {
+  flex: none;
+  margin-left: 12px;
+  color: var(--fg-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Model badge as a button that opens the model list. */
+.model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.model-picker:hover,
+.model-picker[aria-expanded='true'] {
+  filter: brightness(1.2);
+}
+.model-picker-caret {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+/* Remote Control: grey when off, pulsing while it starts, green when active, red when it failed. */
+.rc-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 12px;
+  padding: 1px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-muted);
+  font: 11px var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.rc-button:hover,
+.rc-button[aria-expanded='true'] {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+.rc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+.rc-starting .rc-dot {
+  background: #f59e0b;
+  animation: lamp-blink 1s ease-in-out infinite;
+}
+.rc-on {
+  color: #4caf7d;
+  border-color: rgba(76, 175, 125, 0.5);
+  background: rgba(76, 175, 125, 0.12);
+}
+.rc-on .rc-dot {
+  background: #4caf7d;
+}
+.rc-failed {
+  color: #e5534b;
+  border-color: rgba(229, 83, 75, 0.5);
+}
+.rc-failed .rc-dot {
+  background: #e5534b;
+}
+
+/* Activity lamp next to the project: orange blinking while work runs, orange while Claude waits, green when done. */
+.activity-lamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 6px 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.activity-lamp:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.activity-lamp-light {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.lamp-idle .activity-lamp-light {
+  background: #4caf7d;
+  box-shadow: 0 0 5px rgba(76, 175, 125, 0.7);
+}
+.lamp-waiting .activity-lamp-light {
+  background: #f59e0b;
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.6);
+}
+.lamp-working .activity-lamp-light {
+  background: #f59e0b;
+  box-shadow: 0 0 7px rgba(245, 158, 11, 0.9);
+  animation: lamp-blink 1s ease-in-out infinite;
+}
+@keyframes lamp-blink {
+  50% {
+    opacity: 0.25;
+    box-shadow: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lamp-working .activity-lamp-light,
+  .rc-starting .rc-dot {
+    animation-duration: 2.4s;
+  }
+}
+.activity-kind {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+.activity-kind.kind-waiting {
+  background: #ff7a5c;
+}
+.activity-kind.kind-background {
+  background: #a78bfa;
+}

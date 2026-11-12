@@ -32,6 +32,8 @@ export interface TerminalTab {
   claudeModel?: string | undefined;
   /** Marketing name of that model (e.g. `Opus 5.5`), when Claude Code wrote one. */
   claudeModelName?: string | undefined;
+  /** Remote Control session id while `/remote-control` is active in this tab's Claude Code. */
+  remoteControl?: string | undefined;
   /** Restored tab with an earlier session: ask whether to continue it or start a new one. */
   resumeChoice?: boolean | undefined;
   /** Status text and color announced by the CLI through OSC 21337. */

@@ -4,7 +4,9 @@ import type { LiveUsage, SubagentInfo } from '@shared/claude';
 import type { GitBranch } from '@shared/files';
 import type { IdeStatus } from '@shared/ide-ipc';
 import type { BadgeModel } from '../claude/liveUsage';
+import type { TerminalTab } from '../terminal/types';
 import { AgentsChip, ModelBadge } from './ClaudeBadges';
+import { ActivityLamp, ModelPicker, RemoteControlButton } from './HeaderControls';
 import { BranchLabel, IdeIndicator, ProjectAvatar } from './HeaderParts';
 import { UsageBadge } from './UsageBadge';
 import { WindowControls } from './WindowControls';
@@ -28,11 +30,16 @@ interface Props {
   subagents?: readonly SubagentInfo[] | undefined;
   /** Session the subagents belong to, for their "Open transcript" entries. */
   subagentSessionId?: string | null | undefined;
+  /** Terminal tabs of the window, for the activity lamp. */
+  tabs?: readonly TerminalTab[] | undefined;
+  /** Active terminal tab: the model picker and Remote Control act on it while it runs Claude. */
+  activeTab?: TerminalTab | null | undefined;
 }
 
 /** Window title bar: traffic lights on the left, project name and path, gate buttons. */
-export function Header({ projectRoot, home, onRunGate, onOpenProjects, ide, claudeModel, onOpenClaude, branch, usage, subagents, subagentSessionId }: Props) {
+export function Header({ projectRoot, home, onRunGate, onOpenProjects, ide, claudeModel, onOpenClaude, branch, usage, subagents, subagentSessionId, tabs, activeTab }: Props) {
   const name = baseName(projectRoot);
+  const claudeTab = activeTab?.kind === 'claude' ? activeTab : null;
   return (
     <header className="header">
       <WindowControls />
@@ -41,12 +48,14 @@ export function Header({ projectRoot, home, onRunGate, onOpenProjects, ide, clau
         <span className="header-name">{name}</span>
         <span className="header-path">{shortenPath(projectRoot, home)}</span>
       </button>
+      <ActivityLamp tabs={tabs ?? []} subagents={subagents?.length ?? 0} />
       {branch && <BranchLabel branch={branch} />}
       <div className="header-spacer" />
       <button type="button" className="header-claude" title="Claude: skills, plugins, MCP, agents, hooks, CLAUDE.md, usage" onClick={onOpenClaude}>
         Claude
       </button>
-      {claudeModel && <ModelBadge model={claudeModel} />}
+      {claudeTab ? <ModelPicker model={claudeModel ?? null} tab={claudeTab} /> : claudeModel && <ModelBadge model={claudeModel} />}
+      {claudeTab && <RemoteControlButton tab={claudeTab} />}
       {subagents && subagents.length > 0 && <AgentsChip agents={subagents} sessionId={subagentSessionId ?? null} />}
       {usage && <UsageBadge usage={usage} />}
       {ide && <IdeIndicator status={ide} />}
