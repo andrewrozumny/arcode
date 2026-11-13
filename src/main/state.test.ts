@@ -61,7 +61,14 @@ describe('migrateState', () => {
     ]);
     expect(state.openWindows).toEqual(['/ok']);
     expect(state.projects['/ok']).toEqual({
-      layout: { treeWidth: 0.95, terminalHeight: DEFAULT_LAYOUT.terminalHeight, treeVisible: false, terminalVisible: true },
+      layout: {
+        treeWidth: 0.95,
+        terminalHeight: DEFAULT_LAYOUT.terminalHeight,
+        treeVisible: false,
+        terminalVisible: true,
+        discussionVisible: true,
+        discussionWidth: DEFAULT_LAYOUT.discussionWidth,
+      },
     });
     expect(state.projects['/bad']).toBeUndefined();
     expect(state.settings).toEqual({});
@@ -221,5 +228,14 @@ describe('viewer tabs, recent files and autosave', () => {
     expect(migrateState({ settings: { notificationSound: false } }).settings.notificationSound).toBe(false);
     expect(migrateState({ settings: { notificationSound: 'on' } }).settings.notificationSound).toBeUndefined();
     expect(migrateState({ settings: { notificationSound: 1 } }).settings).toEqual({});
+  });
+});
+
+describe('discussion column layout', () => {
+  it('keeps a saved width within bounds and the collapsed state', () => {
+    const state = migrateState({ projects: { '/p': { layout: { discussionVisible: false, discussionWidth: 5000 } } } });
+    expect(state.projects['/p']?.layout).toMatchObject({ discussionVisible: false, discussionWidth: 640 });
+    const narrow = migrateState({ projects: { '/p': { layout: { discussionWidth: 10 } } } });
+    expect(narrow.projects['/p']?.layout).toMatchObject({ discussionVisible: true, discussionWidth: 260 });
   });
 });

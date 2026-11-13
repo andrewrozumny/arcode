@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LAYOUT } from '@shared/app';
-import { TREE_MIN_PX, togglePanels, treeWidthPx } from './layoutMath';
+import { TREE_MIN_PX, discussionWidthPx, togglePanels, treeWidthPx } from './layoutMath';
 
 describe('layout math', () => {
   it('applies the tree minimum width', () => {
@@ -14,5 +14,20 @@ describe('layout math', () => {
     expect(hidden.layout.treeVisible || hidden.layout.terminalVisible).toBe(false);
     const shown = togglePanels(hidden.layout, hidden.remembered);
     expect(shown.layout).toEqual(start);
+  });
+});
+
+describe('discussionWidthPx', () => {
+  it('keeps the column within its bounds', () => {
+    expect(discussionWidthPx(100, 2000)).toBe(260);
+    expect(discussionWidthPx(900, 2000)).toBe(640);
+    expect(discussionWidthPx(400, 2000)).toBe(400);
+  });
+
+  it('never squeezes the viewer below its minimum', () => {
+    // 700 px of room: the viewer keeps 240, so the column gets at most 460.
+    expect(discussionWidthPx(600, 700)).toBe(460);
+    // Too little room even for the column's minimum: the minimum wins.
+    expect(discussionWidthPx(600, 300)).toBe(260);
   });
 });

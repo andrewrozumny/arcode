@@ -83,13 +83,23 @@ export interface PanelLayout {
   terminalHeight: number;
   treeVisible: boolean;
   terminalVisible: boolean;
+  /** The discussion column on the right of the viewer is expanded (else only its thin rail shows). */
+  discussionVisible: boolean;
+  /** Width of the discussion column in CSS pixels. */
+  discussionWidth: number;
 }
+
+/** Bounds of the discussion column's width, in CSS pixels. */
+export const DISCUSSION_MIN_PX = 260;
+export const DISCUSSION_MAX_PX = 640;
 
 export const DEFAULT_LAYOUT: PanelLayout = {
   treeWidth: 0.29,
   terminalHeight: 0.39,
   treeVisible: true,
   terminalVisible: true,
+  discussionVisible: true,
+  discussionWidth: 360,
 };
 
 export type ProjectSource = 'recent' | 'registry';

@@ -4,7 +4,7 @@ import type { LayoutCommand, PanelLayout } from '@shared/app';
 import { bus } from '../bus';
 import { ActivityBar } from './ActivityBar';
 import { Splitter } from './Splitter';
-import { terminalFraction, terminalHeightPx, togglePanels, treeFraction, treeWidthPx } from './layoutMath';
+import { discussionWidthPx, terminalFraction, terminalHeightPx, togglePanels, treeFraction, treeWidthPx } from './layoutMath';
 
 interface Props {
   projectRoot: string;
@@ -22,6 +22,8 @@ interface Props {
   onOpenChanges(): void;
   onOpenSearch(): void;
   onOpenClaude(): void;
+  /** Receives the element the discussion renders into (its column on the right of the viewer). */
+  onDiscussionSlot?: (element: HTMLElement | null) => void;
 }
 
 export type LeftMode = 'tree' | 'find' | 'changes';
@@ -59,6 +61,7 @@ export function Workspace({
   onOpenChanges,
   onOpenSearch,
   onOpenClaude,
+  onDiscussionSlot,
 }: Props) {
   const [layout, setLayout] = useState<PanelLayout>(initialLayout);
   const remembered = useRef<Visibility | null>(null);
@@ -114,6 +117,18 @@ export function Workspace({
   );
 
   const treePx = treeWidthPx(layout.treeWidth, topSize.width);
+  // The discussion column takes its width out of what the tree leaves, never squeezing the viewer.
+  const roomPx = topSize.width - (layout.treeVisible ? treePx : 0);
+  const discussionPx = discussionWidthPx(layout.discussionWidth, roomPx);
+
+  // The voice button (and its shortcut) brings a collapsed discussion column back.
+  useEffect(
+    () =>
+      bus.on('discussionPanel', ({ visible }) =>
+        update((prev) => (prev.discussionVisible === visible ? prev : { ...prev, discussionVisible: visible })),
+      ),
+    [update],
+  );
   const terminalPx = terminalHeightPx(layout.terminalHeight, rootSize.height);
 
   const toggleTree = (): void => update((prev) => ({ ...prev, treeVisible: !prev.treeVisible }));
@@ -164,6 +179,39 @@ export function Workspace({
               />
             )}
             <section className="viewer-pane">{viewer}</section>
+            {layout.discussionVisible && (
+              <Splitter
+                orientation="vertical"
+                onDragStart={() => startDrag(discussionPx)}
+                onDrag={(delta) =>
+                  update((prev) => ({ ...prev, discussionWidth: discussionWidthPx(dragStart.current - delta, roomPx) }))
+                }
+                onDragEnd={endDrag}
+              />
+            )}
+            {/* Kept mounted while collapsed, so the conversation and its scroll position stay. */}
+            <aside className="discussion-pane" hidden={!layout.discussionVisible} style={{ width: discussionPx }}>
+              <div className="discussion-slot" ref={onDiscussionSlot} />
+            </aside>
+            {!layout.discussionVisible && (
+              <button
+                type="button"
+                className="discussion-rail"
+                title="Show the discussion"
+                aria-label="Show the discussion"
+                onClick={() => update((prev) => ({ ...prev, discussionVisible: true }))}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
           </div>
           {layout.terminalVisible && (
             <Splitter

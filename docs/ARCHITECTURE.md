@@ -146,7 +146,10 @@ prompt) and forwards text deltas as `voice:discussionEvent`; `SentenceStream` cu
 for the speech queue and skips code fences and `<handover>` tags. A finished answer with a
 `<handover>` task (the partner's prompt says to use it when the user asks or agrees to pass something
 on) is sent to the Claude tab through `sendToPty`. The `voiceOwner` bus event keeps one button listening at a
-time. The live one is the draggable buttonThe live one is the draggable button (position in localStorage, measured from the window's
+time. The discussion's content is rendered through a portal into the discussion column, which
+`Workspace` adds to the top row after the viewer (a splitter, then `.discussion-pane`; collapsed, a
+thin rail); `PanelLayout.discussionVisible` and `discussionWidth` keep its state, and the
+`discussionPanel` bus event expands or collapses it. The live one is the draggable buttonThe live one is the draggable button (position in localStorage, measured from the window's
 bottom right corner). Modes (`answer.ts`): dictation types without Enter, commands send, chat
 also reads the turn's final assistant message (from the transcript range after the phrase) aloud
 after `speakable.ts` strips code, tables, paths and links. Listening stops while the window is not

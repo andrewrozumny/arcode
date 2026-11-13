@@ -8,7 +8,7 @@
  */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { DEFAULT_LAYOUT } from '@shared/app';
+import { DEFAULT_LAYOUT, DISCUSSION_MAX_PX, DISCUSSION_MIN_PX } from '@shared/app';
 import { isRecord } from '@shared/guards';
 import type { PanelLayout } from '@shared/app';
 import { sanitizeTerminalState } from '@shared/terminal';
@@ -90,6 +90,11 @@ export function sanitizeLayout(value: unknown): PanelLayout | undefined {
     treeVisible: typeof value.treeVisible === 'boolean' ? value.treeVisible : DEFAULT_LAYOUT.treeVisible,
     terminalVisible:
       typeof value.terminalVisible === 'boolean' ? value.terminalVisible : DEFAULT_LAYOUT.terminalVisible,
+    discussionVisible:
+      typeof value.discussionVisible === 'boolean' ? value.discussionVisible : DEFAULT_LAYOUT.discussionVisible,
+    discussionWidth: isFiniteNumber(value.discussionWidth)
+      ? Math.round(clamp(value.discussionWidth, DISCUSSION_MIN_PX, DISCUSSION_MAX_PX))
+      : DEFAULT_LAYOUT.discussionWidth,
   };
 }
 

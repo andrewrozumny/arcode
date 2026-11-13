@@ -24,7 +24,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes anything. Answers stream into a window and are read aloud sentence by sentence. Saying
   "pass it to Claude Code" (or **→ Claude Code**) sends the resulting task to the Claude tab. **■ Stop**
   ends a reading, the speaker switch turns reading off, and a ring shows the ElevenLabs allowance.
-  A Sonnet / Opus switch in the window picks the partner's model. Only one voice button listens at a
+  A Sonnet / Opus switch picks the partner's model. The discussion lives in a resizable, collapsible
+  column on the right of the viewer (width and state saved per project), and the Claude feed and the
+  Markdown preview now fill the viewer's width instead of a centred column. Only one voice button listens at a
   time.
 - **Voice modes.** The voice button has three modes: Dictation types into Claude's prompt without
   Enter so you can keep talking or edit, Commands sends each phrase, Conversation also reads

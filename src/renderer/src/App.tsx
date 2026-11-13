@@ -70,6 +70,8 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
   const ide = useIdeBridge(viewerRef);
   const { onTabsChange, usage, badgeModel, running, feedSessionId, activeSessionId, tabs, activeTab } = useHeaderClaude(projectRoot);
   const [hint, setHint] = useState<{ text: string; nonce: number } | null>(null);
+  /** The discussion column's body; the discussion (owned by its floating button) renders into it. */
+  const [discussionSlot, setDiscussionSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     document.title = baseName(projectRoot);
@@ -339,6 +341,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
           searchOpen={searchMode !== null}
           onOpenSearch={() => setSearchMode('files')}
           onOpenClaude={() => viewerRef.current?.openClaude()}
+          onDiscussionSlot={setDiscussionSlot}
         />
       )}
       <FileSearch
@@ -351,7 +354,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
-      {layout && <VoiceChatButton kind="live" projectRoot={projectRoot} tabs={tabs} activeTab={activeTab} />}
+      {layout && <VoiceChatButton kind="live" projectRoot={projectRoot} tabs={tabs} activeTab={activeTab} discussionSlot={discussionSlot} />}
       {hint && (
         <div key={hint.nonce} className="app-hint" role="status">
           {hint.text}

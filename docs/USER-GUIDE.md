@@ -80,12 +80,13 @@ paths to the running app instead of starting a second copy.
 | Header | Project avatar, name and path (click to switch project), the activity lamp, current git branch, the **Claude** button, model picker, Remote Control button, running subagents, usage bars, IDE bridge status, and the **Gate** buttons. |
 | Activity bar (far left) | Project files (Cmd+1), Search files (Cmd+P), Find in files (Cmd+Shift+F), Changes (Ctrl+Shift+G), Claude panel, Terminal (Cmd+2). |
 | File tree | Left column. |
-| Viewer | Right column, top. Tabs for the Claude feed, files, diffs and the Claude panel. |
+| Viewer | Right column, top. Tabs for the Claude feed, files, diffs and the Claude panel, left aligned and as wide as the column allows. |
+| Discussion | A column on the right of the viewer with the voice discussion (see [Voice buttons](#voice-buttons-dictation-and-live-chat)). Drag its left edge to resize (260 to 640 px); › collapses it to a thin rail, and the rail or the discussion button brings it back. |
 | Terminal dock | Right column, bottom. Shell, Claude and gate tabs. |
 
 Drag the splitters to resize. Cmd+1 hides or shows the tree, Cmd+2 the terminal, and
-Cmd+Shift+F12 hides all panels (press again to bring them back). Sizes and visibility are saved per
-project.
+Cmd+Shift+F12 hides all panels (press again to bring them back). Sizes and visibility, the discussion
+column's width and whether it is collapsed included, are saved per project.
 
 ## File tree
 
@@ -316,30 +317,33 @@ which is remembered:
   spaces. Keep talking to add more, edit with the keyboard, and press Enter yourself.
 - **Send each phrase** sends each phrase with Enter as soon as you pause.
 
-**Discussion** is the floating button with a speech bubble. It starts just above the arCode mark in
-the bottom right corner of the viewer; drag it (or its window's header) anywhere and it stays there.
+**Discussion** lives in its own column on the right of the viewer, and its floating button with a
+speech bubble turns the voice on and off. The button starts just above the arCode mark in the bottom
+right corner of the viewer; drag it anywhere and it stays there. Turning it on (or Cmd+Shift+Space)
+also expands the column when it is collapsed.
 Click it (or press Cmd+Shift+Space) and talk about the work in your Claude Code session, the way you
 would in a voice chat: why it did something, which option is better, what to do next. The partner
 is a separate, fast conversation with Claude that sees what happened in the Claude Code tab since
 your last message (prompts, Claude Code's messages, the tools it ran) and may read project files, but
 never writes, edits or runs anything and never types into Claude Code. Its answers stream into the
-window and are read aloud sentence by sentence, without code. You can also type in the line at the
-bottom of the window.
+column and are read aloud sentence by sentence, without code. You can also type in the line at the
+bottom of the column.
 
 - **Handing over:** say so ("pass it to Claude Code", or "yes" when the partner offers), or click
   **→ Claude Code**. The partner says it is handing over and writes the task; ARcode sends it to the
   Claude tab and shows it under the answer, marked **Sent to Claude Code**. The task itself is not read
   aloud.
-- **New** starts a fresh discussion. **■ Stop** (in the bubble and the window's header), a click on
-  the button, or talking over it stops a reading. The speaker switch in the window's header turns reading aloud off (remembered).
+- **New** starts a fresh discussion. **■ Stop** (in the bubble and the column's header), a click on
+  the button, or talking over it stops a reading. The speaker switch in the column's header turns
+  reading aloud off (remembered).
 - The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
   per window; `ARCODE_CLAUDE` picks the executable). It loads no MCP servers and keeps no session on
-  disk. The **Sonnet / Opus** switch in the window's header picks its model (Sonnet by default,
-  remembered); switching starts the discussion over, with a note in the window.
+  disk. The **Sonnet / Opus** switch in the column's header picks its model (Sonnet by default,
+  remembered); switching starts the discussion over, with a note in the column.
 - While ElevenLabs reads, a ring around the button shows the plan's character allowance: a faint
   track fills with blue from the top, clockwise, as characters are used; the tooltip and the voice
-  menu give the numbers and the reset date. A reading you stop has already been paid for the piece being read and the one rendered
-  ahead (about 800 characters at most); answers still waiting are not.
+  menu give the numbers and the reset date. A reading you stop has already been paid for the piece
+  being read and the one rendered ahead (about 800 characters at most); answers still waiting are not.
 
 - **While Claude works (dictation):** phrases still go out, like typed messages: Claude Code queues
   them (they show as queued in the feed). Only a question Claude asks in the terminal (a permission, a choice)

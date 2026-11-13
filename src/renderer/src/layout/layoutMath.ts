@@ -1,4 +1,5 @@
 /** Pure sizing rules for the panel layout. */
+import { DISCUSSION_MAX_PX, DISCUSSION_MIN_PX } from '@shared/app';
 import type { PanelLayout } from '@shared/app';
 
 export const TREE_MIN_PX = 180;
@@ -17,6 +18,15 @@ export function terminalHeightPx(fraction: number, totalPx: number): number {
   return Math.round(
     clamp(fraction * totalPx, TERMINAL_MIN_PX, Math.max(TERMINAL_MIN_PX, totalPx - VIEWER_MIN_HEIGHT_PX)),
   );
+}
+
+/**
+ * Width of the discussion column: within its bounds, and never squeezing the viewer below its
+ * minimum (`roomPx` is the top row's width left after the tree).
+ */
+export function discussionWidthPx(widthPx: number, roomPx: number): number {
+  const max = Math.min(DISCUSSION_MAX_PX, Math.max(DISCUSSION_MIN_PX, roomPx - VIEWER_MIN_PX));
+  return Math.round(clamp(widthPx, DISCUSSION_MIN_PX, max));
 }
 
 /** Px back to a fraction after a drag, clamped the same way. */

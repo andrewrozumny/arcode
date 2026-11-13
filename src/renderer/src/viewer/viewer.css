@@ -505,8 +505,8 @@
   overflow: auto;
 }
 .v-md {
-  max-width: 80ch;
-  margin: 0 auto;
+  /* Left aligned and as wide as the viewer, like the feed. */
+  margin: 0;
   padding: 24px 28px 64px;
   font: 14px/1.6 var(--v-ui);
   color: var(--v-text);

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { bus } from '../bus';
 import type { TerminalTab } from '../terminal/types';
 import { loadDictationMode, saveDictationMode, VOICE_MODES } from './answer';
 import type { DictationMode, VoiceMode } from './answer';
@@ -194,11 +196,14 @@ export function VoiceChatButton({
   projectRoot,
   tabs,
   activeTab,
+  discussionSlot = null,
 }: {
   kind: 'live' | 'dictation';
   projectRoot: string;
   tabs: readonly TerminalTab[];
   activeTab: TerminalTab | null;
+  /** The discussion column on the right of the viewer: the discussion renders into it. */
+  discussionSlot?: HTMLElement | null;
 }) {
   const live = kind === 'live';
   const target = useMemo(() => voiceTarget(tabs, activeTab), [tabs, activeTab]);
@@ -280,12 +285,11 @@ export function VoiceChatButton({
   }, [showsUsage, usageTick, menuOpen]);
   const usageText = showsUsage && usage ? `ElevenLabs: ${usageLabel(usage)}` : null;
   const chat = discussion.entries;
-  const [chatOpen, setChatOpen] = useState(true);
   const chatRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const list = chatRef.current;
     if (list) list.scrollTop = list.scrollHeight;
-  }, [chat, chatOpen]);
+  }, [chat, discussionSlot]);
 
   // Which reading engines work here: asked once, and again whenever the menu opens (a key may have been added).
   const infoAsked = useRef(false);
@@ -352,18 +356,24 @@ export function VoiceChatButton({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Turning the discussion on also brings its column back when it is collapsed.
+  const press = useCallback(() => {
+    if (live && !on) bus.emit('discussionPanel', { visible: true });
+    toggle();
+  }, [live, on, toggle]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const key = live ? 'Space' : 'KeyD';
       if (event.code === key && event.metaKey && event.shiftKey && !event.altKey && !event.ctrlKey) {
         event.preventDefault();
         event.stopPropagation();
-        toggle();
+        press();
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [toggle, live]);
+  }, [press, live]);
 
   useEffect(() => {
     if (!lastSent) return;
@@ -400,14 +410,9 @@ export function VoiceChatButton({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (!d) return;
     if (d.moved && offset) saveOffset(offset);
-    else if (clickToggles) toggle();
+    else if (clickToggles) press();
   };
   const onPointerUp = (event: ReactPointerEvent<HTMLElement>): void => endDrag(event, true);
-  // The chat window moves by its header, together with the button.
-  const onHeaderPointerDown = (event: ReactPointerEvent<HTMLElement>): void => {
-    if ((event.target as HTMLElement).closest('button')) return;
-    onPointerDown(event);
-  };
 
   if (!offset) return null;
   const place = live ? clampOffset(offset) : null;
@@ -438,16 +443,11 @@ export function VoiceChatButton({
       ref={rootRef}
       style={place ? { right: place.right, bottom: place.bottom } : undefined}
     >
-      {live && (on || chat.length > 0) && chatOpen && (
-        <div className="vc-chat" role="log" aria-label="Live chat">
-          <div
-            className="vc-chat-head"
-            onPointerDown={onHeaderPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={(event) => endDrag(event, false)}
-            onPointerCancel={() => (drag.current = null)}
-            title="Drag to move"
-          >
+      {live &&
+        discussionSlot &&
+        createPortal(
+        <div className="vc-chat docked" role="log" aria-label="Discussion">
+          <div className="vc-chat-head">
             <span className="vc-chat-title">Discussion{target ? ` · ${target.title}` : ''}</span>
             <span className="vc-model" role="radiogroup" aria-label="Discussion model">
               {DISCUSSION_MODELS.map((m) => (
@@ -499,8 +499,16 @@ export function VoiceChatButton({
             }}>
               New
             </button>
-            <button type="button" className="vc-chat-close" title="Hide the chat window" onClick={() => setChatOpen(false)}>
-              ×
+            <button
+              type="button"
+              className="vc-chat-close"
+              title="Collapse the discussion column"
+              aria-label="Collapse the discussion column"
+              onClick={() => bus.emit('discussionPanel', { visible: false })}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
           <div className="vc-chat-list" ref={chatRef}>
@@ -542,7 +550,9 @@ export function VoiceChatButton({
             />
           </form>
         </div>
-      )}
+      ,
+          discussionSlot,
+        )}
       {menuOpen && (
         <div className="vc-menu" role="menu" aria-label={live ? 'Reading voice' : 'Dictation mode'}>
           {!live && VOICE_MODES.filter((m) => m.mode !== 'chat').map((m) => (
@@ -565,17 +575,6 @@ export function VoiceChatButton({
           ))}
           {live && <div className="vc-menu-section">Read Claude's messages with</div>}
           {usageText && <div className="vc-usage-line">{usageText}</div>}
-          {live && !chatOpen && (on || chat.length > 0) && (
-            <button type="button" className="vc-menu-item" onClick={() => {
-                setChatOpen(true);
-                setMenuOpen(false);
-              }}
-            >
-              <span className="vc-menu-text">
-                <span className="vc-menu-label">Show the chat window</span>
-              </span>
-            </button>
-          )}
           {live && TTS_ENGINES.map((engine) => {
             const info = ttsInfo?.[engine];
             const current = reading.engine === engine;
@@ -650,7 +649,7 @@ export function VoiceChatButton({
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            toggle();
+            press();
           }
         }}
       >
