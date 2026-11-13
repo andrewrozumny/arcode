@@ -329,7 +329,7 @@ bottom of the window.
 - **→ Claude Code** asks the partner for the task that follows from the discussion and types it into
   the Claude tab's prompt without sending it; read it, edit it, press Enter.
 - **New** starts a fresh discussion. **■ Stop** (in the bubble and the window's header), a click on
-  the button, or talking over it stops a reading. The 🔊 switch turns reading aloud off (remembered).
+  the button, or talking over it stops a reading. The speaker switch in the window's header turns reading aloud off (remembered).
 - The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
   per window, with Sonnet; `ARCODE_DISCUSSION_MODEL` picks another model, `ARCODE_CLAUDE` the
   executable). It loads no MCP servers and keeps no session on disk.

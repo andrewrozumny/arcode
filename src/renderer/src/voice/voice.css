@@ -494,3 +494,21 @@
   color: var(--fg);
   font: 12px var(--font-ui);
 }
+
+/* The speaker switch: an icon button like the others in the header. */
+.vc-chat-head .vc-chat-tool {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 3px;
+  border-radius: 4px;
+}
+.vc-chat-head .vc-chat-tool:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.vc-chat-head .vc-chat-tool[aria-pressed='true'] {
+  color: #8fb4ff;
+}
+.vc-chat-head .vc-chat-tool.off {
+  opacity: 1;
+  color: var(--fg-faint);
+}
