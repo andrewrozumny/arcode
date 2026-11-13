@@ -12,5 +12,6 @@ export const voiceApi: VoiceApi = {
   ttsUsage: () => ipcRenderer.invoke(VoiceChannel.TtsUsage),
   discuss: (projectRoot, text, model) => ipcRenderer.invoke(VoiceChannel.Discuss, projectRoot, text, model),
   discussReset: () => ipcRenderer.send(VoiceChannel.DiscussReset),
+  discussLog: (projectRoot, record) => ipcRenderer.invoke(VoiceChannel.DiscussLog, projectRoot, record),
   onDiscussion: (listener) => subscribe<[DiscussionEvent]>(VoiceChannel.DiscussionEvent, listener),
 };

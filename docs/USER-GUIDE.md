@@ -347,6 +347,16 @@ bottom of the column.
   track fills with blue from the top, clockwise, as characters are used; the tooltip and the voice
   menu give the numbers and the reset date. A reading you stop has already been paid for the piece
   being read and the one rendered ahead (about 800 characters at most); answers still waiting are not.
+- **History:** every discussion is saved in the project, one Markdown file per conversation in
+  `.arcode/discussions/`, named by when it started (`2026-11-13_14-05.md`; New and a model switch
+  start a new file). The file starts with the date, the project and the model, then lists what you
+  said (**Ты**) and the partner's answers (**Собеседник**) with their times, each handed-over task as
+  a quoted block with its status (**Sent to Claude Code** or why not), later Send results, notes and
+  errors. It is appended to as the conversation goes. The session updates sent to the partner are not
+  kept (Claude Code's own transcripts have them). Because a discussion can hold sensitive things,
+  ARcode adds `.arcode/` to the repository's local `.git/info/exclude`, never to a committed file, so
+  the history stays out of git. If a file cannot be written, the discussion goes on and the column
+  says so once.
 
 - **While Claude works (dictation):** phrases still go out, like typed messages: Claude Code queues
   them (they show as queued in the feed). Only a question Claude asks in the terminal (a permission, a choice)
@@ -667,6 +677,7 @@ database the switcher shows recent projects only.
 | `~/Library/Application Support/ARcode/arcode-statusline.py` | Installed status line script. Only with the status line on. |
 | `~/.claude/ide/<port>.lock` | IDE bridge lock file per open window, removed when the window closes. |
 | `~/.claude/settings.json` and `settings.json.bak-arcode-<timestamp>` | Changed only by the status line switch, with a backup. |
+| `<project>/.arcode/discussions/` | Discussion history, one Markdown file per conversation; `.arcode/` is added to the repository's `.git/info/exclude`. |
 | Browser storage of the app | Terminal font size, expanded tree folders, import dialog sort. |
 
 To reset ARcode, quit it and delete `~/Library/Application Support/ARcode`.

@@ -149,11 +149,15 @@ on) is sent to the Claude tab through `sendToPty` when `handoverCheck` allows it
 prompt empty; `terminal/promptDraft.ts` reads unsent text from the screen, leaving out the dim
 suggestion of an empty prompt), else it waits for a Send button. `TerminalSession.sendPasted` writes
 a paste in one bracketed write and presses Enter as a separate input once the program has answered
-the paste (its next output, 400 ms at most), instead of a fixed timer. The `voiceOwner` bus event keeps one button listening at a
-time. The discussion's content is rendered through a portal into the discussion column, which
+the paste (its next output, 400 ms at most), instead of a fixed timer. Every record of the
+conversation (what the user said, the finished answer with its task and status, errors, notes) goes
+over `voice:discussLog` to `voice/history.ts`, which appends it to the conversation's Markdown file
+under `.arcode/discussions` (resolved inside the project root, symlinks included) and adds `.arcode/`
+to the git exclude file. Only the discussion's own button runs `useDiscussion`. The `voiceOwner` bus event keeps one
+button listening at a time. The discussion's content is rendered through a portal into the discussion column, which
 `Workspace` adds to the top row after the viewer (a splitter, then `.discussion-pane`; collapsed, a
 thin rail); `PanelLayout.discussionVisible` and `discussionWidth` keep its state, and the
-`discussionPanel` bus event expands or collapses it. The live one is the draggable buttonThe live one is the draggable button (position in localStorage, measured from the window's
+`discussionPanel` bus event expands or collapses it. The live one is the draggable button (position in localStorage, measured from the window's
 bottom right corner). Modes (`answer.ts`): dictation types without Enter, commands send, chat
 also reads the turn's final assistant message (from the transcript range after the phrase) aloud
 after `speakable.ts` strips code, tables, paths and links. Listening stops while the window is not
@@ -264,6 +268,7 @@ the enclosing git repository (ADR 0009).
 | `.../ARcode/history/<project hash>/<encoded path>/<timestamp>-<save or external>.txt` | yes | Local history snapshots of project text files (1 MB cap, 50 per file); older than 14 days removed at startup. |
 | `.../ARcode/usage/<sessionId>.json` | by the status line script | Live usage records; the script prunes them after 7 days. |
 | `.../ARcode/arcode-statusline.py` | yes | Installed copy of the status line script. |
+| `<project>/.arcode/discussions/<start>.md` | yes | Discussion history, appended record by record by `voice/history.ts`; `.arcode/` added to the repository's `.git/info/exclude`. |
 | `~/.claude/ide/<port>.lock` | yes | IDE bridge lock file (mode 0600), removed when the window closes. |
 | `~/.claude/settings.json` | only on the status line switch | `statusLine` entry added or removed; timestamped backup next to it. |
 | `~/.claude/projects`, `sessions`, `plugins`, `agents`, `skills`, `CLAUDE.md`, `~/.claude.json`, project `.claude/` and `.mcp.json` | never | Read-only sources of the Claude panel, the Claude feed, sessions, usage and model badge. |

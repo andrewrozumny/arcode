@@ -6,6 +6,7 @@ import { discussionModelChoice, TTS_ENGINES, VoiceChannel } from '@shared/voice'
 import type { SpeechResult, TranscribeResult, TtsEngine, TtsInfo } from '@shared/voice';
 import { projectRoot, text } from '../ipcArgs';
 import { Discussion } from './discussion';
+import { DiscussionHistory, logRecord } from './history';
 import { DEFAULT_VOICE, ElevenLabs } from './elevenlabs';
 import { DEFAULT_SPEAKER, Silero, SILERO_SCRIPT, SILERO_VOICES, sileroPython } from './silero';
 import { speechText, speechVoice, synthesize } from './speech';
@@ -90,6 +91,25 @@ export function registerVoiceIpc(ipcMain: IpcMain): void {
     await discussion.send(message, model);
   });
   ipcMain.on(VoiceChannel.DiscussReset, (event) => discussions.get(event.sender.id)?.reset());
+
+  // History files, one writer per project so records of a conversation stay in order.
+  const histories = new Map<string, DiscussionHistory>();
+  ipcMain.handle(VoiceChannel.DiscussLog, async (_event, rawRoot: unknown, rawRecord: unknown): Promise<boolean> => {
+    try {
+      const root = await projectRoot(rawRoot);
+      const record = logRecord(rawRecord);
+      let history = histories.get(root);
+      if (!history) {
+        history = new DiscussionHistory(root);
+        histories.set(root, history);
+      }
+      await history.append(record);
+      return true;
+    } catch (error) {
+      console.warn('[arcode] discussion history not written:', error instanceof Error ? error.message : error);
+      return false;
+    }
+  });
   app.on('will-quit', () => {
     for (const discussion of discussions.values()) discussion.reset();
   });

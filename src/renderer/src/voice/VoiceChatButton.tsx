@@ -237,7 +237,14 @@ export function VoiceChatButton({
     return { ptyId: current.ptyId, status: current.status, draft: readScreen(current.ptyId)?.draft ?? '' };
   }, []);
   const [discussionModel, setDiscussionModel] = useState<DiscussionModel>(loadDiscussionModel);
-  const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence, handoverTarget, model: discussionModel });
+  const discussion = useDiscussion({
+    projectRoot,
+    sessionId: target?.sessionId ?? null,
+    onSentence,
+    handoverTarget,
+    model: discussionModel,
+    enabled: live,
+  });
   const sendRef = useRef(discussion.send);
   useEffect(() => {
     sendRef.current = discussion.send;

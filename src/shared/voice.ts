@@ -20,6 +20,8 @@ export const VoiceChannel = {
   DiscussReset: 'voice:discussReset',
   /** Main to renderer: a piece of the discussion partner's answer. */
   DiscussionEvent: 'voice:discussionEvent',
+  /** One record of the discussion for its history file in the project. */
+  DiscussLog: 'voice:discussLog',
 } as const;
 
 /** Longest text rendered to speech in one call; the renderer splits longer answers. */
@@ -70,6 +72,22 @@ export function discussionModelChoice(value: unknown): DiscussionModel {
 }
 
 /**
+ * One record of a discussion's history: what the user said, the partner's finished answer (with the
+ * task it handed over and what became of it), a later task status, a note or an error. Records of
+ * one conversation share `conversation`, the ISO time it started, which names its file.
+ */
+export interface DiscussionLogRecord {
+  conversation: string;
+  kind: 'you' | 'partner' | 'task' | 'note' | 'error';
+  /** Time of the record, ms since the epoch. */
+  at: number;
+  model: DiscussionModel;
+  text: string;
+  task?: string;
+  taskStatus?: string;
+}
+
+/**
  * The discussion partner's answer as it streams: `delta` adds text, `message` starts a new part of
  * the answer (after the partner looked at a file), `done` ends it, `error` reports a failure.
  */
@@ -112,6 +130,8 @@ export interface VoiceApi {
   discuss(projectRoot: string, text: string, model: DiscussionModel): Promise<void>;
   /** Ends this window's discussion. */
   discussReset(): void;
+  /** Appends a record to the discussion's history file in the project; false when it could not be written. */
+  discussLog(projectRoot: string, record: DiscussionLogRecord): Promise<boolean>;
   /** The partner's answer, piece by piece. */
   onDiscussion(listener: (event: DiscussionEvent) => void): () => void;
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FeedItem } from '@shared/claude';
 import type { PtyId } from '@shared/ipc';
 import { discussionModelChoice } from '@shared/voice';
-import type { DiscussionModel } from '@shared/voice';
+import type { DiscussionLogRecord, DiscussionModel } from '@shared/voice';
 import { bus } from '../bus';
 
 /** One message of the discussion window. */
@@ -212,6 +212,11 @@ interface Options {
   handoverTarget(): HandoverTarget | null;
   /** Model the partner runs on. */
   model: DiscussionModel;
+  /**
+   * Only the discussion's own button takes part: every other instance must ignore the partner's
+   * answers, or a handed-over task would be sent twice.
+   */
+  enabled: boolean;
 }
 
 /** Sends a task when the check allows it: pasted in one piece, then Enter (see TerminalSession.sendPasted). */
@@ -229,7 +234,7 @@ function deliverTask(task: string, target: HandoverTarget | null): Pick<Discussi
  * one piece and submitted, when that tab is idle at an empty prompt; otherwise it stays in the window
  * with the reason and a Send button (`sendTask`).
  */
-export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget, model }: Options) {
+export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget, model, enabled }: Options) {
   const [entries, setEntries] = useState<DiscussionEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const nextId = useRef(1);
@@ -238,10 +243,37 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
   const answer = useRef('');
   const onSentenceRef = useRef(onSentence);
   const targetRef = useRef(handoverTarget);
+  const modelRef = useRef(model);
+  const entriesRef = useRef(entries);
   useEffect(() => {
     onSentenceRef.current = onSentence;
     targetRef.current = handoverTarget;
-  }, [onSentence, handoverTarget]);
+    modelRef.current = model;
+    entriesRef.current = entries;
+  }, [onSentence, handoverTarget, model, entries]);
+
+  // History: every conversation goes to its own file in the project (written by main).
+  const conversation = useRef<string | null>(null);
+  const historyWarned = useRef(false);
+  const log = useCallback(
+    (record: Omit<DiscussionLogRecord, 'conversation' | 'at' | 'model'>, model = modelRef.current) => {
+      conversation.current ??= new Date().toISOString();
+      const full: DiscussionLogRecord = { conversation: conversation.current, at: Date.now(), model, ...record };
+      void window.acode.voice
+        .discussLog(projectRoot, full)
+        .catch(() => false)
+        .then((ok) => {
+          if (ok || historyWarned.current) return;
+          historyWarned.current = true;
+          setEntries((prev) => [...prev, { id: nextId.current++, role: 'note', text: 'The discussion history could not be saved in .arcode/discussions.' }]);
+        });
+    },
+    [projectRoot],
+  );
+  const logRef = useRef(log);
+  useEffect(() => {
+    logRef.current = log;
+  }, [log]);
 
   const patchLast = useCallback((change: (entry: DiscussionEntry) => DiscussionEntry) => {
     setEntries((prev) => {
@@ -251,9 +283,9 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
     });
   }, []);
 
-  useEffect(
-    () =>
-      window.acode.voice.onDiscussion((event) => {
+  useEffect(() => {
+    if (!enabled) return;
+    return window.acode.voice.onDiscussion((event) => {
         if (event.type === 'delta') {
           answer.current += event.text;
           // The window shows what is said; a handover task appears once the answer is complete.
@@ -269,6 +301,7 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
           if (task) handed = { task, ...deliverTask(task, targetRef.current()) };
           patchLast((e) => ({ ...e, text: said, streaming: false, ...handed }));
           setBusy(false);
+          logRef.current({ kind: 'partner', text: said, ...(handed.task ? { task: handed.task } : {}), ...(handed.taskStatus ? { taskStatus: handed.taskStatus } : {}) });
         } else {
           stream.current.flush();
           setBusy(false);
@@ -276,10 +309,10 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
             ...prev.map((e) => (e.streaming ? { ...e, streaming: false } : e)),
             { id: nextId.current++, role: 'error', text: event.message },
           ]);
+          logRef.current({ kind: 'error', text: event.message });
         }
-      }),
-    [patchLast],
-  );
+      });
+  }, [patchLast, enabled]);
 
   /** What happened in the session since the last message (the recent part of it, the first time). */
   const update = useCallback(async (): Promise<string> => {
@@ -309,17 +342,20 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
         { id: nextId.current++, role: 'you', text: shown },
         { id: nextId.current++, role: 'partner', text: '', streaming: true },
       ]);
+      log({ kind: 'you', text: shown });
       try {
         await window.acode.voice.discuss(projectRoot, discussionMessage(await update(), text), model);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         setBusy(false);
         setEntries((prev) => [
           ...prev.map((e) => (e.streaming ? { ...e, streaming: false } : e)),
-          { id: nextId.current++, role: 'error', text: error instanceof Error ? error.message : String(error) },
+          { id: nextId.current++, role: 'error', text: message },
         ]);
+        log({ kind: 'error', text: message });
       }
     },
-    [projectRoot, update, model],
+    [projectRoot, update, model, log],
   );
 
   const send = useCallback((text: string) => void ask(text, text), [ask]);
@@ -327,6 +363,8 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
 
   const reset = useCallback(() => {
     window.acode.voice.discussReset();
+    // The next message starts a new conversation, with its own history file.
+    conversation.current = null;
     cursor.current = null;
     stream.current = new SentenceStream();
     setBusy(false);
@@ -342,18 +380,26 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
       const hadConversation = entries.length > 0;
       reset();
       if (hadConversation) {
-        setEntries([{ id: nextId.current++, role: 'note', text: `Switched to ${MODEL_LABEL[next]}: the discussion starts over.` }]);
+        const text = `Switched to ${MODEL_LABEL[next]}: the discussion starts over.`;
+        setEntries([{ id: nextId.current++, role: 'note', text }]);
+        log({ kind: 'note', text }, next);
       }
     },
-    [entries.length, reset],
+    [entries.length, reset, log],
   );
 
   /** The Send button of a task that was not sent: checks again and sends it when it can. */
-  const sendTask = useCallback((id: number) => {
-    setEntries((prev) =>
-      prev.map((e) => (e.id === id && e.task && !e.taskSent ? { ...e, ...deliverTask(e.task, targetRef.current()) } : e)),
-    );
-  }, []);
+  const sendTask = useCallback(
+    (id: number) => {
+      const entry = entriesRef.current.find((e) => e.id === id);
+      if (!entry?.task || entry.taskSent) return;
+      // Sent once, outside the state update (React may run an updater twice).
+      const result = deliverTask(entry.task, targetRef.current());
+      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...result } : e)));
+      log({ kind: 'task', text: entry.task.split('\n')[0] ?? '', ...(result.taskStatus ? { taskStatus: result.taskStatus } : {}) });
+    },
+    [log],
+  );
 
   return { entries, busy, send, handOver, reset, restartFor, sendTask };
 }
