@@ -17,6 +17,32 @@ export interface DiscussionEntry {
   task?: string;
   /** What happened to the task: sent to the Claude tab, or why it could not be. */
   taskStatus?: string;
+  /** The task went to Claude Code; when false it waits for the Send button. */
+  taskSent?: boolean;
+}
+
+/** The Claude tab a task would go to: its terminal, what Claude Code is doing, and unsent text in its prompt. */
+export interface HandoverTarget {
+  ptyId: PtyId;
+  status: string | undefined;
+  /** Text the user typed into Claude Code's prompt and has not sent; '' when empty. */
+  draft: string;
+}
+
+export type HandoverCheck = { send: true } | { send: false; reason: string };
+
+/**
+ * Whether a handed-over task can be sent right now. It is only sent to a Claude Code that is idle at
+ * an empty prompt: while it works the task would be queued behind its turn, while it asks something
+ * the task would become the answer, and a draft in the prompt would be merged with the task.
+ */
+export function handoverCheck(target: HandoverTarget | null): HandoverCheck {
+  if (!target) return { send: false, reason: 'Not sent: open a Claude tab first' };
+  if (target.status === 'busy' || target.status === 'shell') return { send: false, reason: 'Not sent: Claude Code is busy' };
+  if (target.status === 'waiting') return { send: false, reason: 'Not sent: Claude Code is waiting for an answer' };
+  if (target.status !== 'idle') return { send: false, reason: 'Not sent: Claude Code is not running in that tab' };
+  if (target.draft.trim()) return { send: false, reason: "Not sent: there is unsent text in Claude Code's prompt" };
+  return { send: true };
 }
 
 /** Lines of the Claude Code session sent with the first message, for context. */
@@ -183,15 +209,25 @@ interface Options {
   /** Each complete sentence of an answer, as it streams (for reading aloud). */
   onSentence(sentence: string): void;
   /** The Claude tab a handed-over task goes to, when there is one. */
-  handoverTarget(): PtyId | null;
+  handoverTarget(): HandoverTarget | null;
   /** Model the partner runs on. */
   model: DiscussionModel;
 }
 
+/** Sends a task when the check allows it: pasted in one piece, then Enter (see TerminalSession.sendPasted). */
+function deliverTask(task: string, target: HandoverTarget | null): Pick<DiscussionEntry, 'taskStatus' | 'taskSent'> {
+  const check = handoverCheck(target);
+  if (!check.send || !target) return { taskStatus: check.send ? 'Not sent' : check.reason, taskSent: false };
+  bus.emit('sendToPty', { ptyId: target.ptyId, text: task });
+  return { taskStatus: 'Sent to Claude Code', taskSent: true };
+}
+
 /**
  * A spoken discussion about the work in a Claude Code session, with a partner that does not touch
- * it. Each message carries what happened in the session since the previous one. `handOver` asks the
- * partner for the resulting task and types it into the Claude Code tab's prompt (not sent).
+ * it. Each message carries what happened in the session since the previous one. A task the partner
+ * hands over (asked by voice, or with `handOver`) is sent to the Claude Code tab at once, pasted in
+ * one piece and submitted, when that tab is idle at an empty prompt; otherwise it stays in the window
+ * with the reason and a Send button (`sendTask`).
  */
 export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget, model }: Options) {
   const [entries, setEntries] = useState<DiscussionEntry[]>([]);
@@ -229,12 +265,8 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
         } else if (event.type === 'done') {
           for (const sentence of stream.current.flush()) onSentenceRef.current(sentence);
           const { said, task } = splitHandover(answer.current);
-          let handed: Pick<DiscussionEntry, 'task' | 'taskStatus'> = {};
-          if (task) {
-            const pty = targetRef.current();
-            if (pty !== null) bus.emit('sendToPty', { ptyId: pty, text: task });
-            handed = { task, taskStatus: pty === null ? 'Not sent: open a Claude tab first' : 'Sent to Claude Code' };
-          }
+          let handed: Pick<DiscussionEntry, 'task' | 'taskStatus' | 'taskSent'> = {};
+          if (task) handed = { task, ...deliverTask(task, targetRef.current()) };
           patchLast((e) => ({ ...e, text: said, streaming: false, ...handed }));
           setBusy(false);
         } else {
@@ -316,5 +348,12 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
     [entries.length, reset],
   );
 
-  return { entries, busy, send, handOver, reset, restartFor };
+  /** The Send button of a task that was not sent: checks again and sends it when it can. */
+  const sendTask = useCallback((id: number) => {
+    setEntries((prev) =>
+      prev.map((e) => (e.id === id && e.task && !e.taskSent ? { ...e, ...deliverTask(e.task, targetRef.current()) } : e)),
+    );
+  }, []);
+
+  return { entries, busy, send, handOver, reset, restartFor, sendTask };
 }

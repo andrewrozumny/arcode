@@ -4,6 +4,8 @@ import type { PtyId } from '@shared/ipc';
 export interface ScreenText {
   lines: string[];
   cols: number;
+  /** Text typed into Claude Code's prompt and not sent (dim suggestions left out); '' when empty. */
+  draft: string;
 }
 
 /**

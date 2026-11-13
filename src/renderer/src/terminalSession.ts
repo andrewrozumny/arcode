@@ -12,6 +12,8 @@ import { resolveKey } from './keys';
 import { GATE_OSC, shellEscapePath } from './terminal/commands';
 import { trackInputCaret } from './terminal/inputCaret';
 import { registerFileLinks } from './terminal/links';
+import { promptDraft } from './terminal/promptDraft';
+import type { ScreenRow } from './terminal/promptDraft';
 import { registerScreen } from './terminal/ptyScreens';
 import { parseGateResult, parseTabStatus } from './terminal/osc';
 import type { TabStatusOsc } from './terminal/osc';
@@ -88,6 +90,10 @@ const READY_QUIET_MS = 250;
 const READY_MAX_MS = 3000;
 const PASTE_START = '\x1b[200~';
 const PASTE_END = '\x1b[201~';
+/** Enter waits for the program to answer the paste (it redraws), but never longer than this. */
+const PASTE_ECHO_MAX_MS = 400;
+/** After the first output that follows the paste, the rest of its redraw usually arrives within this. */
+const PASTE_SETTLE_MS = 15;
 
 /** One xterm instance bound to one pty in the main process. */
 export class TerminalSession {
@@ -309,8 +315,12 @@ export class TerminalSession {
     this.armReady(READY_MAX_MS);
   }
 
+  /** Called once with the next output of the pty (a paste waiting for its echo). */
+  private readonly outputWaiters: (() => void)[] = [];
+
   private handleData(data: string): void {
     this.term.write(data);
+    for (const waiter of this.outputWaiters.splice(0)) waiter();
     if (this.readyResolvers.length > 0) this.armReady(READY_QUIET_MS);
   }
 
@@ -347,18 +357,49 @@ export class TerminalSession {
     this.write(`${command}\r`);
   }
 
-  /** Sends text as one bracketed paste and optionally presses Enter afterwards. */
+  /** The next output of the pty, or nothing after `maxMs`. */
+  private nextOutput(maxMs: number): Promise<void> {
+    return new Promise((resolve) => {
+      const done = (): void => {
+        clearTimeout(timer);
+        const index = this.outputWaiters.indexOf(done);
+        if (index >= 0) this.outputWaiters.splice(index, 1);
+        resolve();
+      };
+      const timer = setTimeout(done, maxMs);
+      this.outputWaiters.push(done);
+    });
+  }
+
+  /**
+   * Sends text as one bracketed paste, in a single write, and optionally presses Enter as a separate
+   * input once the program has answered the paste (a TUI such as Claude Code redraws its prompt), so
+   * the line breaks inside never submit early and nothing waits on a fixed timer.
+   */
   sendPasted(text: string, submit: boolean): void {
+    const echoed = submit ? this.nextOutput(PASTE_ECHO_MAX_MS) : null;
     this.write(`${PASTE_START}${text.replace(/\r?\n/g, '\r')}${PASTE_END}`);
-    if (submit) setTimeout(() => this.write('\r'), 60);
+    void echoed?.then(() => setTimeout(() => this.write('\r'), PASTE_SETTLE_MS));
   }
 
   /** The rows on screen as text (the bottom of the buffer, where Claude Code draws its prompts). */
-  private visibleScreen(): { lines: string[]; cols: number } {
+  private visibleScreen(): { lines: string[]; cols: number; draft: string } {
     const buffer = this.term.buffer.active;
     const lines: string[] = [];
-    for (let y = buffer.baseY; y < buffer.baseY + this.term.rows; y++) lines.push(buffer.getLine(y)?.translateToString(true) ?? '');
-    return { lines, cols: this.term.cols };
+    const rows: ScreenRow[] = [];
+    for (let y = buffer.baseY; y < buffer.baseY + this.term.rows; y++) {
+      const line = buffer.getLine(y);
+      lines.push(line?.translateToString(true) ?? '');
+      const row: ScreenRow = { chars: [], dim: [] };
+      for (let x = 0; line && x < this.term.cols; x++) {
+        const cell = line.getCell(x);
+        if (!cell || cell.getWidth() === 0) continue;
+        row.chars.push(cell.getChars() || ' ');
+        row.dim.push(cell.isDim() !== 0);
+      }
+      rows.push(row);
+    }
+    return { lines, cols: this.term.cols, draft: promptDraft(rows) };
   }
 
   write(data: string): void {

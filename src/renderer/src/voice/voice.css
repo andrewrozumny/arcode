@@ -630,3 +630,25 @@
 .vc-chat.docked .vc-chat-head > :not(.vc-chat-title):not(.vc-chat-close) {
   order: 2;
 }
+
+/* A task that could not be sent: the reason, and a button to send it once Claude Code is free. */
+.vc-chat-task.unsent {
+  border-color: rgba(229, 192, 123, 0.6);
+  background: rgba(229, 192, 123, 0.07);
+}
+.vc-chat-task.unsent .vc-chat-task-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--yellow);
+}
+.vc-task-send {
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid rgba(108, 159, 230, 0.6);
+  border-radius: 4px;
+  background: rgba(108, 159, 230, 0.15);
+  color: var(--fg);
+  font: 600 11px var(--font-ui);
+  cursor: pointer;
+}

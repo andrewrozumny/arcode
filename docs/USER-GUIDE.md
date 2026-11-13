@@ -331,8 +331,11 @@ bottom of the column.
 
 - **Handing over:** say so ("pass it to Claude Code", or "yes" when the partner offers), or click
   **→ Claude Code**. The partner says it is handing over and writes the task; ARcode sends it to the
-  Claude tab and shows it under the answer, marked **Sent to Claude Code**. The task itself is not read
-  aloud.
+  Claude tab at once: pasted in one piece (Claude Code shows a long paste as "[Pasted text]"), then
+  submitted as soon as Claude Code has taken the paste, so it starts right away. The task shows under
+  the answer marked **Sent to Claude Code** and is not read aloud. When Claude Code is busy, asks
+  something, is not running in the tab, or has text you typed and not sent in its prompt, the task is
+  not sent: it stays under the answer with the reason and a **Send** button for when it is free.
 - **New** starts a fresh discussion. **■ Stop** (in the bubble and the column's header), a click on
   the button, or talking over it stops a reading. The speaker switch in the column's header turns
   reading aloud off (remembered).

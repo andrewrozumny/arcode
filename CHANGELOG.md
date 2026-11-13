@@ -22,7 +22,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Discussion.** The floating button (Cmd+Shift+Space) is a voice discussion about the work in your
   Claude Code session with a separate, fast Claude conversation that sees what happened there but never
   changes anything. Answers stream into a window and are read aloud sentence by sentence. Saying
-  "pass it to Claude Code" (or **→ Claude Code**) sends the resulting task to the Claude tab. **■ Stop**
+  "pass it to Claude Code" (or **→ Claude Code**) sends the resulting task to the Claude tab and
+  submits it at once; when Claude Code is busy or has unsent text in its prompt, the task waits with
+  the reason and a Send button. **■ Stop**
   ends a reading, the speaker switch turns reading off, and a ring shows the ElevenLabs allowance.
   A Sonnet / Opus switch picks the partner's model. The discussion lives in a resizable, collapsible
   column on the right of the viewer (width and state saved per project), and the Claude feed and the

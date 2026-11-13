@@ -6,6 +6,8 @@ import type { TerminalTab } from '../terminal/types';
 import { loadDictationMode, saveDictationMode, VOICE_MODES } from './answer';
 import type { DictationMode, VoiceMode } from './answer';
 import { loadDiscussionModel, loadReadAloud, MODEL_LABEL, saveDiscussionModel, saveReadAloud, useDiscussion } from './discussion';
+import type { HandoverTarget } from './discussion';
+import { readScreen } from '../terminal/ptyScreens';
 import { DISCUSSION_MODELS, TTS_ENGINES } from '@shared/voice';
 import type { DiscussionModel, TtsEngine, TtsInfo, TtsUsage } from '@shared/voice';
 import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice, usageFraction, usageLabel } from './reading';
@@ -224,11 +226,16 @@ export function VoiceChatButton({
   const onSentence = useCallback((sentence: string) => {
     if (readAloudRef.current) sayRef.current(sentence);
   }, []);
-  const targetPty = useRef<number | null>(null);
+  // Where a handed-over task goes, read when it is sent: the Claude tab, its status and any unsent text in its prompt.
+  const targetForHandover = useRef<VoiceTarget | null>(null);
   useEffect(() => {
-    targetPty.current = target?.ptyId ?? null;
+    targetForHandover.current = target;
   }, [target]);
-  const handoverTarget = useCallback(() => targetPty.current, []);
+  const handoverTarget = useCallback((): HandoverTarget | null => {
+    const current = targetForHandover.current;
+    if (!current) return null;
+    return { ptyId: current.ptyId, status: current.status, draft: readScreen(current.ptyId)?.draft ?? '' };
+  }, []);
   const [discussionModel, setDiscussionModel] = useState<DiscussionModel>(loadDiscussionModel);
   const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence, handoverTarget, model: discussionModel });
   const sendRef = useRef(discussion.send);
@@ -524,8 +531,15 @@ export function VoiceChatButton({
               >
                 {entry.text || (entry.streaming ? '…' : '')}
                 {entry.task && (
-                  <div className="vc-chat-task">
-                    <div className="vc-chat-task-status">{entry.taskStatus}</div>
+                  <div className={entry.taskSent ? 'vc-chat-task' : 'vc-chat-task unsent'}>
+                    <div className="vc-chat-task-status">
+                      {entry.taskStatus}
+                      {!entry.taskSent && (
+                        <button type="button" className="vc-task-send" onClick={() => discussion.sendTask(entry.id)}>
+                          Send
+                        </button>
+                      )}
+                    </div>
                     {entry.task}
                   </div>
                 )}

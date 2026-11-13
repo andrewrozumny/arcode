@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FeedItem } from '@shared/claude';
-import { discussionMessage, loadDiscussionModel, saveDiscussionModel, SentenceStream, sessionUpdate, splitHandover } from './discussion';
+import { discussionMessage, handoverCheck, loadDiscussionModel, saveDiscussionModel, SentenceStream, sessionUpdate, splitHandover } from './discussion';
 
 const base = (id: string) => ({ id, at: null, offset: 0 });
 
@@ -100,5 +100,23 @@ describe('discussion model storage', () => {
   it('uses Sonnet without storage', () => {
     vi.stubGlobal('localStorage', undefined);
     expect(loadDiscussionModel()).toBe('sonnet');
+  });
+});
+
+describe('handoverCheck', () => {
+  const target = (status: string | undefined, draft = '') => ({ ptyId: 1, status, draft });
+
+  it('sends to an idle Claude Code with an empty prompt', () => {
+    expect(handoverCheck(target('idle'))).toEqual({ send: true });
+    expect(handoverCheck(target('idle', '   '))).toEqual({ send: true });
+  });
+
+  it('holds the task back, with the reason, when it would not land as a new message', () => {
+    expect(handoverCheck(null)).toEqual({ send: false, reason: 'Not sent: open a Claude tab first' });
+    expect(handoverCheck(target('busy'))).toEqual({ send: false, reason: 'Not sent: Claude Code is busy' });
+    expect(handoverCheck(target('shell'))).toEqual({ send: false, reason: 'Not sent: Claude Code is busy' });
+    expect(handoverCheck(target('waiting'))).toEqual({ send: false, reason: 'Not sent: Claude Code is waiting for an answer' });
+    expect(handoverCheck(target(undefined))).toEqual({ send: false, reason: 'Not sent: Claude Code is not running in that tab' });
+    expect(handoverCheck(target('idle', 'мой черновик'))).toEqual({ send: false, reason: "Not sent: there is unsent text in Claude Code's prompt" });
   });
 });
