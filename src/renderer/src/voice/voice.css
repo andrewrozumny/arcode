@@ -386,3 +386,43 @@
 .vc-chat-action::before {
   content: '▸ ';
 }
+
+/* Stop reading, and the read-aloud switch, in the live chat. */
+.vc-chat-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vc-chat-head {
+  gap: 8px;
+}
+.vc-chat-tool {
+  border: 0;
+  background: none;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.vc-chat-tool.off {
+  opacity: 0.6;
+}
+.vc-stop {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px solid rgba(79, 140, 255, 0.6);
+  border-radius: 5px;
+  background: rgba(79, 140, 255, 0.16);
+  color: #8fb4ff;
+  font: 600 11px var(--font-ui);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.vc-chat-head .vc-stop {
+  margin-top: 0;
+}
+.vc-stop:hover {
+  background: rgba(79, 140, 255, 0.28);
+}

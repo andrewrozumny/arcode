@@ -30,6 +30,25 @@ export function chatEntries(items: readonly FeedItem[]): ChatEntry[] {
   return out;
 }
 
+const READ_ALOUD_KEY = 'arcode.voiceChat.readAloud';
+
+/** Whether the live chat reads Claude's messages aloud (on unless switched off). */
+export function loadReadAloud(): boolean {
+  try {
+    return localStorage.getItem(READ_ALOUD_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveReadAloud(on: boolean): void {
+  try {
+    localStorage.setItem(READ_ALOUD_KEY, on ? 'on' : 'off');
+  } catch {
+    // A convenience; losing it is fine.
+  }
+}
+
 /** Clock skew allowed between the transcript's times and this window's clock. */
 const SKEW_MS = 2000;
 

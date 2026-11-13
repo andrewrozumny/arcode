@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TerminalTab } from '../terminal/types';
 import { loadDictationMode, saveDictationMode, VOICE_MODES } from './answer';
 import type { DictationMode, VoiceMode } from './answer';
-import { useChatStream } from './chatStream';
+import { loadReadAloud, saveReadAloud, useChatStream } from './chatStream';
 import { TTS_ENGINES } from '@shared/voice';
 import type { TtsEngine, TtsInfo } from '@shared/voice';
 import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice } from './reading';
@@ -146,8 +146,24 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
   const [readingChoice, setReadingChoice] = useState<ReadingChoice>(loadReadingChoice);
   const [ttsInfo, setTtsInfo] = useState<TtsInfo | null>(null);
   const reading = useMemo(() => readingVoice(readingChoice, ttsInfo), [readingChoice, ttsInfo]);
-  const { phase, level, error, lastSent, reason, claudeWorking, on, say, toggle, dismissError } = useVoiceChat(target, mode, reading, kind);
-  const chat = useChatStream(live ? (target?.sessionId ?? null) : null, live && on, say);
+  const { phase, level, error, lastSent, reason, claudeWorking, on, say, toggle, stopSpeaking, dismissError } = useVoiceChat(target, mode, reading, kind);
+  // Reading aloud can be switched off: the chat keeps going, Claude's messages are only shown.
+  const [readAloud, setReadAloud] = useState(loadReadAloud);
+  const readAloudRef = useRef(readAloud);
+  useEffect(() => {
+    readAloudRef.current = readAloud;
+  }, [readAloud]);
+  const sayIfOn = useCallback((text: string) => {
+    if (readAloudRef.current) say(text);
+  }, [say]);
+  const toggleReadAloud = (): void => {
+    const next = !readAloud;
+    setReadAloud(next);
+    saveReadAloud(next);
+    if (!next) stopSpeaking();
+  };
+  const speakingNow = phase === 'speaking';
+  const chat = useChatStream(live ? (target?.sessionId ?? null) : null, live && on, sayIfOn);
   const [chatOpen, setChatOpen] = useState(true);
   const chatRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -303,7 +319,21 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
       {live && on && chatOpen && (
         <div className="vc-chat" role="log" aria-label="Live chat">
           <div className="vc-chat-head">
-            <span>Live chat{target ? ` · ${target.title}` : ''}</span>
+            <span className="vc-chat-title">Live chat{target ? ` · ${target.title}` : ''}</span>
+            {speakingNow && (
+              <button type="button" className="vc-stop" title="Stop reading (the messages stay here)" onClick={stopSpeaking}>
+                ■ Stop
+              </button>
+            )}
+            <button
+              type="button"
+              className={readAloud ? 'vc-chat-tool' : 'vc-chat-tool off'}
+              title={readAloud ? 'Reading aloud is on. Click to only show the messages' : 'Reading aloud is off. Click to read Claude\'s messages aloud'}
+              aria-pressed={readAloud}
+              onClick={toggleReadAloud}
+            >
+              {readAloud ? '🔊' : '🔇'}
+            </button>
             <button type="button" className="vc-chat-close" title="Hide the chat window" onClick={() => setChatOpen(false)}>
               ×
             </button>
@@ -393,6 +423,11 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
             {modeInfo?.label} · {LABEL[phase]}
           </span>
           {note && <span className="vc-bubble-note">{note}</span>}
+          {speakingNow && (
+            <button type="button" className="vc-stop" onClick={stopSpeaking} title="Stop reading">
+              ■ Stop reading
+            </button>
+          )}
           {error && phase !== 'error' && (
             <button type="button" className="vc-bubble-error" onClick={dismissError} title="Dismiss">
               {error}

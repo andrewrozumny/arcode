@@ -20,7 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Dictation button in the terminal and a live chat.** Dictation (Cmd+Shift+D) sits next to
   Claude's prompt and either types into it or sends each phrase. The floating button became a live
   chat (Cmd+Shift+Space): every message Claude writes is read aloud as it arrives, and a window
-  above the button shows the conversation as it goes. Only one of them listens at a time.
+  above the button shows the conversation as it goes. **■ Stop** ends a reading, and a 🔊 switch
+  turns reading aloud off while the chat goes on. Only one of them listens at a time.
 - **Voice modes.** The voice button has three modes: Dictation types into Claude's prompt without
   Enter so you can keep talking or edit, Commands sends each phrase, Conversation also reads
   Claude's answer aloud without code. It listens only while ARcode is the active window, and

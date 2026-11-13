@@ -322,7 +322,10 @@ Cmd+Shift+Space) and talk: each phrase goes to Claude, and every message Claude 
 last one of a turn, is read aloud as it arrives, without code blocks, tables, paths or links. A
 window above the button shows the conversation as it goes: your phrases, Claude's messages and a
 short grey line for each thing Claude does (a command, an edit). Close it with ×; the voice menu can
-show it again. Talking over the reading, or a click, stops it. The mark on the button's corner picks
+show it again. To stop a reading, click **■ Stop** (in the bubble next to the button and in the chat
+window's header), click the button itself, or talk over it; the messages waiting to be read are dropped
+too. The 🔊 switch in the window's header turns reading aloud off and on: with it off the chat goes on
+and Claude's messages only show in the window (remembered). The mark on the button's corner picks
 the reading voice.
 
 - **While Claude works:** phrases still go out, like typed messages: Claude Code queues them (they
