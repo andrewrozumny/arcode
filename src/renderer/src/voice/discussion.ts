@@ -10,8 +10,10 @@ export interface DiscussionEntry {
   text: string;
   /** The partner is still writing it. */
   streaming?: boolean;
-  /** A task written for Claude Code (typed into its prompt, not read aloud). */
-  handover?: boolean;
+  /** The task the partner handed over to Claude Code (shown under the answer, never read aloud). */
+  task?: string;
+  /** What happened to the task: sent to the Claude tab, or why it could not be. */
+  taskStatus?: string;
 }
 
 /** Lines of the Claude Code session sent with the first message, for context. */
@@ -19,8 +21,17 @@ const FIRST_UPDATE_ITEMS = 40;
 /** Longest session update sent with one message; the oldest lines are dropped first. */
 const MAX_UPDATE_CHARS = 8000;
 const MAX_LINE_CHARS = 600;
-const HANDOVER_REQUEST =
-  'Hand this over to Claude Code now: write the task that follows from our discussion, as described in your instructions.';
+const HANDOVER_REQUEST = 'Hand the result of our discussion over to Claude Code now.';
+const HANDOVER = /<handover>([\s\S]*?)(?:<\/handover>|$)/;
+
+/** An answer split into what is said and the task handed over to Claude Code, if any. */
+export function splitHandover(answer: string): { said: string; task: string | null } {
+  const match = HANDOVER.exec(answer);
+  if (!match) return { said: answer.trim(), task: null };
+  const said = (answer.slice(0, match.index) + answer.slice(match.index + match[0].length)).replace(/\n{3,}/g, '\n\n').trim();
+  const task = (match[1] ?? '').trim();
+  return { said, task: task || null };
+}
 
 const clip = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
@@ -50,32 +61,50 @@ export function discussionMessage(update: string, text: string): string {
   return update ? `<claude_code_session_update>\n${update}\n</claude_code_session_update>\n\n${text}` : text;
 }
 
+/** Parts of an answer that are never read aloud: code blocks and the task handed over to Claude Code. */
+const SILENT: readonly { open: string; close: string }[] = [
+  { open: '```', close: '```' },
+  { open: '<handover>', close: '</handover>' },
+];
+/** Longest marker, so a marker split across two pieces of the stream is still recognised. */
+const MARKER_TAIL = Math.max(...SILENT.flatMap((m) => [m.open.length, m.close.length])) - 1;
+
 /**
- * Splits streamed text into sentences ready to be read aloud. Text inside code fences is never
- * returned, even when a fence arrives in pieces.
+ * Splits streamed text into sentences ready to be read aloud. Text inside code fences or handover
+ * tags is never returned, even when a marker arrives in pieces.
  */
 export class SentenceStream {
   private pending = '';
-  private inFence = false;
+  private closing: string | null = null;
 
   /** Adds streamed text; returns the sentences it completed. */
   push(text: string): string[] {
     this.pending += text;
     const out: string[] = [];
     for (;;) {
-      if (this.inFence) {
-        const close = this.pending.indexOf('```');
+      if (this.closing) {
+        const close = this.pending.indexOf(this.closing);
         if (close < 0) {
-          // Keep only a possible partial fence marker at the end.
-          this.pending = this.pending.slice(-2);
+          // Keep only what could be the start of the closing marker.
+          this.pending = this.pending.slice(-MARKER_TAIL);
           return out;
         }
-        this.pending = this.pending.slice(close + 3);
-        this.inFence = false;
+        this.pending = this.pending.slice(close + this.closing.length);
+        this.closing = null;
         continue;
       }
-      const open = this.pending.indexOf('```');
-      const end = /[.!?…]+["»)]?(?=\s)|\n\s*\n/.exec(open >= 0 ? this.pending.slice(0, open) : this.pending);
+      let open = -1;
+      let marker: (typeof SILENT)[number] | null = null;
+      for (const m of SILENT) {
+        const at = this.pending.indexOf(m.open);
+        if (at >= 0 && (open < 0 || at < open)) {
+          open = at;
+          marker = m;
+        }
+      }
+      // A marker may still be arriving: never speak the last few characters that could start one.
+      const speakable = open >= 0 ? this.pending.slice(0, open) : this.pending;
+      const end = /[.!?…]+["»)]?(?=\s)|\n\s*\n/.exec(speakable);
       if (end) {
         const cut = end.index + end[0].length;
         const sentence = this.pending.slice(0, cut).trim();
@@ -83,11 +112,11 @@ export class SentenceStream {
         if (sentence) out.push(sentence);
         continue;
       }
-      if (open >= 0) {
+      if (open >= 0 && marker) {
         const before = this.pending.slice(0, open).trim();
         if (before) out.push(before);
-        this.pending = this.pending.slice(open + 3);
-        this.inFence = true;
+        this.pending = this.pending.slice(open + marker.open.length);
+        this.closing = marker.close;
         continue;
       }
       return out;
@@ -96,9 +125,10 @@ export class SentenceStream {
 
   /** The rest, at the end of an answer. */
   flush(): string[] {
-    const rest = this.inFence ? '' : this.pending.trim();
+    // Drop a marker that never completed (`<hand` at the very end).
+    const rest = this.closing ? '' : this.pending.replace(/<\/?[a-z]*$|`{1,2}$/i, '').trim();
     this.pending = '';
-    this.inFence = false;
+    this.closing = null;
     return rest ? [rest] : [];
   }
 }
@@ -128,6 +158,8 @@ interface Options {
   sessionId: string | null;
   /** Each complete sentence of an answer, as it streams (for reading aloud). */
   onSentence(sentence: string): void;
+  /** The Claude tab a handed-over task goes to, when there is one. */
+  handoverTarget(): PtyId | null;
 }
 
 /**
@@ -135,18 +167,19 @@ interface Options {
  * it. Each message carries what happened in the session since the previous one. `handOver` asks the
  * partner for the resulting task and types it into the Claude Code tab's prompt (not sent).
  */
-export function useDiscussion({ projectRoot, sessionId, onSentence }: Options) {
+export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget }: Options) {
   const [entries, setEntries] = useState<DiscussionEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const nextId = useRef(1);
   const cursor = useRef<{ sessionId: string; offset: number } | null>(null);
   const stream = useRef(new SentenceStream());
-  const handover = useRef<PtyId | null>(null);
   const answer = useRef('');
   const onSentenceRef = useRef(onSentence);
+  const targetRef = useRef(handoverTarget);
   useEffect(() => {
     onSentenceRef.current = onSentence;
-  }, [onSentence]);
+    targetRef.current = handoverTarget;
+  }, [onSentence, handoverTarget]);
 
   const patchLast = useCallback((change: (entry: DiscussionEntry) => DiscussionEntry) => {
     setEntries((prev) => {
@@ -159,31 +192,27 @@ export function useDiscussion({ projectRoot, sessionId, onSentence }: Options) {
   useEffect(
     () =>
       window.acode.voice.onDiscussion((event) => {
-        const speaking = handover.current === null;
         if (event.type === 'delta') {
           answer.current += event.text;
-          patchLast((e) => ({ ...e, text: e.text + event.text }));
-          if (speaking) for (const sentence of stream.current.push(event.text)) onSentenceRef.current(sentence);
+          // The window shows what is said; a handover task appears once the answer is complete.
+          const said = splitHandover(answer.current).said;
+          patchLast((e) => ({ ...e, text: said }));
+          for (const sentence of stream.current.push(event.text)) onSentenceRef.current(sentence);
         } else if (event.type === 'message') {
-          if (answer.current && !answer.current.endsWith('\n')) {
-            answer.current += '\n\n';
-            patchLast((e) => ({ ...e, text: `${e.text}\n\n` }));
-          }
+          if (answer.current && !answer.current.endsWith('\n')) answer.current += '\n\n';
         } else if (event.type === 'done') {
-          if (speaking) for (const sentence of stream.current.flush()) onSentenceRef.current(sentence);
-          else stream.current.flush();
-          patchLast((e) => ({ ...e, streaming: false }));
-          setBusy(false);
-          const pty = handover.current;
-          handover.current = null;
-          if (pty !== null && answer.current.trim()) {
-            bus.emit('sendToPty', { ptyId: pty, text: answer.current.trim(), submit: false });
-            bus.emit('focusPanel', { panel: 'terminal' });
-            bus.emit('focusPty', { ptyId: pty });
+          for (const sentence of stream.current.flush()) onSentenceRef.current(sentence);
+          const { said, task } = splitHandover(answer.current);
+          let handed: Pick<DiscussionEntry, 'task' | 'taskStatus'> = {};
+          if (task) {
+            const pty = targetRef.current();
+            if (pty !== null) bus.emit('sendToPty', { ptyId: pty, text: task });
+            handed = { task, taskStatus: pty === null ? 'Not sent: open a Claude tab first' : 'Sent to Claude Code' };
           }
+          patchLast((e) => ({ ...e, text: said, streaming: false, ...handed }));
+          setBusy(false);
         } else {
           stream.current.flush();
-          handover.current = null;
           setBusy(false);
           setEntries((prev) => [
             ...prev.map((e) => (e.streaming ? { ...e, streaming: false } : e)),
@@ -213,20 +242,18 @@ export function useDiscussion({ projectRoot, sessionId, onSentence }: Options) {
   }, [sessionId]);
 
   const ask = useCallback(
-    async (text: string, shown: string, handoverTo: PtyId | null) => {
+    async (text: string, shown: string) => {
       answer.current = '';
       stream.current = new SentenceStream();
-      handover.current = handoverTo;
       setBusy(true);
       setEntries((prev) => [
         ...prev,
         { id: nextId.current++, role: 'you', text: shown },
-        { id: nextId.current++, role: 'partner', text: '', streaming: true, handover: handoverTo !== null },
+        { id: nextId.current++, role: 'partner', text: '', streaming: true },
       ]);
       try {
         await window.acode.voice.discuss(projectRoot, discussionMessage(await update(), text));
       } catch (error) {
-        handover.current = null;
         setBusy(false);
         setEntries((prev) => [
           ...prev.map((e) => (e.streaming ? { ...e, streaming: false } : e)),
@@ -237,13 +264,12 @@ export function useDiscussion({ projectRoot, sessionId, onSentence }: Options) {
     [projectRoot, update],
   );
 
-  const send = useCallback((text: string) => void ask(text, text, null), [ask]);
-  const handOver = useCallback((ptyId: PtyId) => void ask(HANDOVER_REQUEST, '→ Hand over to Claude Code', ptyId), [ask]);
+  const send = useCallback((text: string) => void ask(text, text), [ask]);
+  const handOver = useCallback(() => void ask(HANDOVER_REQUEST, '→ Hand over to Claude Code'), [ask]);
 
   const reset = useCallback(() => {
     window.acode.voice.discussReset();
     cursor.current = null;
-    handover.current = null;
     stream.current = new SentenceStream();
     setBusy(false);
     setEntries([]);

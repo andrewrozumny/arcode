@@ -196,7 +196,12 @@ export function VoiceChatButton({
   const onSentence = useCallback((sentence: string) => {
     if (readAloudRef.current) sayRef.current(sentence);
   }, []);
-  const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence });
+  const targetPty = useRef<number | null>(null);
+  useEffect(() => {
+    targetPty.current = target?.ptyId ?? null;
+  }, [target]);
+  const handoverTarget = useCallback(() => targetPty.current, []);
+  const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence, handoverTarget });
   const sendRef = useRef(discussion.send);
   useEffect(() => {
     sendRef.current = discussion.send;
@@ -437,9 +442,9 @@ export function VoiceChatButton({
             <button
               type="button"
               className="vc-chat-tool"
-              title={target ? `Write the task that follows from this discussion into the prompt of "${target.title}" (not sent)` : 'Open a Claude tab first'}
+              title={target ? `Send the task that follows from this discussion to "${target.title}"` : 'Open a Claude tab first'}
               disabled={!target || discussion.busy || chat.length === 0}
-              onClick={() => target && discussion.handOver(target.ptyId)}
+              onClick={() => discussion.handOver()}
             >
               → Claude Code
             </button>
@@ -462,9 +467,15 @@ export function VoiceChatButton({
             {chat.map((entry) => (
               <div
                 key={entry.id}
-                className={`vc-chat-line vc-chat-${entry.role === 'partner' ? 'claude' : entry.role}${entry.streaming ? ' streaming' : ''}${entry.handover ? ' handover' : ''}`}
+                className={`vc-chat-line vc-chat-${entry.role === 'partner' ? 'claude' : entry.role}${entry.streaming ? ' streaming' : ''}`}
               >
                 {entry.text || (entry.streaming ? '…' : '')}
+                {entry.task && (
+                  <div className="vc-chat-task">
+                    <div className="vc-chat-task-status">{entry.taskStatus}</div>
+                    {entry.task}
+                  </div>
+                )}
               </div>
             ))}
           </div>

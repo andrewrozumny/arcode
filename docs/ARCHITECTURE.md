@@ -141,7 +141,9 @@ one with a `<claude_code_session_update>` of the Claude tab's feed since the las
 `voice:discuss`. Main (`voice/discussion.ts`) keeps one `claude -p` per window with stream-json in and
 out (Read, Grep and Glob only, `--strict-mcp-config`, `--no-session-persistence`, an appended system
 prompt) and forwards text deltas as `voice:discussionEvent`; `SentenceStream` cuts them into sentences
-for the speech queue and skips code fences. The `voiceOwner` bus event keeps one button listening at a
+for the speech queue and skips code fences and `<handover>` tags. A finished answer with a
+`<handover>` task (the partner's prompt says to use it when the user asks or agrees to pass something
+on) is sent to the Claude tab through `sendToPty`. The `voiceOwner` bus event keeps one button listening at a
 time. The live one is the draggable buttonThe live one is the draggable button (position in localStorage, measured from the window's
 bottom right corner). Modes (`answer.ts`): dictation types without Enter, commands send, chat
 also reads the turn's final assistant message (from the transcript range after the phrase) aloud

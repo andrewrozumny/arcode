@@ -512,3 +512,20 @@
   opacity: 1;
   color: var(--fg-faint);
 }
+
+/* A task the partner handed over to Claude Code, under its answer. */
+.vc-chat-task {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px dashed rgba(79, 140, 255, 0.6);
+  border-radius: 6px;
+  background: rgba(79, 140, 255, 0.08);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+}
+.vc-chat-task-status {
+  margin-bottom: 4px;
+  color: #8fb4ff;
+  font-weight: 600;
+  font-size: 11px;
+}

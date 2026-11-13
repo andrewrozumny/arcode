@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedItem } from '@shared/claude';
-import { discussionMessage, SentenceStream, sessionUpdate } from './discussion';
+import { discussionMessage, SentenceStream, sessionUpdate, splitHandover } from './discussion';
 
 const base = (id: string) => ({ id, at: null, offset: 0 });
 
@@ -60,5 +60,22 @@ describe('discussionMessage', () => {
     expect(discussionMessage('Claude Code: done', 'что дальше?')).toBe(
       '<claude_code_session_update>\nClaude Code: done\n</claude_code_session_update>\n\nчто дальше?',
     );
+  });
+});
+
+describe('handover', () => {
+  it('never reads the handed-over task aloud, even when the tag arrives in pieces', () => {
+    const s = new SentenceStream();
+    expect(s.push('Передаю в Claude Code. <hand')).toEqual(['Передаю в Claude Code.']);
+    expect(s.push('over>Сделай кнопку. Потом тесты.</hand')).toEqual([]);
+    expect(s.push('over> Готово.')).toEqual([]);
+    expect(s.flush()).toEqual(['Готово.']);
+  });
+
+  it('splits an answer into what is said and the task', () => {
+    expect(splitHandover('Передаю.\n<handover>\n## Задача\nСделай X\n</handover>')).toEqual({ said: 'Передаю.', task: '## Задача\nСделай X' });
+    expect(splitHandover('Просто ответ.')).toEqual({ said: 'Просто ответ.', task: null });
+    // An answer cut off inside the tags still hands over what arrived.
+    expect(splitHandover('Передаю. <handover>Сделай X')).toEqual({ said: 'Передаю.', task: 'Сделай X' });
   });
 });

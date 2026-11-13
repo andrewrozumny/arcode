@@ -21,9 +21,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   either types into it or sends each phrase.
 - **Discussion.** The floating button (Cmd+Shift+Space) is a voice discussion about the work in your
   Claude Code session with a separate, fast Claude conversation that sees what happened there but never
-  changes anything. Answers stream into a window and are read aloud sentence by sentence; **→ Claude
-  Code** types the resulting task into the Claude tab's prompt. **■ Stop** ends a reading, the speaker switch turns
-  reading off, and a ring shows the ElevenLabs allowance. Only one voice button listens at a time.
+  changes anything. Answers stream into a window and are read aloud sentence by sentence. Saying
+  "pass it to Claude Code" (or **→ Claude Code**) sends the resulting task to the Claude tab. **■ Stop**
+  ends a reading, the speaker switch turns reading off, and a ring shows the ElevenLabs allowance.
+  Only one voice button listens at a time.
 - **Voice modes.** The voice button has three modes: Dictation types into Claude's prompt without
   Enter so you can keep talking or edit, Commands sends each phrase, Conversation also reads
   Claude's answer aloud without code. It listens only while ARcode is the active window, and

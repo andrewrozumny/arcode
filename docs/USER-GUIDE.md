@@ -326,8 +326,10 @@ never writes, edits or runs anything and never types into Claude Code. Its answe
 window and are read aloud sentence by sentence, without code. You can also type in the line at the
 bottom of the window.
 
-- **→ Claude Code** asks the partner for the task that follows from the discussion and types it into
-  the Claude tab's prompt without sending it; read it, edit it, press Enter.
+- **Handing over:** say so ("pass it to Claude Code", or "yes" when the partner offers), or click
+  **→ Claude Code**. The partner says it is handing over and writes the task; ARcode sends it to the
+  Claude tab and shows it under the answer, marked **Sent to Claude Code**. The task itself is not read
+  aloud.
 - **New** starts a fresh discussion. **■ Stop** (in the bubble and the window's header), a click on
   the button, or talking over it stops a reading. The speaker switch in the window's header turns reading aloud off (remembered).
 - The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
