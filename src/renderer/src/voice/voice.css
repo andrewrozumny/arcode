@@ -427,25 +427,37 @@
   background: rgba(79, 140, 255, 0.28);
 }
 
-/* ElevenLabs allowance around the live chat button: a light track filling dark as it is used. */
+/*
+ * ElevenLabs allowance around the live chat button. Drawn at its real size (60 px, an 8 px gap around
+ * the 44 px button): a faint track that both light and dark content show through, filled with the
+ * soft accent from the top, clockwise.
+ */
 .vc-usage-ring {
   position: absolute;
-  inset: -6px;
-  width: calc(100% + 12px);
-  height: calc(100% + 12px);
+  top: -8px;
+  left: -8px;
+  width: 60px;
+  height: 60px;
+  overflow: visible;
   pointer-events: none;
+  shape-rendering: geometricPrecision;
 }
 .vc-usage-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.85);
-  stroke-width: 3;
+  stroke: rgba(134, 138, 145, 0.32);
+  stroke-width: 2;
 }
 .vc-usage-used {
   fill: none;
-  stroke: #15161a;
-  stroke-width: 3;
-  stroke-linecap: butt;
-  transition: stroke-dasharray 400ms ease;
+  stroke: var(--git-modified);
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.35));
+  transition: stroke-dasharray 500ms ease;
+}
+/* With the usage ring around it, the listening pulse stays inside it (22 px at most 1.2 times: 26.4 px, the ring starts at 28). */
+.vc-button.has-usage .vc-ring {
+  transform: scale(calc(1 + var(--vc-ring, 0) * 0.2));
 }
 .vc-usage-line {
   margin: 0 8px 4px;

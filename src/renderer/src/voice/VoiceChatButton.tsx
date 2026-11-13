@@ -110,17 +110,40 @@ function ModeMark({ mode }: { mode: VoiceMode }) {
   );
 }
 
+/** Outer size of the usage ring in CSS pixels: the 44 px button plus an 8 px gap on each side. */
+const RING_SIZE = 60;
+const RING_STROKE = 2;
+/** Radius in whole pixels: the 2 px stroke covers exactly the pixels 28 to 30 from the centre, so it stays crisp. */
+const RING_RADIUS = RING_SIZE / 2 - RING_STROKE / 2;
+
 /**
- * The ElevenLabs allowance around the button: a light track that fills dark as characters are used,
- * from the top, clockwise.
+ * The ElevenLabs allowance around the button, drawn at its real pixel size (no scaling): a faint
+ * track that fills with the accent colour as characters are used, from the top, clockwise.
  */
-function UsageRing({ used }: { used: number }) {
-  const r = 25;
-  const length = 2 * Math.PI * r;
+export function UsageRing({ used }: { used: number }) {
+  const centre = RING_SIZE / 2;
+  const length = 2 * Math.PI * RING_RADIUS;
+  // Round caps add half a stroke at each end: take them off the arc so a full ring meets exactly.
+  const arc = Math.max(0, length * Math.min(1, used) - (used < 1 ? RING_STROKE : 0));
   return (
-    <svg className="vc-usage-ring" viewBox="0 0 54 54" aria-hidden="true">
-      <circle cx="27" cy="27" r={r} className="vc-usage-track" />
-      <circle cx="27" cy="27" r={r} className="vc-usage-used" strokeDasharray={`${length * used} ${length}`} transform="rotate(-90 27 27)" />
+    <svg
+      className="vc-usage-ring"
+      width={RING_SIZE}
+      height={RING_SIZE}
+      viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+      aria-hidden="true"
+    >
+      <circle cx={centre} cy={centre} r={RING_RADIUS} className="vc-usage-track" />
+      {used > 0.002 && (
+        <circle
+          cx={centre}
+          cy={centre}
+          r={RING_RADIUS}
+          className="vc-usage-used"
+          strokeDasharray={`${arc} ${length}`}
+          transform={`rotate(-90 ${centre} ${centre})`}
+        />
+      )}
     </svg>
   );
 }
@@ -589,7 +612,7 @@ export function VoiceChatButton({
       <span className="vc-anchor">
       <button
         type="button"
-        className={`vc-button vc-${phase}`}
+        className={`vc-button vc-${phase}${showsUsage && usage ? ' has-usage' : ''}`}
         style={{ ['--vc-ring' as string]: String(ring) }}
         title={title}
         aria-label={title}

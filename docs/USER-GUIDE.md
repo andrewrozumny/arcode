@@ -335,9 +335,9 @@ bottom of the window.
 - The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
   per window, with Sonnet; `ARCODE_DISCUSSION_MODEL` picks another model, `ARCODE_CLAUDE` the
   executable). It loads no MCP servers and keeps no session on disk.
-- While ElevenLabs reads, a ring around the button shows the plan's character allowance: the light
-  track fills dark as characters are used; the tooltip and the voice menu give the numbers and the
-  reset date. A reading you stop has already been paid for the piece being read and the one rendered
+- While ElevenLabs reads, a ring around the button shows the plan's character allowance: a faint
+  track fills with blue from the top, clockwise, as characters are used; the tooltip and the voice
+  menu give the numbers and the reset date. A reading you stop has already been paid for the piece being read and the one rendered
   ahead (about 800 characters at most); answers still waiting are not.
 
 - **While Claude works (dictation):** phrases still go out, like typed messages: Claude Code queues
