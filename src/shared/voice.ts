@@ -12,6 +12,8 @@ export const VoiceChannel = {
   Speak: 'voice:speak',
   /** Which reading engines can be used on this Mac, and their voices. */
   TtsInfo: 'voice:ttsInfo',
+  /** Characters of the ElevenLabs plan used so far in this billing period. */
+  TtsUsage: 'voice:ttsUsage',
 } as const;
 
 /** Longest text rendered to speech in one call; the renderer splits longer answers. */
@@ -51,6 +53,15 @@ export interface TtsEngineInfo {
 
 export type TtsInfo = Record<TtsEngine, TtsEngineInfo>;
 
+/** The ElevenLabs plan's character allowance: used and limit of this period, and when it resets. */
+export interface TtsUsage {
+  used: number;
+  limit: number;
+  /** Unix time in ms of the next reset; null when unknown. */
+  resetsAt: number | null;
+  tier: string | null;
+}
+
 /** Largest WAV main accepts (about 26 minutes of 16 kHz mono 16-bit audio). */
 export const VOICE_MAX_WAV_BYTES = 50 * 1024 * 1024;
 
@@ -69,4 +80,6 @@ export interface VoiceApi {
   speak(request: SpeakRequest): Promise<SpeechResult>;
   /** Reading engines that can be used here and their voices (ElevenLabs voices come from the account). */
   ttsInfo(): Promise<TtsInfo>;
+  /** The ElevenLabs plan's usage; null without a key or when it cannot be read. */
+  ttsUsage(): Promise<TtsUsage | null>;
 }

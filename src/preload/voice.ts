@@ -8,4 +8,5 @@ export const voiceApi: VoiceApi = {
   requestMic: () => ipcRenderer.invoke(VoiceChannel.RequestMic),
   speak: (request) => ipcRenderer.invoke(VoiceChannel.Speak, request),
   ttsInfo: () => ipcRenderer.invoke(VoiceChannel.TtsInfo),
+  ttsUsage: () => ipcRenderer.invoke(VoiceChannel.TtsUsage),
 };

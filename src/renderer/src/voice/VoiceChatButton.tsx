@@ -5,8 +5,8 @@ import { loadDictationMode, saveDictationMode, VOICE_MODES } from './answer';
 import type { DictationMode, VoiceMode } from './answer';
 import { loadReadAloud, saveReadAloud, useChatStream } from './chatStream';
 import { TTS_ENGINES } from '@shared/voice';
-import type { TtsEngine, TtsInfo } from '@shared/voice';
-import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice } from './reading';
+import type { TtsEngine, TtsInfo, TtsUsage } from '@shared/voice';
+import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice, usageFraction, usageLabel } from './reading';
 import type { ReadingChoice } from './reading';
 import { useVoiceChat } from './useVoiceChat';
 import type { VoicePhase, VoiceTarget } from './useVoiceChat';
@@ -110,6 +110,21 @@ function ModeMark({ mode }: { mode: VoiceMode }) {
   );
 }
 
+/**
+ * The ElevenLabs allowance around the button: a light track that fills dark as characters are used,
+ * from the top, clockwise.
+ */
+function UsageRing({ used }: { used: number }) {
+  const r = 25;
+  const length = 2 * Math.PI * r;
+  return (
+    <svg className="vc-usage-ring" viewBox="0 0 54 54" aria-hidden="true">
+      <circle cx="27" cy="27" r={r} className="vc-usage-track" />
+      <circle cx="27" cy="27" r={r} className="vc-usage-used" strokeDasharray={`${length * used} ${length}`} transform="rotate(-90 27 27)" />
+    </svg>
+  );
+}
+
 /** Speech bubble: the live chat button. */
 function ChatIcon() {
   return (
@@ -163,6 +178,36 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
     if (!next) stopSpeaking();
   };
   const speakingNow = phase === 'speaking';
+
+  // The ElevenLabs allowance, drawn as a ring around the live chat button while ElevenLabs reads.
+  const showsUsage = live && reading.engine === 'elevenlabs';
+  const [usage, setUsage] = useState<TtsUsage | null>(null);
+  const [usageTick, setUsageTick] = useState(0);
+  useEffect(() => {
+    if (!showsUsage) return;
+    const timer = window.setInterval(() => setUsageTick((n) => n + 1), 5 * 60_000);
+    return () => window.clearInterval(timer);
+  }, [showsUsage]);
+  // A finished reading has spent characters: read the usage again.
+  const wasSpeaking = useRef(false);
+  useEffect(() => {
+    if (wasSpeaking.current && !speakingNow) setUsageTick((n) => n + 1);
+    wasSpeaking.current = speakingNow;
+  }, [speakingNow]);
+  useEffect(() => {
+    if (!showsUsage) return;
+    let current = true;
+    void window.acode.voice
+      .ttsUsage()
+      .then((next) => {
+        if (current) setUsage(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [showsUsage, usageTick, menuOpen]);
+  const usageText = showsUsage && usage ? `ElevenLabs: ${usageLabel(usage)}` : null;
   const chat = useChatStream(live ? (target?.sessionId ?? null) : null, live && on, sayIfOn);
   const [chatOpen, setChatOpen] = useState(true);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -306,7 +351,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
   const shortcut = live ? 'Cmd+Shift+Space' : 'Cmd+Shift+D';
   const action = phase === 'speaking' ? 'Click to stop reading' : `Click to turn ${phase === 'off' || phase === 'error' ? 'on' : 'off'} (${shortcut})`;
   const extra = live ? 'right click for the voice, drag to move' : 'right click for the mode';
-  const title = `${modeInfo?.label ?? ''}: ${LABEL[phase]}${note ? `, ${note}` : ''}. ${action}, ${extra}${target ? `. Talks to "${target.title}"` : ''}`;
+  const title = `${modeInfo?.label ?? ''}: ${LABEL[phase]}${note ? `, ${note}` : ''}. ${action}, ${extra}${target ? `. Talks to "${target.title}"` : ''}${usageText ? `. ${usageText}` : ''}`;
   // Ring grows with the voice so it is clear the microphone hears you.
   const ring = phase === 'listening' || phase === 'hearing' ? Math.min(1, level * 12) : 0;
 
@@ -369,6 +414,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
             </button>
           ))}
           {live && <div className="vc-menu-section">Read Claude's messages with</div>}
+          {usageText && <div className="vc-usage-line">{usageText}</div>}
           {live && !chatOpen && on && (
             <button type="button" className="vc-menu-item" onClick={() => {
                 setChatOpen(true);
@@ -459,6 +505,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
         }}
       >
         <span className="vc-ring" aria-hidden="true" />
+        {showsUsage && usage && <UsageRing used={usageFraction(usage)} />}
         {phase === 'transcribing' || phase === 'starting' ? <span className="vc-spinner" aria-hidden="true" /> : live ? <ChatIcon /> : <MicIcon />}
       </button>
       <button

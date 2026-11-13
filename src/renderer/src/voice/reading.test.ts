@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TtsInfo } from '@shared/voice';
-import { readingVoice } from './reading';
+import { readingVoice, usageFraction, usageLabel } from './reading';
 
 const info = (eleven: boolean, silero: boolean): TtsInfo => ({
   elevenlabs: { available: eleven, voices: [{ id: 'ukr', name: 'Ukr', description: '' }, { id: 'nur', name: 'Nur', description: '' }], defaultVoice: 'ukr' },
@@ -27,5 +27,14 @@ describe('readingVoice', () => {
 
   it('reads with the macOS voice before the engines are known', () => {
     expect(readingVoice({ engine: 'elevenlabs', voices: {} }, null)).toEqual({ engine: 'system', voice: '' });
+  });
+});
+
+describe('usage', () => {
+  it('shows how much of the allowance is used', () => {
+    const usage = { used: 1559, limit: 40000, resetsAt: Date.UTC(2026, 11, 13, 12), tier: 'starter' };
+    expect(usageFraction(usage)).toBeCloseTo(0.039);
+    expect(usageLabel(usage)).toBe('1,559 of 40,000 characters used (4%), resets 13 Dec');
+    expect(usageFraction({ used: 50, limit: 40, resetsAt: null, tier: null })).toBe(1);
   });
 });

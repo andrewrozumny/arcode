@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MODEL, DEFAULT_VOICE, ElevenLabs, modelId, parseVoices, voiceId } from './elevenlabs';
+import { DEFAULT_MODEL, DEFAULT_VOICE, ElevenLabs, modelId, parseUsage, parseVoices, voiceId } from './elevenlabs';
 import type { Fetch } from './elevenlabs';
 
 const response = (status: number, body: unknown, bytes?: Uint8Array): Response =>
@@ -25,7 +25,27 @@ describe('ElevenLabs helpers', () => {
   });
 });
 
+describe('parseUsage', () => {
+  it('reads used and limit characters and the reset time', () => {
+    expect(parseUsage({ tier: 'starter', character_count: 1559, character_limit: 40000, next_character_count_reset_unix: 1797119445 })).toEqual({
+      used: 1559,
+      limit: 40000,
+      resetsAt: 1797119445000,
+      tier: 'starter',
+    });
+    expect(parseUsage({ character_count: 1, character_limit: 0 })).toBeNull();
+    expect(parseUsage(null)).toBeNull();
+  });
+});
+
 describe('ElevenLabs', () => {
+  it('reads the subscription only with a key', async () => {
+    const withKey = new ElevenLabs({}, () => Promise.resolve('k'), () => Promise.resolve(response(200, { character_count: 10, character_limit: 100 })));
+    expect(await withKey.usage()).toMatchObject({ used: 10, limit: 100 });
+    const keyless = new ElevenLabs({}, () => Promise.resolve(null), () => Promise.reject(new Error('no call expected')));
+    expect(await keyless.usage()).toBeNull();
+  });
+
   it('speaks with the key from the store and the chosen voice', async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     const fetcher: Fetch = (url, init) => {

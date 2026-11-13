@@ -426,3 +426,29 @@
 .vc-stop:hover {
   background: rgba(79, 140, 255, 0.28);
 }
+
+/* ElevenLabs allowance around the live chat button: a light track filling dark as it is used. */
+.vc-usage-ring {
+  position: absolute;
+  inset: -6px;
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
+  pointer-events: none;
+}
+.vc-usage-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 3;
+}
+.vc-usage-used {
+  fill: none;
+  stroke: #15161a;
+  stroke-width: 3;
+  stroke-linecap: butt;
+  transition: stroke-dasharray 400ms ease;
+}
+.vc-usage-line {
+  margin: 0 8px 4px;
+  color: var(--fg-muted);
+  font: 11px var(--font-ui);
+}

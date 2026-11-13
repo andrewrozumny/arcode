@@ -65,6 +65,8 @@ export function registerVoiceIpc(ipcMain: IpcMain): void {
     };
   });
 
+  ipcMain.handle(VoiceChannel.TtsUsage, () => elevenLabs.usage());
+
   ipcMain.handle(VoiceChannel.RequestMic, async (): Promise<boolean> => {
     if (process.platform !== 'darwin') return true;
     if (systemPreferences.getMediaAccessStatus('microphone') === 'granted') return true;

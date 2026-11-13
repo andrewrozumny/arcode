@@ -4,7 +4,7 @@
  * `ELEVENLABS_API_KEY`. Only the code-free answer text is sent; the key never leaves main.
  */
 import { execFile } from 'node:child_process';
-import type { SpeechResult, TtsVoice } from '@shared/voice';
+import type { SpeechResult, TtsUsage, TtsVoice } from '@shared/voice';
 
 export const ELEVENLABS_API = 'https://api.elevenlabs.io';
 export const KEYCHAIN_SERVICE = 'ARcode ElevenLabs';
@@ -56,6 +56,22 @@ export function parseVoices(body: unknown): TtsVoice[] {
     voices.push({ id, name: name.slice(0, 80), description: tags.slice(0, 4).join(', ').slice(0, 120) });
   }
   return voices.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The plan's character usage from `GET /v1/user/subscription`; null for an unexpected shape. */
+export function parseUsage(body: unknown): TtsUsage | null {
+  if (!body || typeof body !== 'object') return null;
+  const record = body as Record<string, unknown>;
+  const used = record.character_count;
+  const limit = record.character_limit;
+  if (typeof used !== 'number' || typeof limit !== 'number' || !Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return null;
+  const reset = record.next_character_count_reset_unix;
+  return {
+    used: Math.max(0, used),
+    limit,
+    resetsAt: typeof reset === 'number' && Number.isFinite(reset) ? reset * 1000 : null,
+    tier: typeof record.tier === 'string' ? record.tier.slice(0, 40) : null,
+  };
 }
 
 async function errorText(response: Response): Promise<string> {
@@ -121,6 +137,17 @@ export class ElevenLabs {
     const listed = voices.find((v) => v.id === DEFAULT_VOICE);
     this.cachedVoices = [listed ?? fallback, ...own];
     return this.cachedVoices;
+  }
+
+  /** Characters used and left in the current period; null without a key or on any failure. */
+  async usage(): Promise<TtsUsage | null> {
+    try {
+      if (!(await this.key())) return null;
+      const response = await this.request('/v1/user/subscription', { method: 'GET' });
+      return response.ok ? parseUsage(await response.json()) : null;
+    } catch {
+      return null;
+    }
   }
 
   /** MP3 of the text spoken by the voice. */

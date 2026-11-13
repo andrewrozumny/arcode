@@ -1,4 +1,4 @@
-import type { TtsEngine, TtsInfo } from '@shared/voice';
+import type { TtsEngine, TtsInfo, TtsUsage } from '@shared/voice';
 import type { ReadingVoice } from './useVoiceChat';
 
 /** The engine and the voice picked per engine, remembered in this browser profile. */
@@ -53,4 +53,19 @@ export function readingVoice(choice: ReadingChoice, info: TtsInfo | null): Readi
   const picked = choice.voices[engine];
   const voice = picked && (known.length === 0 || known.some((v) => v.id === picked)) ? picked : (info?.[engine].defaultVoice ?? '');
   return { engine, voice };
+}
+
+/** Share of the ElevenLabs allowance used, 0..1. */
+export function usageFraction(usage: TtsUsage): number {
+  return Math.min(1, Math.max(0, usage.used / usage.limit));
+}
+
+/** "1,559 of 40,000 characters used (4%), resets 13 Dec" */
+export function usageLabel(usage: TtsUsage, locale?: string): string {
+  const number = new Intl.NumberFormat(locale ?? 'en-US');
+  const percent = Math.round(usageFraction(usage) * 100);
+  const reset = usage.resetsAt
+    ? `, resets ${new Date(usage.resetsAt).toLocaleDateString(locale ?? 'en-GB', { day: 'numeric', month: 'short' })}`
+    : '';
+  return `${number.format(usage.used)} of ${number.format(usage.limit)} characters used (${percent}%)${reset}`;
 }

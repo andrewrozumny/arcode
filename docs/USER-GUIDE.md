@@ -325,7 +325,10 @@ short grey line for each thing Claude does (a command, an edit). Close it with �
 show it again. To stop a reading, click **■ Stop** (in the bubble next to the button and in the chat
 window's header), click the button itself, or talk over it; the messages waiting to be read are dropped
 too. The 🔊 switch in the window's header turns reading aloud off and on: with it off the chat goes on
-and Claude's messages only show in the window (remembered). The mark on the button's corner picks
+and Claude's messages only show in the window (remembered). While ElevenLabs reads, a ring around the button shows
+the plan's character allowance: the light track fills dark as characters are used; the tooltip and
+the voice menu give the numbers and the reset date. A reading you stop has already been paid for the
+piece being read and the one rendered ahead (about 800 characters at most); messages still waiting are not. The mark on the button's corner picks
 the reading voice.
 
 - **While Claude works:** phrases still go out, like typed messages: Claude Code queues them (they
