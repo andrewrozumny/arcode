@@ -36,7 +36,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Claude's answer aloud without code. It listens only while ARcode is the active window, and
   phrases go out while Claude works (they are queued like typed messages).
 - **Answers read aloud by ElevenLabs, Silero or the macOS voice.** ElevenLabs is opt-in (an API key
-  in the Keychain) and marked as cloud on the button; Silero is a neural Russian voice that runs on
+  in the Keychain; while it reads, a ring on the button shows the plan's allowance); Silero is a neural Russian voice that runs on
   the Mac.
 - **Queued messages in the feed.** Messages sent while Claude is busy show at once, muted and
   marked Queued, and join the conversation when Claude takes them. A queue Claude Code dropped (a

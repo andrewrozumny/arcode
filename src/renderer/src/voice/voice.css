@@ -282,19 +282,6 @@
   color: var(--fg);
   font: 12px var(--font-ui);
 }
-/* Shown while answers are read by the cloud voice, so it is not forgotten on a sensitive project. */
-.vc-cloud {
-  position: absolute;
-  left: -6px;
-  top: -8px;
-  padding: 0 4px;
-  border-radius: 6px;
-  background: #4f8cff;
-  color: #fff;
-  font: 600 9px/14px var(--font-ui);
-  pointer-events: none;
-}
-
 /* Dictation button: docked in the terminal's bottom right corner, beside Claude's prompt. */
 .vc-root.vc-docked {
   position: absolute;
@@ -651,4 +638,50 @@
   color: var(--fg);
   font: 600 11px var(--font-ui);
   cursor: pointer;
+}
+
+/*
+ * "Claude is thinking": the brand coral spark, turning slowly and breathing. With reduced motion it
+ * only breathes. A thin dark outline keeps it visible on light content too.
+ */
+.vc-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ff7a5c;
+  font-size: 11px;
+  vertical-align: middle;
+}
+.vc-thinking.inline {
+  margin-left: 6px;
+}
+.vc-thinking svg {
+  flex: none;
+  overflow: visible;
+  animation: vc-spark-turn 2.4s linear infinite, vc-spark-breathe 1.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6));
+}
+.vc-thinking line {
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+.vc-thinking-label {
+  color: var(--fg-muted);
+}
+@keyframes vc-spark-turn {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes vc-spark-breathe {
+  50% {
+    scale: 0.78;
+    opacity: 0.75;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-thinking svg {
+    animation: vc-spark-breathe 1.6s ease-in-out infinite;
+  }
 }

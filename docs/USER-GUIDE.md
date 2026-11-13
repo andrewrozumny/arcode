@@ -326,7 +326,8 @@ would in a voice chat: why it did something, which option is better, what to do 
 is a separate, fast conversation with Claude that sees what happened in the Claude Code tab since
 your last message (prompts, Claude Code's messages, the tools it ran) and may read project files, but
 never writes, edits or runs anything and never types into Claude Code. Its answers stream into the
-column and are read aloud sentence by sentence, without code. You can also type in the line at the
+column and are read aloud sentence by sentence, without code; until the first words arrive (and in a
+longer pause, while it reads a file) a small coral spark shows it is thinking. You can also type in the line at the
 bottom of the column.
 
 - **Handing over:** say so ("pass it to Claude Code", or "yes" when the partner offers), or click
@@ -374,7 +375,7 @@ The discussion's voice menu picks who reads, and with which voice:
 
 | Engine | Where it runs | Set up |
 |---|---|---|
-| **ElevenLabs** | ElevenLabs' cloud. Only the code-free answer text is sent; your voice and your phrases never are. ElevenLabs keeps what it receives under its own policy, so do not use it for sensitive projects. While it reads, the button shows a **cloud** mark. | An API key in the macOS Keychain: `security add-generic-password -U -s "ARcode ElevenLabs" -a api-key -w` (you are asked for the key), or `ELEVENLABS_API_KEY`. The voices of your ElevenLabs account are offered. `ARCODE_ELEVENLABS_MODEL` changes the model (default `eleven_multilingual_v2`). |
+| **ElevenLabs** | ElevenLabs' cloud. Only the code-free answer text is sent; your voice and your phrases never are. ElevenLabs keeps what it receives under its own policy, so do not use it for sensitive projects. While it reads, the button shows the ring with your plan's allowance. | An API key in the macOS Keychain: `security add-generic-password -U -s "ARcode ElevenLabs" -a api-key -w` (you are asked for the key), or `ELEVENLABS_API_KEY`. The voices of your ElevenLabs account are offered. `ARCODE_ELEVENLABS_MODEL` changes the model (default `eleven_multilingual_v2`). |
 | **Silero** | On this Mac, a neural Russian voice. | A Python environment with Silero in `~/models/silero/.venv` (`uv venv ~/models/silero/.venv && uv pip install --python ~/models/silero/.venv/bin/python silero torch scipy omegaconf`), or `ARCODE_SILERO_PYTHON`. The model is downloaded once on first use. Silero's models are licensed for non-commercial use. |
 | **macOS voice** | On this Mac (`say`). | Nothing; the voice follows the dictation language (`ARCODE_TTS_VOICE` picks another). |
 

@@ -152,6 +152,44 @@ export function UsageRing({ used }: { used: number }) {
   );
 }
 
+/**
+ * "Claude is thinking": a small coral spark of eight rounded rays of different lengths that turns and
+ * breathes. Shown while an answer has no text yet, and after a pause of more than a second in a
+ * streaming answer (the partner reading a file); it goes away as soon as text comes.
+ */
+export function ThinkingSpark({ idle, textLength }: { idle: boolean; textLength: number }) {
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (idle) return;
+    // Text just arrived: hide the spark, and show it again only if nothing more comes for a while.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- follows the streamed text
+    setPaused(false);
+    const timer = window.setTimeout(() => setPaused(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [idle, textLength]);
+  if (!idle && !paused) return null;
+  const rays = [
+    [0, 7],
+    [45, 4.6],
+    [90, 6.2],
+    [135, 4.2],
+    [180, 7],
+    [225, 4.6],
+    [270, 6.2],
+    [315, 4.2],
+  ] as const;
+  return (
+    <span className={idle ? 'vc-thinking' : 'vc-thinking inline'} role="status" aria-label="Claude is thinking">
+      <svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true">
+        {rays.map(([angle, length]) => (
+          <line key={angle} x1="0" y1="-1.6" x2="0" y2={-length} transform={`rotate(${angle})`} />
+        ))}
+      </svg>
+      {idle && <span className="vc-thinking-label">Thinking</span>}
+    </span>
+  );
+}
+
 /** Reading aloud on (sound waves) or off (a cross), for the discussion window's header. */
 function SpeakerIcon({ on }: { on: boolean }) {
   return (
@@ -327,7 +365,6 @@ export function VoiceChatButton({
     setReadingChoice(next);
     saveReadingChoice(next);
   };
-  const cloud = mode === 'chat' && reading.engine === 'elevenlabs';
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -536,7 +573,8 @@ export function VoiceChatButton({
                 key={entry.id}
                 className={`vc-chat-line vc-chat-${entry.role === 'partner' ? 'claude' : entry.role}${entry.streaming ? ' streaming' : ''}`}
               >
-                {entry.text || (entry.streaming ? '…' : '')}
+                {entry.text}
+                {entry.streaming && <ThinkingSpark idle={!entry.text} textLength={entry.text.length} />}
                 {entry.task && (
                   <div className={entry.taskSent ? 'vc-chat-task' : 'vc-chat-task unsent'}>
                     <div className="vc-chat-task-status">
@@ -689,11 +727,6 @@ export function VoiceChatButton({
       >
         <ModeMark mode={mode} />
       </button>
-      {cloud && (
-        <span className="vc-cloud" title="Answers are read by ElevenLabs: their text (without code) goes to the cloud">
-          cloud
-        </span>
-      )}
       </span>
     </div>
   );
