@@ -333,8 +333,9 @@ bottom of the window.
 - **New** starts a fresh discussion. **■ Stop** (in the bubble and the window's header), a click on
   the button, or talking over it stops a reading. The speaker switch in the window's header turns reading aloud off (remembered).
 - The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
-  per window, with Sonnet; `ARCODE_DISCUSSION_MODEL` picks another model, `ARCODE_CLAUDE` the
-  executable). It loads no MCP servers and keeps no session on disk.
+  per window; `ARCODE_CLAUDE` picks the executable). It loads no MCP servers and keeps no session on
+  disk. The **Sonnet / Opus** switch in the window's header picks its model (Sonnet by default,
+  remembered); switching starts the discussion over, with a note in the window.
 - While ElevenLabs reads, a ring around the button shows the plan's character allowance: a faint
   track fills with blue from the top, clockwise, as characters are used; the tooltip and the voice
   menu give the numbers and the reset date. A reading you stop has already been paid for the piece being read and the one rendered

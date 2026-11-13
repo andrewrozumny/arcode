@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FeedItem } from '@shared/claude';
-import { discussionMessage, SentenceStream, sessionUpdate, splitHandover } from './discussion';
+import { discussionMessage, loadDiscussionModel, saveDiscussionModel, SentenceStream, sessionUpdate, splitHandover } from './discussion';
 
 const base = (id: string) => ({ id, at: null, offset: 0 });
 
@@ -77,5 +77,28 @@ describe('handover', () => {
     expect(splitHandover('Просто ответ.')).toEqual({ said: 'Просто ответ.', task: null });
     // An answer cut off inside the tags still hands over what arrived.
     expect(splitHandover('Передаю. <handover>Сделай X')).toEqual({ said: 'Передаю.', task: 'Сделай X' });
+  });
+});
+
+describe('discussion model storage', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const storage = (initial: Record<string, string>) => {
+    const data = { ...initial };
+    vi.stubGlobal('localStorage', { getItem: (k: string) => data[k] ?? null, setItem: (k: string, v: string) => (data[k] = v) });
+    return data;
+  };
+
+  it('remembers Sonnet or Opus and ignores anything else', () => {
+    const data = storage({});
+    expect(loadDiscussionModel()).toBe('sonnet');
+    saveDiscussionModel('opus');
+    expect(loadDiscussionModel()).toBe('opus');
+    data['arcode.voiceChat.discussionModel'] = 'haiku';
+    expect(loadDiscussionModel()).toBe('sonnet');
+  });
+
+  it('uses Sonnet without storage', () => {
+    vi.stubGlobal('localStorage', undefined);
+    expect(loadDiscussionModel()).toBe('sonnet');
   });
 });

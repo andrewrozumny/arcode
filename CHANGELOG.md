@@ -24,7 +24,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes anything. Answers stream into a window and are read aloud sentence by sentence. Saying
   "pass it to Claude Code" (or **→ Claude Code**) sends the resulting task to the Claude tab. **■ Stop**
   ends a reading, the speaker switch turns reading off, and a ring shows the ElevenLabs allowance.
-  Only one voice button listens at a time.
+  A Sonnet / Opus switch in the window picks the partner's model. Only one voice button listens at a
+  time.
 - **Voice modes.** The voice button has three modes: Dictation types into Claude's prompt without
   Enter so you can keep talking or edit, Commands sends each phrase, Conversation also reads
   Claude's answer aloud without code. It listens only while ARcode is the active window, and

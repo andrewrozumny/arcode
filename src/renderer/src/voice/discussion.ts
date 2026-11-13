@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FeedItem } from '@shared/claude';
 import type { PtyId } from '@shared/ipc';
+import { discussionModelChoice } from '@shared/voice';
+import type { DiscussionModel } from '@shared/voice';
 import { bus } from '../bus';
 
 /** One message of the discussion window. */
 export interface DiscussionEntry {
   id: number;
-  role: 'you' | 'partner' | 'error';
+  /** `note`: a line from ARcode itself, such as a model switch. */
+  role: 'you' | 'partner' | 'error' | 'note';
   text: string;
   /** The partner is still writing it. */
   streaming?: boolean;
@@ -133,6 +136,27 @@ export class SentenceStream {
   }
 }
 
+const MODEL_KEY = 'arcode.voiceChat.discussionModel';
+
+export const MODEL_LABEL: Record<DiscussionModel, string> = { sonnet: 'Sonnet', opus: 'Opus' };
+
+/** The model picked in the discussion window (Sonnet unless Opus was picked). */
+export function loadDiscussionModel(): DiscussionModel {
+  try {
+    return discussionModelChoice(localStorage.getItem(MODEL_KEY));
+  } catch {
+    return discussionModelChoice(null);
+  }
+}
+
+export function saveDiscussionModel(model: DiscussionModel): void {
+  try {
+    localStorage.setItem(MODEL_KEY, model);
+  } catch {
+    // A convenience; losing it is fine.
+  }
+}
+
 const READ_ALOUD_KEY = 'arcode.voiceChat.readAloud';
 
 /** Whether the partner's answers are read aloud (on unless switched off). */
@@ -160,6 +184,8 @@ interface Options {
   onSentence(sentence: string): void;
   /** The Claude tab a handed-over task goes to, when there is one. */
   handoverTarget(): PtyId | null;
+  /** Model the partner runs on. */
+  model: DiscussionModel;
 }
 
 /**
@@ -167,7 +193,7 @@ interface Options {
  * it. Each message carries what happened in the session since the previous one. `handOver` asks the
  * partner for the resulting task and types it into the Claude Code tab's prompt (not sent).
  */
-export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget }: Options) {
+export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget, model }: Options) {
   const [entries, setEntries] = useState<DiscussionEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const nextId = useRef(1);
@@ -252,7 +278,7 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
         { id: nextId.current++, role: 'partner', text: '', streaming: true },
       ]);
       try {
-        await window.acode.voice.discuss(projectRoot, discussionMessage(await update(), text));
+        await window.acode.voice.discuss(projectRoot, discussionMessage(await update(), text), model);
       } catch (error) {
         setBusy(false);
         setEntries((prev) => [
@@ -261,7 +287,7 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
         ]);
       }
     },
-    [projectRoot, update],
+    [projectRoot, update, model],
   );
 
   const send = useCallback((text: string) => void ask(text, text), [ask]);
@@ -275,5 +301,20 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
     setEntries([]);
   }, []);
 
-  return { entries, busy, send, handOver, reset };
+  /**
+   * After a model switch: the partner's process runs on one model, so the conversation starts over,
+   * with a note saying so (the session is sent again with the next message).
+   */
+  const restartFor = useCallback(
+    (next: DiscussionModel) => {
+      const hadConversation = entries.length > 0;
+      reset();
+      if (hadConversation) {
+        setEntries([{ id: nextId.current++, role: 'note', text: `Switched to ${MODEL_LABEL[next]}: the discussion starts over.` }]);
+      }
+    },
+    [entries.length, reset],
+  );
+
+  return { entries, busy, send, handOver, reset, restartFor };
 }

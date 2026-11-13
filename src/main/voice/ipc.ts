@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { app, systemPreferences } from 'electron';
 import type { IpcMain } from 'electron';
 import { isRecord } from '@shared/guards';
-import { TTS_ENGINES, VoiceChannel } from '@shared/voice';
+import { discussionModelChoice, TTS_ENGINES, VoiceChannel } from '@shared/voice';
 import type { SpeechResult, TranscribeResult, TtsEngine, TtsInfo } from '@shared/voice';
 import { projectRoot, text } from '../ipcArgs';
 import { Discussion } from './discussion';
@@ -71,9 +71,10 @@ export function registerVoiceIpc(ipcMain: IpcMain): void {
 
   // One discussion per window; its answer goes back to that window only.
   const discussions = new Map<number, Discussion>();
-  ipcMain.handle(VoiceChannel.Discuss, async (event, rawRoot: unknown, rawText: unknown): Promise<void> => {
+  ipcMain.handle(VoiceChannel.Discuss, async (event, rawRoot: unknown, rawText: unknown, rawModel: unknown): Promise<void> => {
     const root = await projectRoot(rawRoot);
     const message = text(rawText, 'message');
+    const model = discussionModelChoice(rawModel);
     const sender = event.sender;
     let discussion = discussions.get(sender.id);
     if (!discussion) {
@@ -86,7 +87,7 @@ export function registerVoiceIpc(ipcMain: IpcMain): void {
         discussions.delete(sender.id);
       });
     }
-    await discussion.send(message);
+    await discussion.send(message, model);
   });
   ipcMain.on(VoiceChannel.DiscussReset, (event) => discussions.get(event.sender.id)?.reset());
   app.on('will-quit', () => {

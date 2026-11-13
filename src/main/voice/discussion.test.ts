@@ -3,7 +3,7 @@ import os from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { DiscussionEvent } from '@shared/voice';
-import { Discussion, discussionArgs, discussionEvents, discussionModel, locateClaude } from './discussion';
+import { Discussion, discussionArgs, discussionEvents, locateClaude } from './discussion';
 
 describe('discussionEvents', () => {
   const line = (value: unknown) => JSON.stringify(value);
@@ -32,10 +32,9 @@ describe('discussion setup', () => {
     expect(args[args.indexOf('--input-format') + 1]).toBe('stream-json');
   });
 
-  it('takes the model from ARCODE_DISCUSSION_MODEL when it looks like one', () => {
-    expect(discussionModel({})).toBe('sonnet');
-    expect(discussionModel({ ARCODE_DISCUSSION_MODEL: 'claude-opus-5-5' })).toBe('claude-opus-5-5');
-    expect(discussionModel({ ARCODE_DISCUSSION_MODEL: '--evil flag' })).toBe('sonnet');
+  it('passes the chosen model', () => {
+    const args = discussionArgs('opus');
+    expect(args[args.indexOf('--model') + 1]).toBe('opus');
   });
 
   it('finds claude in the usual folders', async () => {
@@ -82,13 +81,16 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
         }, 20);
       });
     const discussion = new Discussion(dir, (e) => events.push(e), { ARCODE_CLAUDE: fake, PATH: process.env.PATH });
-    await discussion.send('first');
+    await discussion.send('first', 'sonnet');
     await done(1);
-    await discussion.send('second');
+    await discussion.send('second', 'sonnet');
     await done(2);
+    // Another model starts a new process: the counter starts over.
+    await discussion.send('third', 'opus');
+    await done(3);
     discussion.reset();
     const text = events.filter((e): e is Extract<DiscussionEvent, { type: 'delta' }> => e.type === 'delta').map((e) => e.text).join('');
-    // The same process answered both: the counter went on.
-    expect(text).toBe('answer 1: firstanswer 2: second');
+    // The same process answered the first two: the counter went on.
+    expect(text).toBe('answer 1: firstanswer 2: secondanswer 1: third');
   });
 });

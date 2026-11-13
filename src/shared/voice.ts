@@ -59,6 +59,16 @@ export interface TtsEngineInfo {
 
 export type TtsInfo = Record<TtsEngine, TtsEngineInfo>;
 
+/** Models the discussion partner can run on; Sonnet unless the user picks Opus. */
+export const DISCUSSION_MODELS = ['sonnet', 'opus'] as const;
+export type DiscussionModel = (typeof DISCUSSION_MODELS)[number];
+export const DEFAULT_DISCUSSION_MODEL: DiscussionModel = 'sonnet';
+
+/** A model choice from a renderer or from storage; anything unknown falls back to Sonnet. */
+export function discussionModelChoice(value: unknown): DiscussionModel {
+  return DISCUSSION_MODELS.find((m) => m === value) ?? DEFAULT_DISCUSSION_MODEL;
+}
+
 /**
  * The discussion partner's answer as it streams: `delta` adds text, `message` starts a new part of
  * the answer (after the partner looked at a file), `done` ends it, `error` reports a failure.
@@ -98,8 +108,8 @@ export interface VoiceApi {
   ttsInfo(): Promise<TtsInfo>;
   /** The ElevenLabs plan's usage; null without a key or when it cannot be read. */
   ttsUsage(): Promise<TtsUsage | null>;
-  /** Sends a message to the discussion partner of this project window. */
-  discuss(projectRoot: string, text: string): Promise<void>;
+  /** Sends a message to the discussion partner of this project window, running on `model`. */
+  discuss(projectRoot: string, text: string, model: DiscussionModel): Promise<void>;
   /** Ends this window's discussion. */
   discussReset(): void;
   /** The partner's answer, piece by piece. */

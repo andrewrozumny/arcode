@@ -10,7 +10,7 @@ export const voiceApi: VoiceApi = {
   speak: (request) => ipcRenderer.invoke(VoiceChannel.Speak, request),
   ttsInfo: () => ipcRenderer.invoke(VoiceChannel.TtsInfo),
   ttsUsage: () => ipcRenderer.invoke(VoiceChannel.TtsUsage),
-  discuss: (projectRoot, text) => ipcRenderer.invoke(VoiceChannel.Discuss, projectRoot, text),
+  discuss: (projectRoot, text, model) => ipcRenderer.invoke(VoiceChannel.Discuss, projectRoot, text, model),
   discussReset: () => ipcRenderer.send(VoiceChannel.DiscussReset),
   onDiscussion: (listener) => subscribe<[DiscussionEvent]>(VoiceChannel.DiscussionEvent, listener),
 };

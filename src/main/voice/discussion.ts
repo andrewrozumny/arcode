@@ -10,11 +10,10 @@ import { access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import os from 'node:os';
 import { join } from 'node:path';
-import type { DiscussionEvent } from '@shared/voice';
+import type { DiscussionEvent, DiscussionModel } from '@shared/voice';
 import { envForChild } from '../env';
 
 export const DISCUSSION_TOOLS = 'Read,Grep,Glob';
-export const DEFAULT_DISCUSSION_MODEL = 'sonnet';
 /** Longest message (with its session update) sent in one turn. */
 export const MAX_DISCUSSION_MESSAGE = 24_000;
 
@@ -60,10 +59,6 @@ export function discussionArgs(model: string): string[] {
   ];
 }
 
-export function discussionModel(env: Record<string, string | undefined>): string {
-  const model = env.ARCODE_DISCUSSION_MODEL?.trim();
-  return model && /^[a-z0-9._[\]-]{2,64}$/i.test(model) ? model : DEFAULT_DISCUSSION_MODEL;
-}
 
 /** The discussion events a line of `claude -p` stream-json output carries. */
 export function discussionEvents(line: string): DiscussionEvent[] {
@@ -92,6 +87,8 @@ export function discussionEvents(line: string): DiscussionEvent[] {
 
 export class Discussion {
   private child: ChildProcessWithoutNullStreams | null = null;
+  /** Model the running process was started with. */
+  private model: DiscussionModel | null = null;
   private buffer = '';
   private stderr = '';
 
@@ -101,16 +98,19 @@ export class Discussion {
     private readonly env: Record<string, string | undefined> = process.env,
   ) {}
 
-  private async start(): Promise<ChildProcessWithoutNullStreams> {
+  private async start(model: DiscussionModel): Promise<ChildProcessWithoutNullStreams> {
+    // The model is fixed for a process: another one starts the conversation over.
+    if (this.child && this.model !== model) this.reset();
     if (this.child) return this.child;
     const claude = await locateClaude(this.env);
     if (!claude) throw new Error('Claude Code was not found (set ARCODE_CLAUDE to its path)');
-    const child = spawn(claude, discussionArgs(discussionModel(this.env)), {
+    const child = spawn(claude, discussionArgs(model), {
       cwd: this.projectRoot,
       env: envForChild(this.env, { project: this.projectRoot }),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     this.child = child;
+    this.model = model;
     this.buffer = '';
     this.stderr = '';
     child.stdout.setEncoding('utf8');
@@ -144,8 +144,8 @@ export class Discussion {
   }
 
   /** Sends one message; the answer comes back as events. */
-  async send(text: string): Promise<void> {
-    const child = await this.start();
+  async send(text: string, model: DiscussionModel): Promise<void> {
+    const child = await this.start(model);
     const message = { type: 'user', message: { role: 'user', content: text.slice(0, MAX_DISCUSSION_MESSAGE) } };
     child.stdin.write(`${JSON.stringify(message)}\n`);
   }
@@ -154,6 +154,7 @@ export class Discussion {
   reset(): void {
     const child = this.child;
     this.child = null;
+    this.model = null;
     if (child && !child.killed) child.kill();
   }
 }

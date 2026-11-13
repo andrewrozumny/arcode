@@ -541,3 +541,45 @@
   font-weight: 600;
   font-size: 11px;
 }
+
+/* Sonnet / Opus switch in the discussion window's header. */
+.vc-model {
+  display: inline-flex;
+  flex: none;
+  padding: 1px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+}
+.vc-model-option {
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--fg-muted);
+  font: 11px var(--font-ui);
+  cursor: pointer;
+}
+.vc-model-option:hover:not(.current) {
+  color: var(--fg);
+}
+.vc-model-option.current {
+  background: rgba(108, 159, 230, 0.2);
+  color: var(--fg);
+}
+.vc-chat-note {
+  align-self: center;
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-style: italic;
+}
+/* The header holds the title, the model switch and four tools on one line. */
+.vc-chat {
+  width: 440px;
+}
+.vc-chat-head .vc-chat-tool,
+.vc-model-option {
+  white-space: nowrap;
+}
+.vc-chat-title {
+  min-width: 60px;
+}

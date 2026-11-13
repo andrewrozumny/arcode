@@ -3,9 +3,9 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TerminalTab } from '../terminal/types';
 import { loadDictationMode, saveDictationMode, VOICE_MODES } from './answer';
 import type { DictationMode, VoiceMode } from './answer';
-import { loadReadAloud, saveReadAloud, useDiscussion } from './discussion';
-import { TTS_ENGINES } from '@shared/voice';
-import type { TtsEngine, TtsInfo, TtsUsage } from '@shared/voice';
+import { loadDiscussionModel, loadReadAloud, MODEL_LABEL, saveDiscussionModel, saveReadAloud, useDiscussion } from './discussion';
+import { DISCUSSION_MODELS, TTS_ENGINES } from '@shared/voice';
+import type { DiscussionModel, TtsEngine, TtsInfo, TtsUsage } from '@shared/voice';
 import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice, usageFraction, usageLabel } from './reading';
 import type { ReadingChoice } from './reading';
 import { useVoiceChat } from './useVoiceChat';
@@ -224,7 +224,8 @@ export function VoiceChatButton({
     targetPty.current = target?.ptyId ?? null;
   }, [target]);
   const handoverTarget = useCallback(() => targetPty.current, []);
-  const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence, handoverTarget });
+  const [discussionModel, setDiscussionModel] = useState<DiscussionModel>(loadDiscussionModel);
+  const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence, handoverTarget, model: discussionModel });
   const sendRef = useRef(discussion.send);
   useEffect(() => {
     sendRef.current = discussion.send;
@@ -448,6 +449,27 @@ export function VoiceChatButton({
             title="Drag to move"
           >
             <span className="vc-chat-title">Discussion{target ? ` · ${target.title}` : ''}</span>
+            <span className="vc-model" role="radiogroup" aria-label="Discussion model">
+              {DISCUSSION_MODELS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={m === discussionModel}
+                  className={m === discussionModel ? 'vc-model-option current' : 'vc-model-option'}
+                  title={m === discussionModel ? `The partner runs on ${MODEL_LABEL[m]}` : `Switch to ${MODEL_LABEL[m]} (the discussion starts over)`}
+                  onClick={() => {
+                    if (m === discussionModel) return;
+                    stopSpeaking();
+                    setDiscussionModel(m);
+                    saveDiscussionModel(m);
+                    discussion.restartFor(m);
+                  }}
+                >
+                  {MODEL_LABEL[m]}
+                </button>
+              ))}
+            </span>
             {speakingNow && (
               <button type="button" className="vc-stop" title="Stop reading (the messages stay here)" onClick={stopSpeaking}>
                 ■ Stop

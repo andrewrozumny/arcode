@@ -138,7 +138,9 @@ bus event only while the target Claude tab is `idle` and then waits for it to be
 `VoiceChatButton` has two kinds, `dictation` (docked in the terminal dock, modes dictate and
 command) and `live`, the discussion: phrases go to `discussion.ts` instead of a pty, which sends each
 one with a `<claude_code_session_update>` of the Claude tab's feed since the last message over
-`voice:discuss`. Main (`voice/discussion.ts`) keeps one `claude -p` per window with stream-json in and
+`voice:discuss`. Main (`voice/discussion.ts`) keeps one `claude -p` per window, on the model the window picked
+(`discussionModelChoice` in `shared/voice.ts` allows Sonnet and Opus; a different model restarts the
+process), with stream-json in and
 out (Read, Grep and Glob only, `--strict-mcp-config`, `--no-session-persistence`, an appended system
 prompt) and forwards text deltas as `voice:discussionEvent`; `SentenceStream` cuts them into sentences
 for the speech queue and skips code fences and `<handover>` tags. A finished answer with a
