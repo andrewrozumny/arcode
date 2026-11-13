@@ -145,6 +145,13 @@ function LiveUsageSection({ root }: { root: string }) {
           )}
         </div>
       </div>
+      {live && live.models.length > 0 && (
+        <div className="cl-cards three">
+          {live.models.map((model) => (
+            <LiveCard key={model.name} title={`Weekly window, ${model.name}`} win={model} />
+          ))}
+        </div>
+      )}
       <div className="cl-toolbar">
         <span className="cl-desc cl-grow">
           Plan limits come from the Claude Code status line, the only place Claude Code exposes them.

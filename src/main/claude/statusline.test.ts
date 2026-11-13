@@ -123,7 +123,11 @@ describe('parseUsageRecord', () => {
         cwd: '/work/app',
         model: { id: 'claude-fable-5-1', displayName: 'Fable 5.1' },
         contextWindow: { usedPercent: 43, size: 200000, totalInputTokens: 86000 },
-        rateLimits: { fiveHour: { usedPercent: 12, resetsAt: 1738425600000 }, sevenDay: null },
+        rateLimits: {
+          fiveHour: { usedPercent: 12, resetsAt: 1738425600000 },
+          sevenDay: null,
+          models: [{ name: 'Fable', usedPercent: 31, resetsAt: 1795021200000 }, { name: '', usedPercent: 5, resetsAt: null }, 'junk'],
+        },
         updatedAt: 5,
       }),
     );
@@ -137,6 +141,7 @@ describe('parseUsageRecord', () => {
       contextPercent: 43,
       fiveHour: { usedPercent: 12, resetsAt: 1738425600000 },
       sevenDay: null,
+      models: [{ name: 'Fable', usedPercent: 31, resetsAt: 1795021200000 }],
       updatedAt: 5,
     });
   });
@@ -165,10 +170,15 @@ describe.skipIf(!hasPython)('arcode-statusline.py', () => {
       model: { id: 'claude-fable-5-1', display_name: 'Fable 5.1' },
       context_window: { used_percentage: 43.4, context_window_size: 200000, total_input_tokens: 86800 },
       cost: { total_cost_usd: 1.5 },
-      rate_limits: { five_hour: { used_percentage: 12.4, resets_at: 1738425600 }, seven_day: { used_percentage: 37, resets_at: 1738857600 } },
+      rate_limits: {
+        five_hour: { used_percentage: 12.4, resets_at: 1738425600 },
+        seven_day: { used_percentage: 37, resets_at: 1738857600 },
+        seven_day_opus: { used_percentage: 20, resets_at: 1738857600 },
+        model_scoped: [{ display_name: 'Fable', utilization: 54.6, resets_at: '2025-02-06T16:00:00Z' }, { display_name: 'Ghost', utilization: null, resets_at: null }],
+      },
     });
     const out = execFileSync('python3', [resolve('resources/arcode-statusline.py')], { input, env: { ...process.env, HOME: home } }).toString();
-    expect(out.trim()).toBe('Fable 5.1 · ctx 43% · 5h 12% · week 37%');
+    expect(out.trim()).toBe('Fable 5.1 · ctx 43% · 5h 12% · week 37% · Opus 20% · Fable 55%');
     const dir = join(home, 'Library', 'Application Support', 'ARcode', 'usage');
     const [record] = await readUsageDir(dir);
     expect(record?.sessionId).toBe('abc');
@@ -176,6 +186,10 @@ describe.skipIf(!hasPython)('arcode-statusline.py', () => {
     expect(record?.contextSize).toBe(200000);
     expect(record?.fiveHour).toEqual({ usedPercent: 12, resetsAt: 1738425600000 });
     expect(record?.sevenDay?.usedPercent).toBe(37);
+    expect(record?.models).toEqual([
+      { name: 'Opus', usedPercent: 20, resetsAt: 1738857600000 },
+      { name: 'Fable', usedPercent: 55, resetsAt: 1738857600000 },
+    ]);
   });
 
   it('adds one line per running subagent with its model', () => {

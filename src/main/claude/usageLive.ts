@@ -6,7 +6,7 @@ import { mkdirSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { LiveUsage, LiveUsageWindow } from '@shared/claude';
+import type { LiveUsage, LiveUsageModelWindow, LiveUsageWindow } from '@shared/claude';
 import { isRecord } from './common';
 
 function num(value: unknown): number | null {
@@ -19,6 +19,16 @@ function windowOf(value: unknown): LiveUsageWindow | null {
   const resetsAt = num(value.resetsAt);
   if (usedPercent === null && resetsAt === null) return null;
   return { usedPercent, resetsAt };
+}
+
+function modelWindows(value: unknown): LiveUsageModelWindow[] {
+  if (!Array.isArray(value)) return [];
+  const out: LiveUsageModelWindow[] = [];
+  for (const item of value.slice(0, 8)) {
+    const win = windowOf(item);
+    if (win && isRecord(item) && typeof item.name === 'string' && item.name.trim()) out.push({ name: item.name.trim().slice(0, 40), ...win });
+  }
+  return out;
 }
 
 /** Parses one record file; null for anything that is not a usable record. */
@@ -49,6 +59,7 @@ export function parseUsageRecord(text: string): LiveUsage | null {
     contextPercent: num(context.usedPercent),
     fiveHour: windowOf(limits.fiveHour),
     sevenDay: windowOf(limits.sevenDay),
+    models: modelWindows(limits.models),
     updatedAt: num(raw.updatedAt) ?? 0,
   };
 }

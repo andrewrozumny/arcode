@@ -637,7 +637,11 @@ export function buildSandbox(dir, options = {}) {
       cwd: root,
       model: { id: 'claude-opus-5-5', displayName: 'Opus 5.5' },
       contextWindow: { usedPercent: 31, totalInputTokens: 62_000, size: 200_000 },
-      rateLimits: { fiveHour: { usedPercent: 24, resetsAt: now + 3 * 3_600_000 }, sevenDay: { usedPercent: 41, resetsAt: now + 4 * 86_400_000 } },
+      rateLimits: {
+        fiveHour: { usedPercent: 24, resetsAt: now + 3 * 3_600_000 },
+        sevenDay: { usedPercent: 41, resetsAt: now + 4 * 86_400_000 },
+        models: [{ name: 'Fable', usedPercent: 63, resetsAt: now + 4 * 86_400_000 }],
+      },
       updatedAt: now,
     }),
   );

@@ -54,6 +54,42 @@ def window(obj, key):
     return {"usedPercent": used, "resetsAt": resets_ms}
 
 
+def iso_ms(value):
+    """Milliseconds of an ISO time ("2026-11-20T09:00:00Z") or of epoch seconds, or None."""
+    if isinstance(value, (int, float)):
+        return int(value * 1000)
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        from datetime import datetime
+        return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
+    except (TypeError, ValueError):
+        return None
+
+
+def model_windows(limits):
+    """Weekly windows of single models: Opus and Sonnet, then the per-model buckets the server lists
+    (model_scoped, e.g. Fable). A bucket of the same name replaces the older field."""
+    out = []
+    for key, name in (("seven_day_opus", "Opus"), ("seven_day_sonnet", "Sonnet")):
+        win = window(limits, key)
+        if win:
+            out.append(dict(win, name=name))
+    scoped = (limits or {}).get("model_scoped")
+    if isinstance(scoped, list):
+        for item in scoped[:8]:
+            if not isinstance(item, dict) or not isinstance(item.get("display_name"), str):
+                continue
+            name = item["display_name"].strip()[:40]
+            used = pct(item.get("utilization"))
+            resets = iso_ms(item.get("resets_at"))
+            if not name or (used is None and resets is None):
+                continue
+            out = [w for w in out if w["name"] != name]
+            out.append({"name": name, "usedPercent": used, "resetsAt": resets})
+    return out
+
+
 def safe_session_id(value):
     if not isinstance(value, str) or not value:
         return None
@@ -85,6 +121,7 @@ def write_usage(data):
             "fiveHour": window(limits, "five_hour"),
             "sevenDay": window(limits, "seven_day"),
             "spendLimit": window(limits, "spend_limit"),
+            "models": model_windows(limits),
         },
         "updatedAt": int(time.time() * 1000),
     }
@@ -133,6 +170,9 @@ def status_line(data):
     week = window(limits, "seven_day")
     if week and week.get("usedPercent") is not None:
         parts.append("week %d%%" % week["usedPercent"])
+    for win in model_windows(limits):
+        if win.get("usedPercent") is not None:
+            parts.append("%s %d%%" % (win["name"], win["usedPercent"]))
     return " · ".join(parts)
 
 

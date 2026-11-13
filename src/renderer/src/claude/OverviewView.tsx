@@ -67,6 +67,15 @@ function CurrentSessionCard({ now }: { now: number }) {
             value={live.sevenDay?.usedPercent != null ? `${live.sevenDay.usedPercent}%` : 'n/a'}
             sub={windowSub(live.sevenDay, now)}
           />
+          {live.models.map((model) => (
+            <Meter
+              key={model.name}
+              label={`Weekly limit, ${model.name}`}
+              percent={model.usedPercent}
+              value={model.usedPercent != null ? `${model.usedPercent}%` : 'n/a'}
+              sub={windowSub(model, now)}
+            />
+          ))}
         </div>
       ) : (
         <div className="cl-hint">

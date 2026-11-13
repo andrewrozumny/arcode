@@ -421,7 +421,7 @@ What it gives you:
 | Model badge (for example "Opus 5.5") | The active Claude tab's session transcript | While a Claude tab is active. Click it to pick another model (Fable, Opus, Sonnet, Haiku or the account default): ARcode types `/model <id>` into that tab. Only while Claude waits at an empty prompt, so the command never lands as a message or as an answer. |
 | **RC** button | `bridgeSessionId` in Claude Code's process registry | While a Claude tab is active. A click types `/remote-control` into the tab. `RC…` while it starts (answer in the terminal if Claude asks to confirm), **RC on** once Claude Code reports the Remote Control session, with **Open in browser** and **Copy link** for `claude.ai/code/<session>`, and **RC failed** when no session shows up within 30 seconds. While it is on, the menu has **Disconnect**, which types `/remote-control` again (Claude Code's own toggle); the button shows `RC…` until the session is gone and reports it when it stays up. |
 | Subagents chip | Subagent transcripts of the active session | While subagents are running; the tooltip lists name, model and age. Click it for a list with **Open transcript** per agent. |
-| Usage bars `ctx`, `5h`, `wk` | The opt-in status line | Context fill, 5-hour and weekly plan usage, once the status line is on and a reply has arrived. |
+| Usage bars `ctx`, `5h`, `wk`, `Fable`... | The opt-in status line | Context fill, 5-hour and weekly plan usage, and the weekly window of each model the plan limits on its own (Fable, and Opus or Sonnet where the plan has them), once the status line is on and a reply has arrived. A window the plan does not have is not shown. |
 | IDE indicator | The bridge | Number of connected Claude Code clients. |
 
 ### Status line (opt-in)
@@ -508,7 +508,8 @@ section you opened. The reload button at the top right reads everything from dis
 **Overview** is the first section:
 
 - **Current session:** the newest session's first prompt, its model, and bars for context fill,
-  the 5-hour limit and the weekly limit with the time until each resets (plan figures need the
+  the 5-hour limit, the weekly limit and each per-model weekly limit (Fable...) with the time until
+  each resets (plan figures need the
   [status line](#status-line-opt-in)).
 - **Quick actions:** Resume last session, New Claude tab, Open CLAUDE.md (or, when the project has
   none, a pointer to `/init`) and Check MCP servers.
@@ -524,7 +525,7 @@ section you opened. The reload button at the top right reads everything from dis
 | Section | What it shows |
 |---|---|
 | Sessions | Past Claude Code sessions of this project, grouped into Today, Yesterday, Earlier this week and Older. Each is titled by the name Claude Code saved for it (a `/rename`, else the title Claude Code generated, else an older summary record) or else its first prompt, with relative age, message count and start time. **Open** reads it in a read-only viewer tab, **Resume** continues it in a new terminal tab; the copy button copies its session id. |
-| Usage | Live 5-hour, weekly and context usage as bars (with the status line on), the status line switch, and token counts for the current session, today and the last 7 days, read from transcripts. Refreshes every 30 seconds. |
+| Usage | Live 5-hour, weekly, per-model weekly (Fable...) and context usage as bars (with the status line on), the status line switch, and token counts for the current session, today and the last 7 days, read from transcripts. Refreshes every 30 seconds. |
 | Gates | What each gate runs and, for projects with a `src/main`, `src/preload`, `src/shared` or `src/renderer/src` folder, an approximate count of tests per area. |
 | CLAUDE.md | The global, project and local CLAUDE.md files, with line counts and their text. Files that do not exist say what they are for and how to create them. Project files open in the viewer for editing. |
 | Skills | User, project and plugin skills, grouped by scope. |

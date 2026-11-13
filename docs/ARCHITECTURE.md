@@ -242,7 +242,10 @@ Session titles come from
 On an explicit click ARcode installs its script into `<userData>` and points `statusLine` in
 `~/.claude/settings.json` at it (backup kept, atomic write, refuses when another status line is set).
 The script writes one JSON record per session to `<userData>/usage`; `LiveUsageWatcher` broadcasts
-them to all windows (ADR 0005).
+them to all windows (ADR 0005). Besides the 5-hour and weekly windows a record carries `models`: the
+weekly window of each model the plan limits on its own, from `rate_limits.model_scoped` (server
+buckets such as Fable, `utilization` in percent and an ISO `resets_at`) and from `seven_day_opus` /
+`seven_day_sonnet`; `pickPlanLimits` picks each by name like the plan windows.
 
 **Notifications** (`notifications.ts`, `terminal/ipc.ts`). When a Claude process owned by a
 window's pty starts waiting for the user and the window is not focused, a system notification is

@@ -3,7 +3,7 @@ import type { LiveUsage } from '@shared/claude';
 import { LIVE_MODEL_FRESH_MS, belongsToProject, headerUsage, pickBadgeModel, pickLiveUsage, pickPlanLimits } from './liveUsage';
 
 function record(sessionId: string, cwd: string | null, updatedAt: number): LiveUsage {
-  return { sessionId, cwd, modelId: null, modelName: null, contextUsed: null, contextSize: null, contextPercent: null, fiveHour: null, sevenDay: null, updatedAt };
+  return { sessionId, cwd, modelId: null, modelName: null, contextUsed: null, contextSize: null, contextPercent: null, fiveHour: null, sevenDay: null, models: [], updatedAt };
 }
 
 describe('belongsToProject', () => {
@@ -44,13 +44,24 @@ describe('pickPlanLimits and headerUsage', () => {
     const stale = { ...withLimits(record('idle', '/x', 900), 2, 1), fiveHour: win(2, 10_000) };
     const busy = withLimits(record('busy', '/y', 100), 10, 4);
     const older = { ...record('old', '/z', 950), fiveHour: win(50, 5_000), sevenDay: win(60, null) };
-    expect(pickPlanLimits([stale, busy, older], 1_000)).toEqual({ fiveHour: win(10, 10_000), sevenDay: win(4, 10_000) });
+    expect(pickPlanLimits([stale, busy, older], 1_000)).toEqual({ fiveHour: win(10, 10_000), sevenDay: win(4, 10_000), models: [] });
   });
 
   it('takes the plan windows from a session that reported them, wherever it runs', () => {
     const records = [{ ...record('own', '/work/app', 50), contextPercent: 12 }, withLimits(record('other', '/other', 40), 30, 7)];
-    expect(pickPlanLimits(records, 1_000)).toEqual({ fiveHour: win(30, 10_000), sevenDay: win(7, 10_000) });
+    expect(pickPlanLimits(records, 1_000)).toEqual({ fiveHour: win(30, 10_000), sevenDay: win(7, 10_000), models: [] });
     expect(headerUsage(records, 'own', '/work/app', 1_000)).toMatchObject({ sessionId: 'own', contextPercent: 12, fiveHour: { usedPercent: 30 } });
+  });
+
+  it('picks each model window (Fable, Opus) by name, the same way as the plan windows', () => {
+    const a = { ...record('a', '/x', 10), models: [{ name: 'Fable', ...win(12, 10_000) }] };
+    const b = { ...record('b', '/y', 20), models: [{ name: 'Fable', ...win(9, 10_000) }, { name: 'Opus', ...win(40, 10_000) }] };
+    expect(pickPlanLimits([a, b], 1_000).models).toEqual([
+      { name: 'Fable', ...win(12, 10_000) },
+      { name: 'Opus', ...win(40, 10_000) },
+    ]);
+    // Only a model window known: the header still shows it.
+    expect(headerUsage([a], null, '/work/app', 1_000)).toMatchObject({ models: [{ name: 'Fable', usedPercent: 12 }] });
   });
 
   it('shows a window whose reset time has passed as 0%', () => {

@@ -165,6 +165,11 @@ export interface LiveUsageWindow {
   resetsAt: number | null;
 }
 
+export interface LiveUsageModelWindow extends LiveUsageWindow {
+  /** Label of the model bucket as the server names it: Fable, Opus, Sonnet. */
+  name: string;
+}
+
 /**
  * Plan utilization of one Claude Code session, written by ARcode's status line script
  * (`resources/arcode-statusline.py`) on every status line update. Rate limits appear only for
@@ -183,6 +188,11 @@ export interface LiveUsage {
   contextPercent: number | null;
   fiveHour: LiveUsageWindow | null;
   sevenDay: LiveUsageWindow | null;
+  /**
+   * Weekly windows of single models: Opus and Sonnet when the plan has them, and the per-model
+   * buckets the server lists (e.g. Fable), by name.
+   */
+  models: LiveUsageModelWindow[];
   /** Unix milliseconds of the last write. */
   updatedAt: number;
 }

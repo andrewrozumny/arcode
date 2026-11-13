@@ -38,12 +38,12 @@ export function pickLiveUsage(
 export function pickPlanLimits(
   records: readonly LiveUsage[],
   now: number,
-): Pick<LiveUsage, 'fiveHour' | 'sevenDay'> {
-  const pick = (key: 'fiveHour' | 'sevenDay'): LiveUsage[typeof key] => {
+): Pick<LiveUsage, 'fiveHour' | 'sevenDay' | 'models'> {
+  const pickBy = (get: (record: LiveUsage) => LiveUsageWindow | null | undefined): LiveUsageWindow | null => {
     let best: LiveUsageWindow | null = null;
     let expired = false;
     for (const record of records) {
-      const win = record[key];
+      const win = get(record);
       if (win?.usedPercent == null) continue;
       if (win.resetsAt !== null && win.resetsAt <= now) {
         expired = true;
@@ -53,7 +53,13 @@ export function pickPlanLimits(
     }
     return best ?? (expired ? { usedPercent: 0, resetsAt: null } : null);
   };
-  return { fiveHour: pick('fiveHour'), sevenDay: pick('sevenDay') };
+  // Model windows by name, in the order sessions first reported them.
+  const names = [...new Set(records.flatMap((r) => (r.models ?? []).map((m) => m.name)))];
+  const models = names.flatMap((name) => {
+    const win = pickBy((r) => r.models?.find((m) => m.name === name));
+    return win ? [{ name, ...win }] : [];
+  });
+  return { fiveHour: pickBy((r) => r.fiveHour), sevenDay: pickBy((r) => r.sevenDay), models };
 }
 
 /** Later reset first (a window without a reset time ranks last), then higher usage. */
@@ -75,9 +81,9 @@ export function headerUsage(
   const session = pickLiveUsage(records, activeSessionId, projectRoot);
   const limits = pickPlanLimits(records, now);
   if (session) return { ...session, ...limits };
-  if (!limits.fiveHour && !limits.sevenDay) return null;
+  if (!limits.fiveHour && !limits.sevenDay && limits.models.length === 0) return null;
   // Age of the plan figures: the newest record that carried any of them.
-  const updatedAt = Math.max(0, ...records.filter((r) => r.fiveHour || r.sevenDay).map((r) => r.updatedAt));
+  const updatedAt = Math.max(0, ...records.filter((r) => r.fiveHour || r.sevenDay || r.models?.length).map((r) => r.updatedAt));
   return {
     sessionId: '',
     cwd: null,

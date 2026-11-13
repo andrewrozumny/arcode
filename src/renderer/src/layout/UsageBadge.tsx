@@ -40,7 +40,7 @@ function UsageBar({ label, percent }: { label: string; percent: number }) {
   );
 }
 
-/** Context fill first (it moves the most), then the 5-hour and weekly plan windows, as mini bars. */
+/** Context fill first (it moves the most), then the 5-hour and weekly plan windows and the per-model weekly windows, as mini bars. */
 export function UsageBadge({ usage }: { usage: LiveUsage }) {
   const now = useNow(5000);
   const bars: { label: string; percent: number }[] = [];
@@ -50,6 +50,10 @@ export function UsageBadge({ usage }: { usage: LiveUsage }) {
   if (contextPercent !== null) bars.push({ label: 'ctx', percent: contextPercent });
   if (usage.fiveHour?.usedPercent != null) bars.push({ label: '5h', percent: usage.fiveHour.usedPercent });
   if (usage.sevenDay?.usedPercent != null) bars.push({ label: 'wk', percent: usage.sevenDay.usedPercent });
+  // Weekly windows of single models (Fable, Opus, Sonnet), each with its own bar.
+  for (const model of usage.models ?? []) {
+    if (model.usedPercent != null) bars.push({ label: model.name, percent: model.usedPercent });
+  }
   if (bars.length === 0) return null;
   const age = Math.max(0, Math.round((now - usage.updatedAt) / 1000));
   const title = [
@@ -58,6 +62,7 @@ export function UsageBadge({ usage }: { usage: LiveUsage }) {
       : null,
     resetText('5-hour window', usage.fiveHour),
     resetText('Weekly window', usage.sevenDay),
+    ...(usage.models ?? []).map((model) => resetText(`Weekly window, ${model.name}`, model)),
     `Updated ${age} s ago via the Claude Code status line`,
   ]
     .filter(Boolean)
