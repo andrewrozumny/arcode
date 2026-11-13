@@ -133,3 +133,164 @@
   text-align: left;
   cursor: pointer;
 }
+
+/* Reading Claude's answer aloud: blue, a click stops it. */
+.vc-button.vc-speaking {
+  color: #4f8cff;
+  border-color: rgba(79, 140, 255, 0.7);
+  background: rgba(79, 140, 255, 0.16);
+  animation: vc-breathe-blue 1.2s ease-in-out infinite;
+}
+@keyframes vc-breathe-blue {
+  50% {
+    box-shadow: 0 0 0 6px rgba(79, 140, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Mode mark on the button's corner; a click opens the mode menu. */
+.vc-mode {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-panel);
+  color: var(--fg-muted);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+.vc-mode:hover,
+.vc-mode[aria-expanded='true'] {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+.vc-mode-dictate {
+  color: #a78bfa;
+}
+.vc-mode-chat {
+  color: #4f8cff;
+}
+
+.vc-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+.vc-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.vc-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.vc-menu-item.current {
+  background: rgba(76, 175, 125, 0.12);
+}
+.vc-menu-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--fg-muted);
+}
+.vc-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vc-menu-label {
+  font-weight: 600;
+}
+.vc-menu-hint {
+  color: var(--fg-faint);
+  font-size: 11px;
+}
+/* The button and its mode mark move together; the bubble sits beside them. */
+.vc-anchor {
+  position: relative;
+  display: inline-flex;
+  pointer-events: none;
+}
+
+/* Reading engine and voice, below the modes. */
+.vc-menu-section {
+  margin: 6px 8px 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-strong);
+  color: var(--fg-faint);
+  font: 11px var(--font-ui);
+}
+.vc-engine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.vc-engine.current {
+  background: rgba(79, 140, 255, 0.12);
+}
+.vc-engine-name {
+  padding: 3px 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: 12px var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.vc-engine-name:disabled {
+  color: var(--fg-faint);
+  cursor: default;
+}
+.vc-voice-select {
+  width: 100%;
+  padding: 3px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--fg);
+  font: 12px var(--font-ui);
+}
+/* Shown while answers are read by the cloud voice, so it is not forgotten on a sensitive project. */
+.vc-cloud {
+  position: absolute;
+  left: -6px;
+  top: -8px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: #4f8cff;
+  color: #fff;
+  font: 600 9px/14px var(--font-ui);
+  pointer-events: none;
+}

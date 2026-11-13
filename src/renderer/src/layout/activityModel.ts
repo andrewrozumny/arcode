@@ -82,14 +82,30 @@ export function claudeReady(tab: Pick<TerminalTab, 'kind' | 'claudeStatus' | 'pt
   return !!tab && tab.kind === 'claude' && tab.claudeStatus === 'idle' && tab.ptyId !== undefined;
 }
 
-export type RemoteControlState = 'off' | 'starting' | 'on' | 'failed';
+export type RemoteControlState = 'off' | 'starting' | 'on' | 'stopping' | 'failed' | 'stopFailed';
 
-/** How long a `/remote-control` may take to report a bridge session before the button says it failed. */
+/** A `/remote-control` typed by the button: it starts Remote Control when off and disconnects it when on. */
+export interface RemoteControlRequest {
+  kind: 'start' | 'stop';
+  at: number;
+}
+
+/** How long `/remote-control` may take to bring the bridge up or down before the button says it failed. */
 export const REMOTE_CONTROL_TIMEOUT_MS = 30_000;
 
-/** State of the Remote Control button from the tab's bridge id and the time of the last request. */
-export function remoteControlState(bridgeId: string | null | undefined, requestedAt: number | null, now: number): RemoteControlState {
-  if (bridgeId) return 'on';
-  if (requestedAt === null) return 'off';
-  return now - requestedAt < REMOTE_CONTROL_TIMEOUT_MS ? 'starting' : 'failed';
+/** Whether a request has reached its goal: the bridge id appeared after a start or went away after a stop. */
+export function remoteControlSettled(bridgeId: string | null | undefined, request: RemoteControlRequest): boolean {
+  return request.kind === 'start' ? !!bridgeId : !bridgeId;
+}
+
+/** State of the Remote Control button from the tab's bridge id and the last request the button made. */
+export function remoteControlState(
+  bridgeId: string | null | undefined,
+  request: RemoteControlRequest | null,
+  now: number,
+): RemoteControlState {
+  if (!request || remoteControlSettled(bridgeId, request)) return bridgeId ? 'on' : 'off';
+  const pending = now - request.at < REMOTE_CONTROL_TIMEOUT_MS;
+  if (request.kind === 'start') return pending ? 'starting' : 'failed';
+  return pending ? 'stopping' : 'stopFailed';
 }

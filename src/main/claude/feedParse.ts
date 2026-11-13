@@ -12,7 +12,7 @@
  * Token usage of each assistant API call is collected beside the items (`usage`), so the renderer
  * can sum it per turn without another read.
  */
-import type { FeedHunk, FeedItem, FeedUsage, FeedQuestion, FeedTaskNotice, FeedTodo, FeedToolDetail, FeedToolResult } from '@shared/claude';
+import type { FeedHunk, FeedItem, FeedQueueOp, FeedUsage, FeedQuestion, FeedTaskNotice, FeedTodo, FeedToolDetail, FeedToolResult } from '@shared/claude';
 import { isRecord } from '@shared/guards';
 
 /**
@@ -42,12 +42,13 @@ export interface ParsedFeed {
   items: FeedItem[];
   results: FeedToolResult[];
   usage: FeedUsage[];
+  queue: FeedQueueOp[];
   /** Whether the last user or assistant record parsed ends a turn; null before any. */
   ended: boolean | null;
 }
 
 export function emptyParsed(): ParsedFeed {
-  return { items: [], results: [], usage: [], ended: null };
+  return { items: [], results: [], usage: [], queue: [], ended: null };
 }
 
 export interface ParseOptions {
@@ -483,6 +484,11 @@ export function parseFeedRecord(
   const message = isRecord(record.message) ? record.message : null;
 
   switch (record.type) {
+    case 'queue-operation': {
+      const op = queueOp(record, at, offset);
+      if (op) out.queue.push(op);
+      return;
+    }
     case 'user': {
       if (record.isMeta === true || !message) return;
       userContent(message.content, { id: uuid, at, offset }, out, record.toolUseResult, names);
@@ -534,6 +540,21 @@ export function parseFeedRecord(
     default:
       return;
   }
+}
+
+/** Text Claude Code itself queues (task notifications, agent messages) is one tagged block. */
+function isMachineText(text: string): boolean {
+  return /^<([a-z][\w-]*)[\s>][\s\S]*<\/\1>\s*$/.test(text.trim());
+}
+
+/** A `queue-operation` record as a FeedQueueOp; null for unknown operations. */
+export function queueOp(record: Record<string, unknown>, at: string | null, offset: number): FeedQueueOp | null {
+  const op = record.operation;
+  if (op !== 'enqueue' && op !== 'dequeue' && op !== 'remove') return null;
+  const content = record.content;
+  const raw = typeof content === 'string' ? content : Array.isArray(content) ? resultText(content) : '';
+  const text = raw.trim() ? raw.slice(0, 4000) : null;
+  return { op, text, hidden: text === null || isMachineText(text), at, offset };
 }
 
 /** Feed items of transcript lines in file order. Lines that are not JSON objects are skipped. */

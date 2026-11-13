@@ -456,9 +456,9 @@ export function TerminalPane({
 
   useEffect(
     () =>
-      bus.on('sendToPty', ({ ptyId, text }) => {
+      bus.on('sendToPty', ({ ptyId, text, submit = true }) => {
         const tab = tabsRef.current.find((t) => t.ptyId === ptyId);
-        if (tab) sessions.get(tab.id)?.sendPasted(text, true);
+        if (tab) sessions.get(tab.id)?.sendPasted(text, submit);
       }),
     [sessions],
   );

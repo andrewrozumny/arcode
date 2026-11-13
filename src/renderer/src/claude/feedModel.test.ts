@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedChunk, FeedItem, FeedUsage } from '@shared/claude';
-import { agentActivity, compactTokens, turnDuration, turnLabel, turnStats, usageTotals } from './feedModel';
+import { agentActivity, compactTokens, turnDuration, turnLabel, queuedPrompts, turnStats, usageTotals } from './feedModel';
 import { DIVIDER_GAP_MS, MAX_ITEMS, MAX_LOADED_ITEMS, applyChunk, canLoadEarlier, emptyFeed, endsMidTurn, groupFeed, lastPromptAt, pendingPrompt, planTexts, runningCall, mergeChunk, runState, taskList, taskNotices } from './feedModel';
 
 const text = (id: string, offset: number, kind: 'user' | 'assistant' = 'assistant'): FeedItem =>
@@ -18,7 +18,7 @@ const tool = (id: string, offset: number, summary = `Bash: ${id}`): Extract<Feed
 });
 
 function chunk(start: number, end: number, items: FeedItem[], extra: Partial<FeedChunk> = {}): FeedChunk {
-  return { found: true, size: end, start, end, reset: false, items, results: [], usage: [], ended: null, ...extra };
+  return { found: true, size: end, start, end, reset: false, items, results: [], usage: [], queue: [], ended: null, ...extra };
 }
 
 describe('mergeChunk', () => {
@@ -348,5 +348,24 @@ describe('agentActivity', () => {
     expect(agentActivity(false, 'idle')).toBe('busy');
     expect(agentActivity(null, 'gone')).toBe('gone');
     expect(agentActivity(null, 'unknown')).toBe('unknown');
+  });
+});
+
+describe('queuedPrompts', () => {
+  const op = (kind: 'enqueue' | 'dequeue' | 'remove', text: string | null, offset: number, hidden = false) =>
+    ({ op: kind, text, hidden, at: null, offset }) as const;
+
+  it('keeps messages Claude has not taken yet, oldest first', () => {
+    expect(queuedPrompts([op('enqueue', 'one', 1), op('enqueue', 'two', 2)]).map((q) => q.text)).toEqual(['one', 'two']);
+  });
+
+  it('drops a message once it is dequeued or removed', () => {
+    const queue = [op('enqueue', 'one', 1), op('enqueue', 'two', 2), op('enqueue', 'three', 3), op('dequeue', null, 4), op('remove', 'three', 5)];
+    expect(queuedPrompts(queue).map((q) => q.text)).toEqual(['two']);
+  });
+
+  it('counts hidden notifications for the order but never shows them', () => {
+    const queue = [op('enqueue', '<task-notification>x</task-notification>', 1, true), op('enqueue', 'mine', 2), op('dequeue', null, 3)];
+    expect(queuedPrompts(queue).map((q) => q.text)).toEqual(['mine']);
   });
 });

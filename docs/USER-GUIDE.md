@@ -307,18 +307,38 @@ A floating microphone button lets you talk to Claude hands-free. It starts just 
 mark in the bottom right corner of the viewer; drag it anywhere in the window and it stays there.
 
 - **Use:** click the button (or press Cmd+Shift+Space anywhere in the window). It turns green and
-  listens. Speak; a pause of about 1.5 seconds ends the phrase, which is recognised locally and typed
-  into the Claude tab with Enter. Click again to stop.
+  listens; a pause of about 1.5 seconds ends a phrase, which is recognised locally. Click again to stop.
+- **Modes:** right click the button, or click the small mark on its corner, to pick one. The choice
+  is remembered.
+  - **Dictation** types each phrase into Claude's prompt without pressing Enter, joined with spaces.
+    Keep talking to add more, edit with the keyboard, and press Enter yourself.
+  - **Commands** sends each phrase with Enter. Claude works and writes in the feed; nothing is read aloud.
+  - **Conversation** sends each phrase and reads Claude's final message of the turn aloud, without
+    code blocks, tables, paths or links. Talking over it, or a click, stops the reading.
+- **Only in the active window:** the microphone is ignored while ARcode is not the active window,
+  so speech around you while you are in another app never reaches Claude. A phrase you were in the
+  middle of when you switched still goes out.
+- **While Claude works:** phrases still go out, like typed messages: Claude Code queues them (they
+  show as queued in the feed). Only a question Claude asks in the terminal (a permission, a choice)
+  pauses listening, since anything typed would become its answer; answer those in the terminal or
+  in the feed.
 - **Which tab:** the active terminal tab when it runs Claude, otherwise the last Claude tab.
-- **Turn taking:** a phrase is only sent while Claude waits at an empty prompt. After a phrase the
-  button turns orange until Claude has answered, then listens again. While Claude is working, or
-  asks something in the terminal (a permission, a question), listening pauses and the bubble says
-  why; answer such prompts in the terminal or in the feed.
-- **What you see:** the ring around the button follows your voice, the bubble next to it shows the
-  state and, for a few seconds, the phrase that was sent. Answers are not read aloud; read them in
-  the Claude feed.
+- **What you see:** the ring around the button follows your voice; the bubble next to it shows the
+  mode, the state and, for a few seconds, the phrase that was sent.
 - Stock phrases whisper invents on silence ("Thanks for watching" and its Russian versions) are
-  dropped. Requirements and settings are the same as for voice input above.
+  dropped. Requirements and settings for recognition are the same as for voice input above.
+
+#### Reading answers aloud
+
+In Conversation mode the menu also picks who reads, and with which voice:
+
+| Engine | Where it runs | Set up |
+|---|---|---|
+| **ElevenLabs** | ElevenLabs' cloud. Only the code-free answer text is sent; your voice and your phrases never are. ElevenLabs keeps what it receives under its own policy, so do not use it for sensitive projects. While it reads, the button shows a **cloud** mark. | An API key in the macOS Keychain: `security add-generic-password -U -s "ARcode ElevenLabs" -a api-key -w` (you are asked for the key), or `ELEVENLABS_API_KEY`. The voices of your ElevenLabs account are offered. `ARCODE_ELEVENLABS_MODEL` changes the model (default `eleven_multilingual_v2`). |
+| **Silero** | On this Mac, a neural Russian voice. | A Python environment with Silero in `~/models/silero/.venv` (`uv venv ~/models/silero/.venv && uv pip install --python ~/models/silero/.venv/bin/python silero torch scipy omegaconf`), or `ARCODE_SILERO_PYTHON`. The model is downloaded once on first use. Silero's models are licensed for non-commercial use. |
+| **macOS voice** | On this Mac (`say`). | Nothing; the voice follows the dictation language (`ARCODE_TTS_VOICE` picks another). |
+
+Without a pick, ElevenLabs is used when its key is set up, else Silero, else the macOS voice.
 
 ## Claude Code integration
 
@@ -344,7 +364,7 @@ What it gives you:
 |---|---|---|
 | Activity lamp (next to the project name) | Claude status of every tab plus the processes running in each terminal | Always. Blinking orange while anything runs: Claude working, a command in a shell tab, a gate, or a shell command Claude left running in the background. Steady orange when nothing runs but Claude waits for you. Green when everything is done. Click it for the list; a row shows its tab. |
 | Model badge (for example "Opus 5.5") | The active Claude tab's session transcript | While a Claude tab is active. Click it to pick another model (Fable, Opus, Sonnet, Haiku or the account default): ARcode types `/model <id>` into that tab. Only while Claude waits at an empty prompt, so the command never lands as a message or as an answer. |
-| **RC** button | `bridgeSessionId` in Claude Code's process registry | While a Claude tab is active. A click types `/remote-control` into the tab. `RC…` while it starts (answer in the terminal if Claude asks to confirm), **RC on** once Claude Code reports the Remote Control session, with **Open in browser** and **Copy link** for `claude.ai/code/<session>`, and **RC failed** when no session shows up within 30 seconds. |
+| **RC** button | `bridgeSessionId` in Claude Code's process registry | While a Claude tab is active. A click types `/remote-control` into the tab. `RC…` while it starts (answer in the terminal if Claude asks to confirm), **RC on** once Claude Code reports the Remote Control session, with **Open in browser** and **Copy link** for `claude.ai/code/<session>`, and **RC failed** when no session shows up within 30 seconds. While it is on, the menu has **Disconnect**, which types `/remote-control` again (Claude Code's own toggle); the button shows `RC…` until the session is gone and reports it when it stays up. |
 | Subagents chip | Subagent transcripts of the active session | While subagents are running; the tooltip lists name, model and age. Click it for a list with **Open transcript** per agent. |
 | Usage bars `ctx`, `5h`, `wk` | The opt-in status line | Context fill, 5-hour and weekly plan usage, once the status line is on and a reply has arrived. |
 | IDE indicator | The bridge | Number of connected Claude Code clients. |
@@ -379,7 +399,9 @@ cannot break Claude Code. Records older than seven days are pruned.
 The pinned **Claude** tab in the viewer shows the active Claude tab's session (or the last one this
 window showed) as a readable conversation, live. A `claude` you start by hand counts too: quitting
 Claude Code and running it again in the same tab moves the feed to the new session, and a shell
-tab you run `claude` in becomes a Claude tab.
+tab you run `claude` in becomes a Claude tab. Messages you send while
+Claude is busy show at the bottom right away, muted and marked **Queued**; once Claude takes one
+it moves into the conversation as usual.
 
 ![Claude feed](screenshots/feed.png)
 
@@ -621,7 +643,7 @@ To reset ARcode, quit it and delete `~/Library/Application Support/ARcode`.
 ## Privacy
 
 ARcode has no account, no telemetry, no crash reporter and no auto-updater. It makes no network
-requests of its own.
+requests of its own, except the opt-in ElevenLabs voice described below.
 
 - **Network:** the only listener is the IDE bridge WebSocket on 127.0.0.1, protected by a random
   token. Remote images in Markdown are blocked by the page's Content Security Policy. PDF tabs are
@@ -639,6 +661,9 @@ requests of its own.
   for voice input, on a temporary audio file that is deleted right after; and
   `claude mcp list` only when you click the MCP check, which is Claude Code contacting the MCP
   servers you configured.
+
+The one exception is opt-in: with an ElevenLabs key in the Keychain and ElevenLabs picked for
+reading answers aloud, the text of Claude's answers (without code) is sent to ElevenLabs.
 
 Whatever you run in a terminal, including Claude Code itself, talks to the network as usual.
 

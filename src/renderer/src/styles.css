@@ -934,3 +934,6 @@ body.resizing-horizontal * {
 .activity-kind.kind-background {
   background: #a78bfa;
 }
+.header-menu-item.header-menu-danger:not(:disabled) {
+  color: #e5534b;
+}

@@ -12,6 +12,8 @@ asarUnpack:
 extraResources:
   - from: resources/arcode-statusline.py
     to: arcode-statusline.py
+  - from: resources/arcode-tts-silero.py
+    to: arcode-tts-silero.py
 npmRebuild: false
 mac:
   target:

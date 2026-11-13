@@ -1304,3 +1304,16 @@
 .fd-card-link:hover {
   text-decoration: underline;
 }
+
+/* A message sent while Claude was busy, not taken yet: muted until it shows up in the conversation. */
+.fd-user.queued {
+  opacity: 0.5;
+}
+.fd-user.queued .fd-bubble {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.fd-user.queued .fd-time {
+  opacity: 1;
+  font-style: italic;
+}

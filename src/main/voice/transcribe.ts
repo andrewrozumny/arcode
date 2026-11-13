@@ -147,14 +147,14 @@ export function wavBytes(bytes: unknown): Uint8Array {
   return bytes;
 }
 
-interface RunResult {
+export interface RunResult {
   code: number | null;
   stdout: string;
   stderr: string;
   timedOut: boolean;
 }
 
-function run(command: string, args: string[], timeoutMs: number): Promise<RunResult> {
+export function run(command: string, args: string[], timeoutMs: number): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const out: Buffer[] = [];

@@ -31,11 +31,28 @@ describe('voiceTarget', () => {
 });
 
 describe('pauseReason', () => {
-  it('only lets an idle Claude through', () => {
-    expect(pauseReason({ ptyId: 1, status: 'idle', title: 'c' })).toBeNull();
-    expect(pauseReason({ ptyId: 1, status: 'busy', title: 'c' })).toBe('Claude is working');
-    expect(pauseReason({ ptyId: 1, status: 'waiting', title: 'c' })).toMatch(/answer in the terminal/);
-    expect(pauseReason({ ptyId: 1, status: undefined, title: 'c' })).toMatch(/not running/);
+  const t = (status: TerminalTab['claudeStatus']) => ({ ptyId: 1, status, title: 'c', sessionId: 's' });
+
+  it('lets phrases through while Claude is idle or working (they are queued)', () => {
+    expect(pauseReason(t('idle'))).toBeNull();
+    expect(pauseReason(t('busy'))).toBeNull();
+    expect(pauseReason(t('shell'))).toBeNull();
+  });
+
+  it('holds phrases while Claude asks something or does not run', () => {
+    expect(pauseReason(t('waiting'))).toMatch(/answer in the terminal/);
+    expect(pauseReason(t(undefined))).toMatch(/not running/);
     expect(pauseReason(null)).toMatch(/Open a Claude tab/);
+  });
+
+  it('pauses while ARcode is in the background', () => {
+    expect(pauseReason(t('idle'), false)).toBe('ARcode is in the background');
+  });
+});
+
+describe('voiceTarget session', () => {
+  it('carries the session id for reading answers', () => {
+    const tab = claude('a', 2, { claude: { sessionId: 'abc', name: 'a', resumed: false } });
+    expect(voiceTarget([tab], tab)?.sessionId).toBe('abc');
   });
 });

@@ -6,4 +6,6 @@ import type { VoiceApi } from '@shared/voice';
 export const voiceApi: VoiceApi = {
   transcribe: (bytes) => ipcRenderer.invoke(VoiceChannel.Transcribe, bytes),
   requestMic: () => ipcRenderer.invoke(VoiceChannel.RequestMic),
+  speak: (request) => ipcRenderer.invoke(VoiceChannel.Speak, request),
+  ttsInfo: () => ipcRenderer.invoke(VoiceChannel.TtsInfo),
 };

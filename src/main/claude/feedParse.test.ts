@@ -446,3 +446,24 @@ describe('readFeed', () => {
     expect(() => feedRequest('x')).toThrow();
   });
 });
+
+describe('queue operations', () => {
+  const line = (record: Record<string, unknown>, offset: number) => ({ offset, text: JSON.stringify(record) });
+
+  it('reads enqueue, dequeue and remove records', () => {
+    const parsed = parseFeedLines([
+      line({ type: 'queue-operation', operation: 'enqueue', timestamp: 't1', content: 'run the gates' }, 0),
+      line({ type: 'queue-operation', operation: 'enqueue', content: '<task-notification>\n<task-id>x</task-id>\n</task-notification>' }, 10),
+      line({ type: 'queue-operation', operation: 'dequeue', content: null }, 20),
+      line({ type: 'queue-operation', operation: 'remove', content: 'run the gates' }, 30),
+      line({ type: 'queue-operation', operation: 'popAll' }, 40),
+    ]);
+    expect(parsed.queue).toEqual([
+      { op: 'enqueue', text: 'run the gates', hidden: false, at: 't1', offset: 0 },
+      { op: 'enqueue', text: '<task-notification>\n<task-id>x</task-id>\n</task-notification>', hidden: true, at: null, offset: 10 },
+      { op: 'dequeue', text: null, hidden: true, at: null, offset: 20 },
+      { op: 'remove', text: 'run the gates', hidden: false, at: null, offset: 30 },
+    ]);
+    expect(parsed.items).toEqual([]);
+  });
+});

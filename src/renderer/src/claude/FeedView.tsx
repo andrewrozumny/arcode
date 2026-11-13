@@ -12,6 +12,7 @@ import {
   groupFeed,
   lastPromptAt,
   pendingPrompt,
+  queuedPrompts,
   planTexts,
   runningCall,
   taskList,
@@ -83,11 +84,24 @@ function Thumbs({ thumbs, images }: { thumbs: readonly string[]; images: number 
   );
 }
 
-function UserTurn({ text, images, thumbs, at }: { text: string; images: number; thumbs: readonly string[]; at: string | null }) {
+function UserTurn({
+  text,
+  images,
+  thumbs,
+  at,
+  queued = false,
+}: {
+  text: string;
+  images: number;
+  thumbs: readonly string[];
+  at: string | null;
+  /** Sent while Claude was busy and not taken yet: drawn muted until Claude picks it up. */
+  queued?: boolean;
+}) {
   const long = text.length > LONG_PROMPT_CHARS || text.split('\n').length > 24;
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="fd-user">
+    <div className={queued ? 'fd-user queued' : 'fd-user'} title={queued ? 'Queued: Claude takes it when it is ready' : undefined}>
       <div className="fd-bubble">
         {images > 0 && <Thumbs thumbs={thumbs} images={images} />}
         {text && <div className={`fd-user-text${long && !expanded ? ' clamped' : ''}`}>{text}</div>}
@@ -97,7 +111,7 @@ function UserTurn({ text, images, thumbs, at }: { text: string; images: number; 
           </button>
         )}
       </div>
-      <span className="fd-time">{clock(at)}</span>
+      <span className="fd-time">{queued ? 'Queued' : clock(at)}</span>
     </div>
   );
 }
@@ -237,6 +251,8 @@ export function FeedView({ projectRoot, sessionId, agentId = null, visible, empt
   const tasks = useMemo(() => taskList(items ?? [], results ?? {}), [items, results]);
   const plans = useMemo(() => planTexts(items ?? [], results ?? {}), [items, results]);
   const pending = useMemo(() => pendingPrompt(items ?? [], results ?? {}, status.activity), [items, results, status.activity]);
+  const queue = state?.queue;
+  const queued = useMemo(() => (agentId ? [] : queuedPrompts(queue ?? [])), [agentId, queue]);
   const prompt = useTerminalPrompt(interactive ? status.ptyId : null, status.activity, pending?.id ?? null);
   const context = useMemo<FeedContextValue>(
     () => ({
@@ -385,6 +401,9 @@ export function FeedView({ projectRoot, sessionId, agentId = null, visible, empt
             </FeedContext.Provider>
             {loosePrompt && <PromptCard control={prompt} />}
             {working && <Working label={current} since={turnStart} waiting={status.activity === 'waiting' ? (status.waitingFor ?? '') : null} />}
+            {queued.map((q) => (
+              <UserTurn key={`queued-${q.offset}`} text={q.text} images={0} thumbs={[]} at={q.at} queued />
+            ))}
           </div>
         </div>
       )}

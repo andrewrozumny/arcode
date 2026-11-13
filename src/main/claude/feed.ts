@@ -90,6 +90,7 @@ async function readBackward(file: string, limit: number, options: ParseOptions):
     parsed.items.unshift(...chunk.items);
     parsed.results.unshift(...chunk.results);
     parsed.usage.unshift(...chunk.usage);
+    parsed.queue.unshift(...chunk.queue);
     // Steps go backwards: the first step that saw a turn record saw the latest one.
     parsed.ended ??= chunk.ended;
     start = split.start;
@@ -98,12 +99,12 @@ async function readBackward(file: string, limit: number, options: ParseOptions):
 }
 
 function chunk(size: number, start: number, end: number, parsed: ParsedFeed, reset = false): FeedChunk {
-  return { found: true, size, start, end, reset, items: parsed.items, results: parsed.results, usage: parsed.usage, ended: parsed.ended };
+  return { found: true, size, start, end, reset, items: parsed.items, results: parsed.results, usage: parsed.usage, queue: parsed.queue, ended: parsed.ended };
 }
 
 /** Reads the part of a session transcript the request asks for. Missing transcripts give `found: false`. */
 export async function readFeed(request: FeedRequest, home: string): Promise<FeedChunk> {
-  const empty: FeedChunk = { found: false, size: 0, start: 0, end: 0, reset: false, items: [], results: [], usage: [], ended: null };
+  const empty: FeedChunk = { found: false, size: 0, start: 0, end: 0, reset: false, items: [], results: [], usage: [], queue: [], ended: null };
   if (!isSessionId(request.sessionId)) return empty;
   if (request.agentId !== undefined && !isAgentId(request.agentId)) return empty;
   const file = await locate(request.sessionId, request.agentId, home);

@@ -3,7 +3,7 @@
  * "load earlier"), tool results are paired with their calls, and consecutive tool calls are
  * grouped into one collapsible line. Pure, so it is covered by tests.
  */
-import type { FeedChunk, FeedItem, FeedToolResult, FeedUsage } from '@shared/claude';
+import type { FeedChunk, FeedItem, FeedQueueOp, FeedToolResult, FeedUsage } from '@shared/claude';
 
 /** Items kept in memory; live appends past this drop the oldest (they can be loaded again). */
 export const MAX_ITEMS = 3000;
@@ -30,12 +30,14 @@ export interface FeedState {
   cap: number;
   /** Token usage records of the loaded range, in file order (several per streamed API call). */
   usage: FeedUsage[];
+  /** Message queue operations of the loaded range, in file order. */
+  queue: FeedQueueOp[];
   /** Whether the transcript's latest turn record ends a turn; null while unknown. */
   ended: boolean | null;
 }
 
 export function emptyFeed(sessionId: string): FeedState {
-  return { sessionId, items: [], results: {}, start: 0, end: 0, loaded: false, found: false, cap: MAX_ITEMS, usage: [], ended: null };
+  return { sessionId, items: [], results: {}, start: 0, end: 0, loaded: false, found: false, cap: MAX_ITEMS, usage: [], queue: [], ended: null };
 }
 
 /** True when "load earlier" can add anything: the transcript has earlier bytes and the ceiling is not reached. */
@@ -71,7 +73,7 @@ function trim(state: FeedState): FeedState {
   const results: Record<string, FeedToolResult> = {};
   for (const [id, result] of Object.entries(state.results)) if (kept.has(id)) results[id] = result;
   const start = items[0]?.offset ?? state.start;
-  return { ...state, items, results, start, usage: state.usage.filter((u) => u.offset >= start) };
+  return { ...state, items, results, start, usage: state.usage.filter((u) => u.offset >= start), queue: state.queue.filter((q) => q.offset >= start) };
 }
 
 /**
@@ -91,13 +93,14 @@ export function mergeChunk(state: FeedState, chunk: FeedChunk, mode: 'tail' | 'a
       found: true,
       cap: MAX_ITEMS,
       usage: chunk.usage,
+      queue: chunk.queue,
       ended: chunk.ended,
     });
   }
   if (mode === 'append') {
     // A chunk that does not continue where the state ends is stale (an overlapping poll).
     if (chunk.start !== state.end) return state;
-    if (chunk.items.length === 0 && chunk.results.length === 0 && chunk.end === state.end) return state;
+    if (chunk.items.length === 0 && chunk.results.length === 0 && chunk.queue.length === 0 && chunk.end === state.end) return state;
     return trim({
       ...state,
       items: chunk.items.length > 0 ? [...state.items, ...chunk.items] : state.items,
@@ -105,6 +108,7 @@ export function mergeChunk(state: FeedState, chunk: FeedChunk, mode: 'tail' | 'a
       end: chunk.end,
       found: true,
       usage: chunk.usage.length > 0 ? [...state.usage, ...chunk.usage] : state.usage,
+      queue: chunk.queue.length > 0 ? [...state.queue, ...chunk.queue] : state.queue,
       ended: chunk.ended ?? state.ended,
     });
   }
@@ -119,6 +123,7 @@ export function mergeChunk(state: FeedState, chunk: FeedChunk, mode: 'tail' | 'a
     start: chunk.start,
     cap: MAX_LOADED_ITEMS,
     usage: [...chunk.usage, ...state.usage],
+    queue: [...chunk.queue, ...state.queue],
   });
 }
 
@@ -514,4 +519,28 @@ export function pendingPrompt(items: readonly FeedItem[], results: Record<string
     return item.detail?.type === 'question' || item.detail?.type === 'plan' ? item : null;
   }
   return null;
+}
+
+export interface QueuedPrompt {
+  text: string;
+  at: string | null;
+  offset: number;
+}
+
+/**
+ * Messages sent while Claude was busy that it has not taken yet, oldest first. Claude Code writes
+ * `enqueue` when a message is sent and `dequeue` (oldest first) or `remove` (by text) when it takes
+ * it; Claude Code's own queued notifications count for the order but are not returned.
+ */
+export function queuedPrompts(queue: readonly FeedQueueOp[]): QueuedPrompt[] {
+  const waiting: FeedQueueOp[] = [];
+  for (const op of queue) {
+    if (op.op === 'enqueue') waiting.push(op);
+    else if (op.op === 'dequeue') waiting.shift();
+    else {
+      const index = waiting.findIndex((w) => w.text === op.text);
+      if (index >= 0) waiting.splice(index, 1);
+    }
+  }
+  return waiting.filter((w) => !w.hidden && w.text !== null).map((w) => ({ text: w.text ?? '', at: w.at, offset: w.offset }));
 }

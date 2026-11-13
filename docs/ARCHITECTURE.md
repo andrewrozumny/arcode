@@ -136,7 +136,14 @@ a 1.5 s pause ends a phrase), half a second of pre-roll keeps the first syllable
 `phrases.ts` drops whisper's stock phantoms. `useVoiceChat` sends a phrase through the `sendToPty`
 bus event only while the target Claude tab is `idle` and then waits for it to be busy and idle again;
 `VoiceChatButton` is the draggable button (position in localStorage, measured from the window's
-bottom right corner).
+bottom right corner). Modes (`answer.ts`): dictation types without Enter, commands send, chat
+also reads the turn's final assistant message (from the transcript range after the phrase) aloud
+after `speakable.ts` strips code, tables, paths and links. Listening stops while the window is not
+focused. Reading goes through `voice:speak` with an engine: `voice/elevenlabs.ts` (opt-in, key
+from the Keychain or `ELEVENLABS_API_KEY`, MP3 from the ElevenLabs API), `voice/silero.ts` (one
+long-lived helper, `resources/arcode-tts-silero.py`, run with the Python of `~/models/silero/.venv`,
+JSON lines over stdio) or `voice/speech.ts` (`say` to WAV); the renderer decodes and plays the audio
+in the microphone's AudioContext so echo cancellation sees it.
 
 **IDE bridge** (`main/ide`, `ideHost.ts`, `renderer/src/ide`). Each project window runs a
 WebSocket MCP server on 127.0.0.1 with a random auth token and a lock file in `~/.claude/ide`, the
@@ -185,7 +192,9 @@ A `FeedRequest` may name an `agentId`: main then reads
 `AGENT_ID_PATTERN`) with sidechain records kept, and reports whether the latest turn record ends a
 turn so the renderer knows when the agent finished. Closable `session` viewer tabs (opened through
 the `openFeed` bus event from the Sessions list, Agent cards and the header subagent chip) render
-the same `FeedView` read-only: only the pinned feed (`interactive`) shows prompt answer buttons. Session titles come from
+the same `FeedView` read-only: only the pinned feed (`interactive`) shows prompt answer buttons. `queue-operation` records (enqueue, dequeue, remove) become `FeedQueueOp`s beside the items;
+`queuedPrompts` replays them so messages sent while Claude is busy show as queued until taken.
+Session titles come from
 `custom-title`, `ai-title` and `summary` records, in that order, before the first prompt.
 
 **Live usage via status line** (`claude/statusline.ts`, `claude/usageLive.ts`,

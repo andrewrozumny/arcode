@@ -1,11 +1,55 @@
-/** IPC contract of voice input (local dictation with whisper.cpp). No Electron imports. */
+/**
+ * IPC contract of voice: local dictation with whisper.cpp, and reading Claude's answers aloud with
+ * one of three engines (ElevenLabs in the cloud, Silero or the macOS voice on this Mac). No Electron imports.
+ */
 
 export const VoiceChannel = {
   /** WAV bytes in, recognised text out. */
   Transcribe: 'voice:transcribe',
   /** Asks macOS for microphone access; resolves to whether it is granted. */
   RequestMic: 'voice:requestMic',
+  /** Text in, audio of it read aloud out, by the requested engine and voice. */
+  Speak: 'voice:speak',
+  /** Which reading engines can be used on this Mac, and their voices. */
+  TtsInfo: 'voice:ttsInfo',
 } as const;
+
+/** Longest text rendered to speech in one call; the renderer splits longer answers. */
+export const VOICE_MAX_SPEECH_CHARS = 4000;
+
+/**
+ * Reading engines. `elevenlabs` sends the code-free answer text to ElevenLabs (opt-in: it needs an
+ * API key in the Keychain); `silero` and `system` never leave the Mac.
+ */
+export type TtsEngine = 'elevenlabs' | 'silero' | 'system';
+
+export const TTS_ENGINES: readonly TtsEngine[] = ['elevenlabs', 'silero', 'system'];
+
+export interface TtsVoice {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface SpeakRequest {
+  text: string;
+  engine: TtsEngine;
+  /** Voice id of the engine; the engine's default when empty or unknown. */
+  voice?: string;
+}
+
+/** Audio bytes (WAV or MP3, whatever the engine gives; the renderer decodes both). */
+export type SpeechResult = { ok: true; audio: Uint8Array } | { ok: false; message: string };
+
+export interface TtsEngineInfo {
+  available: boolean;
+  /** Why it cannot be used, with the fix, when it is not available. */
+  reason?: string;
+  voices: TtsVoice[];
+  defaultVoice: string;
+}
+
+export type TtsInfo = Record<TtsEngine, TtsEngineInfo>;
 
 /** Largest WAV main accepts (about 26 minutes of 16 kHz mono 16-bit audio). */
 export const VOICE_MAX_WAV_BYTES = 50 * 1024 * 1024;
@@ -21,4 +65,8 @@ export interface VoiceApi {
   transcribe(bytes: Uint8Array): Promise<TranscribeResult>;
   /** macOS: prompts for microphone access once; true when access is granted. */
   requestMic(): Promise<boolean>;
+  /** Renders text to speech with the requested engine; the renderer plays the audio. */
+  speak(request: SpeakRequest): Promise<SpeechResult>;
+  /** Reading engines that can be used here and their voices (ElevenLabs voices come from the account). */
+  ttsInfo(): Promise<TtsInfo>;
 }

@@ -394,11 +394,27 @@ export interface FeedChunk {
   results: FeedToolResult[];
   /** Token usage of the assistant API calls in this range, one entry per transcript record. */
   usage: FeedUsage[];
+  /** Message queue operations in this range, in file order (see FeedQueueOp). */
+  queue: FeedQueueOp[];
   /**
    * Whether the last user or assistant record in this range ends a turn (end_turn, a hand-back
    * tool result, an interrupt); null when the range has none. Tells a finished subagent apart.
    */
   ended: boolean | null;
+}
+
+/**
+ * A change to Claude Code's message queue. A message sent while Claude is busy is written as
+ * `enqueue` right away; `dequeue` (the oldest entry) or `remove` (by text) mark it taken, after which
+ * it shows up in the conversation. `hidden` entries were not typed by the user (task notifications,
+ * agent messages): they keep the queue order right but are never shown.
+ */
+export interface FeedQueueOp {
+  op: 'enqueue' | 'dequeue' | 'remove';
+  text: string | null;
+  hidden: boolean;
+  at: string | null;
+  offset: number;
 }
 
 /**

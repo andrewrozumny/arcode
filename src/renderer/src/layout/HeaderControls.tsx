@@ -11,9 +11,10 @@ import {
   activitySummary,
   claudeReady,
   isCurrentModel,
+  remoteControlSettled,
   remoteControlState,
 } from './activityModel';
-import type { ActivityItem } from './activityModel';
+import type { ActivityItem, RemoteControlRequest } from './activityModel';
 import { modelLabel } from './ClaudeBadges';
 import { modelFamily } from './modelFamily';
 
@@ -99,35 +100,37 @@ export function ModelPicker({ model, tab }: { model: BadgeModel | null; tab: Ter
   );
 }
 
-const RC_LABEL = { off: 'RC', starting: 'RC…', on: 'RC on', failed: 'RC failed' } as const;
+const RC_LABEL = { off: 'RC', starting: 'RC…', on: 'RC on', stopping: 'RC…', failed: 'RC failed', stopFailed: 'RC on' } as const;
 
 /**
- * Starts Remote Control (`/remote-control`) in the active Claude tab and shows whether it came up:
- * Claude Code writes the bridge session id into its process registry once the session is reachable.
+ * Remote Control of the active Claude tab. `/remote-control` starts it when it is off and disconnects
+ * it when it is on; the button follows the bridge session id Claude Code writes into its process
+ * registry while a Remote Control session is up.
  */
 export function RemoteControlButton({ tab }: { tab: TerminalTab }) {
   const rootRef = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = usePopover(rootRef);
-  // Request time per pty, so switching tabs does not carry a pending request over.
-  const [requested, setRequested] = useState<{ ptyId: number; at: number } | null>(null);
+  // The last request per pty, so switching tabs does not carry a pending request over.
+  const [requested, setRequested] = useState<(RemoteControlRequest & { ptyId: number }) | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  // A request is settled once the bridge id shows up, so a later disconnect reads as off, not failed.
-  if (requested && tab.remoteControl && requested.ptyId === tab.ptyId) setRequested(null);
-  const requestedAt = requested && requested.ptyId === tab.ptyId ? requested.at : null;
-  const state = remoteControlState(tab.remoteControl, requestedAt, now);
+  const request = requested && requested.ptyId === tab.ptyId ? requested : null;
+  // A settled request is forgotten, so a later change made in the terminal reads as plain on or off.
+  if (request && remoteControlSettled(tab.remoteControl, request)) setRequested(null);
+  const state = remoteControlState(tab.remoteControl, request, now);
   const ready = claudeReady(tab);
 
-  // Tick while starting so the button turns into "failed" after the timeout.
+  // Tick while a request is pending so the button reports a failure after the timeout.
   useEffect(() => {
-    if (state !== 'starting') return;
-    const timer = window.setTimeout(() => setNow(Date.now()), Math.max(250, (requestedAt ?? 0) + REMOTE_CONTROL_TIMEOUT_MS - Date.now() + 50));
+    if (state !== 'starting' && state !== 'stopping') return;
+    const timer = window.setTimeout(() => setNow(Date.now()), Math.max(250, (request?.at ?? 0) + REMOTE_CONTROL_TIMEOUT_MS - Date.now() + 50));
     return () => window.clearTimeout(timer);
-  }, [state, requestedAt, now]);
+  }, [state, request?.at, now]);
 
-  const start = (): void => {
+  const send = (kind: RemoteControlRequest['kind']): void => {
+    setOpen(false);
     if (tab.ptyId === undefined) return;
     const at = Date.now();
-    setRequested({ ptyId: tab.ptyId, at });
+    setRequested({ ptyId: tab.ptyId, kind, at });
     setNow(at);
     bus.emit('sendToPty', { ptyId: tab.ptyId, text: '/remote-control' });
   };
@@ -139,29 +142,27 @@ export function RemoteControlButton({ tab }: { tab: TerminalTab }) {
   };
 
   const onClick = (): void => {
-    if (state === 'on' || state === 'failed') setOpen((v) => !v);
-    else if (state === 'starting') showTab();
-    else if (ready) start();
+    if (state === 'starting' || state === 'stopping') showTab();
+    else if (state === 'off' && ready) send('start');
     else setOpen((v) => !v);
   };
 
   const url = tab.remoteControl ? remoteControlUrl(tab.remoteControl) : null;
-  const title =
-    state === 'on'
-      ? `Remote Control is active: ${url ?? ''}`
-      : state === 'starting'
-        ? 'Starting Remote Control. If Claude asks to confirm, answer in the terminal (click to show it)'
-        : state === 'failed'
-          ? 'Remote Control did not start. Check the terminal tab'
-          : ready
-            ? 'Start Remote Control (/remote-control): continue this session on your phone or at claude.ai/code'
-            : notReadyReason(tab);
+  const title = {
+    on: `Remote Control is active: ${url ?? ''}. Click for the link or to disconnect`,
+    starting: 'Starting Remote Control. If Claude asks to confirm, answer in the terminal (click to show it)',
+    stopping: 'Disconnecting Remote Control. If Claude asks to confirm, answer in the terminal (click to show it)',
+    failed: 'Remote Control did not start. Check the terminal tab',
+    stopFailed: 'Remote Control is still active: the disconnect did not go through. Check the terminal tab',
+    off: ready ? 'Start Remote Control (/remote-control): continue this session on your phone or at claude.ai/code' : notReadyReason(tab),
+  }[state];
+  const cssState = state === 'stopFailed' ? 'on' : state === 'stopping' ? 'starting' : state;
 
   return (
     <span className="header-menu-wrap" ref={rootRef}>
       <button
         type="button"
-        className={`rc-button rc-${state}`}
+        className={`rc-button rc-${cssState}`}
         title={open ? undefined : title}
         aria-expanded={open}
         onClick={onClick}
@@ -171,10 +172,16 @@ export function RemoteControlButton({ tab }: { tab: TerminalTab }) {
       </button>
       {open && (
         <span className="header-menu" role="menu">
-          {state === 'on' && url && (
+          {(state === 'on' || state === 'stopFailed') && url && (
             <>
-              <span className="header-menu-note">Remote Control is active</span>
-              <button type="button" role="menuitem" className="header-menu-item" onClick={() => {
+              <span className="header-menu-note">
+                {state === 'on' ? 'Remote Control is active' : 'The disconnect did not go through; Remote Control is still active'}
+              </span>
+              <button
+                type="button"
+                role="menuitem"
+                className="header-menu-item"
+                onClick={() => {
                   setOpen(false);
                   window.open(url, '_blank');
                 }}
@@ -192,16 +199,23 @@ export function RemoteControlButton({ tab }: { tab: TerminalTab }) {
               >
                 <span className="header-menu-label">Copy link</span>
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="header-menu-item header-menu-danger"
+                disabled={!ready}
+                title={ready ? 'Types /remote-control into the tab, which disconnects it' : notReadyReason(tab)}
+                onClick={() => send('stop')}
+              >
+                <span className="header-menu-label">Disconnect</span>
+                {!ready && <span className="header-menu-meta">when Claude is idle</span>}
+              </button>
             </>
           )}
           {state === 'failed' && (
             <>
               <span className="header-menu-note">Remote Control did not report a session within {REMOTE_CONTROL_TIMEOUT_MS / 1000} s</span>
-              <button type="button" role="menuitem" className="header-menu-item" disabled={!ready} onClick={() => {
-                  setOpen(false);
-                  start();
-                }}
-              >
+              <button type="button" role="menuitem" className="header-menu-item" disabled={!ready} onClick={() => send('start')}>
                 <span className="header-menu-label">Try again</span>
               </button>
             </>

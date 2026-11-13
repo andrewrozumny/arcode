@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TerminalTab } from '../terminal/types';
-import { pauseReason, useVoiceChat } from './useVoiceChat';
+import { loadVoiceMode, saveVoiceMode, VOICE_MODES } from './answer';
+import type { VoiceMode } from './answer';
+import { TTS_ENGINES } from '@shared/voice';
+import type { TtsEngine, TtsInfo } from '@shared/voice';
+import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice } from './reading';
+import type { ReadingChoice } from './reading';
+import { useVoiceChat } from './useVoiceChat';
 import type { VoicePhase, VoiceTarget } from './useVoiceChat';
 import './voice.css';
 
@@ -63,7 +69,7 @@ function clampOffset(offset: Offset): Offset {
 export function voiceTarget(tabs: readonly TerminalTab[], activeTab: TerminalTab | null): VoiceTarget | null {
   const pick = (tab: TerminalTab | null | undefined): VoiceTarget | null =>
     tab && tab.kind === 'claude' && tab.ptyId !== undefined && !tab.exited
-      ? { ptyId: tab.ptyId, status: tab.claudeStatus, title: tab.title }
+      ? { ptyId: tab.ptyId, status: tab.claudeStatus, title: tab.title, sessionId: tab.claude?.sessionId ?? null }
       : null;
   return pick(activeTab) ?? pick([...tabs].reverse().find((t) => pick(t) !== null));
 }
@@ -75,9 +81,33 @@ const LABEL: Record<VoicePhase, string> = {
   hearing: 'Hearing you',
   transcribing: 'Recognising',
   claude: 'Claude is answering',
+  speaking: 'Reading the answer',
   paused: 'Paused',
   error: 'Voice chat error',
 };
+
+/** Small mark on the button: which mode it is in. */
+function ModeMark({ mode }: { mode: VoiceMode }) {
+  if (mode === 'dictate') {
+    return (
+      <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2 2.5h8M6 2.5v7.5M4.5 10h3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (mode === 'command') {
+    return (
+      <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M10 2v4.5H3M5 4.5 3 6.5l2 2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+      <path d="M1.5 4.5h2l3-2.5v8l-3-2.5h-2zM8.5 4a2.5 2.5 0 0 1 0 4M9.8 2.5a4.5 4.5 0 0 1 0 7" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function MicIcon() {
   return (
@@ -89,13 +119,65 @@ function MicIcon() {
 }
 
 /**
- * Floating microphone for a spoken conversation with Claude. Click (or Cmd+Shift+Space) turns it on
- * and off; drag it anywhere in the window. While on it listens, sends each phrase after a pause to
- * the Claude tab and waits for Claude to finish before listening again.
+ * Floating microphone for talking to Claude. Click (or Cmd+Shift+Space) turns it on and off, a right
+ * click or the small arrow picks the mode (dictation, commands, conversation), drag moves it. It only
+ * listens while this ARcode window is the active one.
  */
 export function VoiceChatButton({ tabs, activeTab }: { tabs: readonly TerminalTab[]; activeTab: TerminalTab | null }) {
   const target = useMemo(() => voiceTarget(tabs, activeTab), [tabs, activeTab]);
-  const { phase, level, error, lastSent, toggle, dismissError } = useVoiceChat(target);
+  const [mode, setMode] = useState<VoiceMode>(loadVoiceMode);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [readingChoice, setReadingChoice] = useState<ReadingChoice>(loadReadingChoice);
+  const [ttsInfo, setTtsInfo] = useState<TtsInfo | null>(null);
+  const reading = useMemo(() => readingVoice(readingChoice, ttsInfo), [readingChoice, ttsInfo]);
+  const { phase, level, error, lastSent, reason, claudeWorking, toggle, dismissError } = useVoiceChat(target, mode, reading);
+
+  // Which reading engines work here: asked once, and again whenever the menu opens (a key may have been added).
+  const infoAsked = useRef(false);
+  useEffect(() => {
+    if (infoAsked.current && !menuOpen) return;
+    infoAsked.current = true;
+    let live = true;
+    void window.acode.voice
+      .ttsInfo()
+      .then((info) => {
+        if (live) setTtsInfo(info);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [menuOpen]);
+
+  const pickReading = (engine: TtsEngine, voice?: string): void => {
+    const next: ReadingChoice = { engine, voices: voice ? { ...readingChoice.voices, [engine]: voice } : readingChoice.voices };
+    setReadingChoice(next);
+    saveReadingChoice(next);
+  };
+  const cloud = mode === 'chat' && reading.engine === 'elevenlabs';
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (event: MouseEvent): void => {
+      if (!rootRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  const pickMode = (next: VoiceMode): void => {
+    setMode(next);
+    saveVoiceMode(next);
+    setMenuOpen(false);
+  };
   const [offset, setOffset] = useState<Offset | null>(loadOffset);
   const drag = useRef<{ x: number; y: number; start: Offset; moved: boolean } | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -163,19 +245,90 @@ export function VoiceChatButton({ tabs, activeTab }: { tabs: readonly TerminalTa
 
   if (!offset) return null;
   const place = clampOffset(offset);
-  const reason = phase === 'paused' ? pauseReason(target) : null;
+  const modeInfo = VOICE_MODES.find((m) => m.mode === mode) ?? VOICE_MODES[1];
   const sent = lastSent && now - lastSent.at < SENT_MS ? lastSent.text : null;
-  const note = phase === 'error' ? error : (reason ?? (phase === 'claude' && sent ? sent : null));
+  const working = claudeWorking && (phase === 'listening' || phase === 'hearing' || phase === 'claude');
+  const note =
+    phase === 'error'
+      ? error
+      : phase === 'paused'
+        ? reason
+        : sent && phase !== 'off'
+          ? sent
+          : working && mode !== 'dictate'
+            ? 'Claude is working; what you say now is queued'
+            : null;
   const showBubble = phase !== 'off' || !!error;
-  const title = `${LABEL[phase]}${note ? `: ${note}` : ''}. Click to turn ${phase === 'off' || phase === 'error' ? 'on' : 'off'} (Cmd+Shift+Space), drag to move${target ? `. Talks to "${target.title}"` : ''}`;
+  const action = phase === 'speaking' ? 'Click to stop reading' : `Click to turn ${phase === 'off' || phase === 'error' ? 'on' : 'off'} (Cmd+Shift+Space)`;
+  const title = `${modeInfo?.label ?? ''}: ${LABEL[phase]}${note ? `, ${note}` : ''}. ${action}, right click for the mode, drag to move${target ? `. Talks to "${target.title}"` : ''}`;
   // Ring grows with the voice so it is clear the microphone hears you.
   const ring = phase === 'listening' || phase === 'hearing' ? Math.min(1, level * 12) : 0;
 
   return (
-    <div className="vc-root" style={{ right: place.right, bottom: place.bottom }}>
+    <div className="vc-root" ref={rootRef} style={{ right: place.right, bottom: place.bottom }}>
+      {menuOpen && (
+        <div className="vc-menu" role="menu" aria-label="Voice mode">
+          {VOICE_MODES.map((m) => (
+            <button
+              key={m.mode}
+              type="button"
+              role="menuitemradio"
+              aria-checked={m.mode === mode}
+              className={m.mode === mode ? 'vc-menu-item current' : 'vc-menu-item'}
+              onClick={() => pickMode(m.mode)}
+            >
+              <span className="vc-menu-mark">
+                <ModeMark mode={m.mode} />
+              </span>
+              <span className="vc-menu-text">
+                <span className="vc-menu-label">{m.label}</span>
+                <span className="vc-menu-hint">{m.hint}</span>
+              </span>
+            </button>
+          ))}
+          <div className="vc-menu-section">Read answers with (Conversation)</div>
+          {TTS_ENGINES.map((engine) => {
+            const info = ttsInfo?.[engine];
+            const current = reading.engine === engine;
+            return (
+              <div key={engine} className={current ? 'vc-engine current' : 'vc-engine'}>
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={current}
+                  className="vc-engine-name"
+                  disabled={!info?.available}
+                  title={info?.available ? undefined : info?.reason}
+                  onClick={() => pickReading(engine)}
+                >
+                  {ENGINE_LABEL[engine]}
+                  {!info?.available && <span className="vc-menu-hint"> · not set up</span>}
+                </button>
+                {current && info && info.voices.length > 1 && (
+                  <select
+                    className="vc-voice-select"
+                    value={reading.voice}
+                    aria-label="Voice"
+                    onChange={(event) => pickReading(engine, event.target.value)}
+                  >
+                    {info.voices.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                        {v.description ? ` (${v.description})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {showBubble && (
         <div className={`vc-bubble vc-${phase}`} role="status">
-          <span className="vc-bubble-label">{LABEL[phase]}</span>
+          <span className="vc-bubble-label">
+            {modeInfo?.label} · {LABEL[phase]}
+          </span>
           {note && <span className="vc-bubble-note">{note}</span>}
           {error && phase !== 'error' && (
             <button type="button" className="vc-bubble-error" onClick={dismissError} title="Dismiss">
@@ -184,6 +337,7 @@ export function VoiceChatButton({ tabs, activeTab }: { tabs: readonly TerminalTa
           )}
         </div>
       )}
+      <span className="vc-anchor">
       <button
         type="button"
         className={`vc-button vc-${phase}`}
@@ -195,6 +349,10 @@ export function VoiceChatButton({ tabs, activeTab }: { tabs: readonly TerminalTa
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => (drag.current = null)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenuOpen((v) => !v);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
@@ -205,6 +363,23 @@ export function VoiceChatButton({ tabs, activeTab }: { tabs: readonly TerminalTa
         <span className="vc-ring" aria-hidden="true" />
         {phase === 'transcribing' || phase === 'starting' ? <span className="vc-spinner" aria-hidden="true" /> : <MicIcon />}
       </button>
+      <button
+        type="button"
+        className={`vc-mode vc-mode-${mode}`}
+        title={`Mode: ${modeInfo?.label ?? ''}. Click to change`}
+        aria-label={`Voice mode: ${modeInfo?.label ?? ''}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((v) => !v)}
+      >
+        <ModeMark mode={mode} />
+      </button>
+      {cloud && (
+        <span className="vc-cloud" title="Answers are read by ElevenLabs: their text (without code) goes to the cloud">
+          cloud
+        </span>
+      )}
+      </span>
     </div>
   );
 }

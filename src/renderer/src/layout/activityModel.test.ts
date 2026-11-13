@@ -6,6 +6,7 @@ import {
   activitySummary,
   claudeReady,
   isCurrentModel,
+  remoteControlSettled,
   remoteControlState,
 } from './activityModel';
 
@@ -82,10 +83,29 @@ describe('claudeReady', () => {
 });
 
 describe('remoteControlState', () => {
-  it('follows the bridge id and the request time', () => {
+  const start = { kind: 'start' as const, at: 1000 };
+  const stop = { kind: 'stop' as const, at: 1000 };
+
+  it('follows the bridge id without a request', () => {
     expect(remoteControlState('session_1', null, 0)).toBe('on');
     expect(remoteControlState(null, null, 0)).toBe('off');
-    expect(remoteControlState(null, 1000, 2000)).toBe('starting');
-    expect(remoteControlState(null, 1000, 1000 + REMOTE_CONTROL_TIMEOUT_MS)).toBe('failed');
+  });
+
+  it('starts, then fails after the timeout', () => {
+    expect(remoteControlState(null, start, 2000)).toBe('starting');
+    expect(remoteControlState('session_1', start, 2000)).toBe('on');
+    expect(remoteControlState(null, start, 1000 + REMOTE_CONTROL_TIMEOUT_MS)).toBe('failed');
+  });
+
+  it('stops, then reports a stop that did not happen', () => {
+    expect(remoteControlState('session_1', stop, 2000)).toBe('stopping');
+    expect(remoteControlState(null, stop, 2000)).toBe('off');
+    expect(remoteControlState('session_1', stop, 1000 + REMOTE_CONTROL_TIMEOUT_MS)).toBe('stopFailed');
+  });
+
+  it('settles requests by their goal', () => {
+    expect(remoteControlSettled('x', start)).toBe(true);
+    expect(remoteControlSettled(null, stop)).toBe(true);
+    expect(remoteControlSettled(null, start)).toBe(false);
   });
 });
