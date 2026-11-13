@@ -29,20 +29,21 @@ export interface HandoverTarget {
   draft: string;
 }
 
-export type HandoverCheck = { send: true } | { send: false; reason: string };
+export type HandoverCheck = { send: true; queued: boolean } | { send: false; reason: string };
 
 /**
- * Whether a handed-over task can be sent right now. It is only sent to a Claude Code that is idle at
- * an empty prompt: while it works the task would be queued behind its turn, while it asks something
- * the task would become the answer, and a draft in the prompt would be merged with the task.
+ * Whether a handed-over task can be sent right now. An idle Claude Code takes it as a new message; a
+ * busy one puts it in its own message queue (`queued`), like text typed while it works. It is held
+ * back while Claude Code asks something (the task would become the answer) and while the prompt has
+ * a draft (the task would be merged with it).
  */
 export function handoverCheck(target: HandoverTarget | null): HandoverCheck {
   if (!target) return { send: false, reason: 'Not sent: open a Claude tab first' };
-  if (target.status === 'busy' || target.status === 'shell') return { send: false, reason: 'Not sent: Claude Code is busy' };
+  if (target.status === 'shell') return { send: false, reason: 'Not sent: a shell command is running in that tab' };
   if (target.status === 'waiting') return { send: false, reason: 'Not sent: Claude Code is waiting for an answer' };
-  if (target.status !== 'idle') return { send: false, reason: 'Not sent: Claude Code is not running in that tab' };
+  if (target.status !== 'idle' && target.status !== 'busy') return { send: false, reason: 'Not sent: Claude Code is not running in that tab' };
   if (target.draft.trim()) return { send: false, reason: "Not sent: there is unsent text in Claude Code's prompt" };
-  return { send: true };
+  return { send: true, queued: target.status === 'busy' };
 }
 
 /** Lines of the Claude Code session sent with the first message, for context. */
@@ -224,14 +225,15 @@ function deliverTask(task: string, target: HandoverTarget | null): Pick<Discussi
   const check = handoverCheck(target);
   if (!check.send || !target) return { taskStatus: check.send ? 'Not sent' : check.reason, taskSent: false };
   bus.emit('sendToPty', { ptyId: target.ptyId, text: task });
-  return { taskStatus: 'Sent to Claude Code', taskSent: true };
+  return { taskStatus: check.queued ? 'Queued in Claude Code' : 'Sent to Claude Code', taskSent: true };
 }
 
 /**
  * A spoken discussion about the work in a Claude Code session, with a partner that does not touch
  * it. Each message carries what happened in the session since the previous one. A task the partner
  * hands over (asked by voice, or with `handOver`) is sent to the Claude Code tab at once, pasted in
- * one piece and submitted, when that tab is idle at an empty prompt; otherwise it stays in the window
+ * one piece and submitted (queued by Claude Code while it works); while it asks something or its
+ * prompt has a draft it stays in the window
  * with the reason and a Send button (`sendTask`).
  */
 export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarget, model, enabled }: Options) {

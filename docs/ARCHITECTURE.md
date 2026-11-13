@@ -145,7 +145,7 @@ out (Read, Grep and Glob only, `--strict-mcp-config`, `--no-session-persistence`
 prompt) and forwards text deltas as `voice:discussionEvent`; `SentenceStream` cuts them into sentences
 for the speech queue and skips code fences and `<handover>` tags. A finished answer with a
 `<handover>` task (the partner's prompt says to use it when the user asks or agrees to pass something
-on) is sent to the Claude tab through `sendToPty` when `handoverCheck` allows it (the tab idle and its
+on) is sent to the Claude tab through `sendToPty` when `handoverCheck` allows it (the tab idle, or busy, when Claude Code queues it, and its
 prompt empty; `terminal/promptDraft.ts` reads unsent text from the screen, leaving out the dim
 suggestion of an empty prompt), else it waits for a Send button. `TerminalSession.sendPasted` writes
 a paste in one bracketed write and presses Enter as a separate input once the program has answered
