@@ -294,3 +294,95 @@
   font: 600 9px/14px var(--font-ui);
   pointer-events: none;
 }
+
+/* Dictation button: docked in the terminal's bottom right corner, beside Claude's prompt. */
+.vc-root.vc-docked {
+  position: absolute;
+  right: 22px;
+  bottom: 10px;
+  z-index: 20;
+}
+.vc-docked .vc-button {
+  width: 34px;
+  height: 34px;
+}
+.vc-docked .vc-button svg {
+  width: 16px;
+  height: 16px;
+}
+.vc-docked .vc-mode {
+  width: 16px;
+  height: 16px;
+  right: -4px;
+  bottom: -4px;
+}
+
+/* Live chat window: the conversation as it goes, above the button. */
+.vc-chat {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  max-height: 420px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font: 12.5px/1.45 var(--font-ui);
+  pointer-events: auto;
+}
+.vc-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+.vc-chat-close {
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.vc-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-y: auto;
+}
+.vc-chat-empty {
+  color: var(--fg-faint);
+}
+.vc-chat-line {
+  max-width: 88%;
+  padding: 5px 9px;
+  border-radius: 9px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.vc-chat-you {
+  align-self: flex-end;
+  background: rgba(76, 175, 125, 0.18);
+  color: var(--fg);
+}
+.vc-chat-claude {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+}
+.vc-chat-action {
+  align-self: flex-start;
+  padding: 0 9px;
+  color: var(--fg-faint);
+  font-size: 11px;
+}
+.vc-chat-action::before {
+  content: '▸ ';
+}

@@ -364,6 +364,11 @@ describe('queuedPrompts', () => {
     expect(queuedPrompts(queue).map((q) => q.text)).toEqual(['two']);
   });
 
+  it('empties the queue on clear (popAll, or a prompt that started a turn directly)', () => {
+    const queue = [op('enqueue', 'lost when the app restarted', 1), { op: 'clear' as const, text: null, hidden: true, at: null, offset: 2 }, op('enqueue', 'new', 3)];
+    expect(queuedPrompts(queue).map((q) => q.text)).toEqual(['new']);
+  });
+
   it('counts hidden notifications for the order but never shows them', () => {
     const queue = [op('enqueue', '<task-notification>x</task-notification>', 1, true), op('enqueue', 'mine', 2), op('dequeue', null, 3)];
     expect(queuedPrompts(queue).map((q) => q.text)).toEqual(['mine']);

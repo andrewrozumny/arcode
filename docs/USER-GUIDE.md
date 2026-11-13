@@ -301,36 +301,43 @@ Dictate a prompt into the composer instead of typing it. Speech is recognised on
 - **Errors** show as a short line under the composer with the fix (install whisper.cpp, add a
   model, allow the microphone). Transcription gives up after 2 minutes.
 
-### Voice chat with Claude
+### Voice buttons: dictation and live chat
 
-A floating microphone button lets you talk to Claude hands-free. It starts just above the arCode
-mark in the bottom right corner of the viewer; drag it anywhere in the window and it stays there.
+Two buttons use the microphone; only one listens at a time (turning one on turns the other off), and
+both only listen while ARcode is the active window, so speech around you while you are in another
+app never reaches Claude (a phrase you were in the middle of when you switched still goes out). A
+pause of about 1.5 seconds ends a phrase, which is recognised locally.
 
-- **Use:** click the button (or press Cmd+Shift+Space anywhere in the window). It turns green and
-  listens; a pause of about 1.5 seconds ends a phrase, which is recognised locally. Click again to stop.
-- **Modes:** right click the button, or click the small mark on its corner, to pick one. The choice
-  is remembered.
-  - **Dictation** types each phrase into Claude's prompt without pressing Enter, joined with spaces.
-    Keep talking to add more, edit with the keyboard, and press Enter yourself.
-  - **Commands** sends each phrase with Enter. Claude works and writes in the feed; nothing is read aloud.
-  - **Conversation** sends each phrase and reads Claude's final message of the turn aloud, without
-    code blocks, tables, paths or links. Talking over it, or a click, stops the reading.
-- **Only in the active window:** the microphone is ignored while ARcode is not the active window,
-  so speech around you while you are in another app never reaches Claude. A phrase you were in the
-  middle of when you switched still goes out.
+**Dictation** sits in the bottom right corner of the terminal, next to Claude's prompt. Click it (or
+press Cmd+Shift+D) to turn it on and off; the small mark on its corner (or a right click) picks the mode,
+which is remembered:
+
+- **Type into the prompt** types each phrase into Claude's prompt without pressing Enter, joined with
+  spaces. Keep talking to add more, edit with the keyboard, and press Enter yourself.
+- **Send each phrase** sends each phrase with Enter as soon as you pause.
+
+**Live chat** is the floating button with a speech bubble. It starts just above the arCode mark in the
+bottom right corner of the viewer; drag it anywhere and it stays there. Click it (or press
+Cmd+Shift+Space) and talk: each phrase goes to Claude, and every message Claude writes, not only the
+last one of a turn, is read aloud as it arrives, without code blocks, tables, paths or links. A
+window above the button shows the conversation as it goes: your phrases, Claude's messages and a
+short grey line for each thing Claude does (a command, an edit). Close it with ×; the voice menu can
+show it again. Talking over the reading, or a click, stops it. The mark on the button's corner picks
+the reading voice.
+
 - **While Claude works:** phrases still go out, like typed messages: Claude Code queues them (they
   show as queued in the feed). Only a question Claude asks in the terminal (a permission, a choice)
   pauses listening, since anything typed would become its answer; answer those in the terminal or
   in the feed.
 - **Which tab:** the active terminal tab when it runs Claude, otherwise the last Claude tab.
-- **What you see:** the ring around the button follows your voice; the bubble next to it shows the
+- **What you see:** the ring around a button follows your voice; the bubble next to it shows the
   mode, the state and, for a few seconds, the phrase that was sent.
 - Stock phrases whisper invents on silence ("Thanks for watching" and its Russian versions) are
   dropped. Requirements and settings for recognition are the same as for voice input above.
 
 #### Reading answers aloud
 
-In Conversation mode the menu also picks who reads, and with which voice:
+The live chat's voice menu picks who reads, and with which voice:
 
 | Engine | Where it runs | Set up |
 |---|---|---|
@@ -546,7 +553,8 @@ database the switcher shows recent projects only.
 | Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
 | Cmd+Shift+J | Jump to the next terminal tab where Claude waits for you (works in the terminal too) |
-| Cmd+Shift+Space | Turn voice chat with Claude on or off |
+| Cmd+Shift+Space | Turn the live chat with Claude on or off |
+| Cmd+Shift+D | Turn dictation into Claude's prompt on or off |
 | Cmd+T | New shell tab |
 | Cmd+\ | Split the terminal into two columns, or focus the other column when it is split |
 | Cmd+W | Close the active tab (terminal or viewer, depending on focus) |

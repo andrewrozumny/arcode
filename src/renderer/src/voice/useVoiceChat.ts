@@ -4,7 +4,7 @@ import type { ClaudeStatus } from '@shared/terminal';
 import type { TtsEngine } from '@shared/voice';
 import { bus } from '../bus';
 import { downsample, encodeWav, VOICE_SAMPLE_RATE } from '../terminal/wav';
-import { dictationText, turnAnswer } from './answer';
+import { dictationText } from './answer';
 import type { VoiceMode } from './answer';
 import { phraseToSend } from './phrases';
 import { speakableText, speechChunks } from './speakable';
@@ -111,7 +111,11 @@ export interface ReadingVoice {
   voice: string;
 }
 
-export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, reading: ReadingVoice) {
+/**
+ * `owner` names the button using the microphone: when one button starts listening, the others stop,
+ * so dictation and the live chat never both hear the same phrase.
+ */
+export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, reading: ReadingVoice, owner: string) {
   const focused = useWindowFocus();
   const [on, setOn] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -135,8 +139,8 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
   const flush = useRef(false);
   const speakingRef = useRef(false);
   const sawBusy = useRef(false);
-  /** Transcript size when the phrase was sent: Claude's answer is read from there on. */
-  const answerFrom = useRef<number | null>(null);
+  /** Claude's messages waiting to be read aloud, in order. */
+  const speechQueue = useRef<string[]>([]);
   /** Dictated text sits in Claude's prompt, so the next phrase is joined with a space. */
   const dictating = useRef(false);
   const generation = useRef(0);
@@ -167,6 +171,7 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
   }, [status, target?.ptyId]);
 
   const stopSpeaking = useCallback(() => {
+    speechQueue.current = [];
     speechRun.current += 1;
     speakingRef.current = false;
     try {
@@ -221,21 +226,28 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
     }
   }, []);
 
-  /** Reads Claude's final message of the turn that answered the last phrase. */
-  const readAnswer = useCallback(async () => {
-    const current = targetRef.current;
-    const from = answerFrom.current;
-    answerFrom.current = null;
-    if (!current?.sessionId || from === null) return;
-    try {
-      const chunk = await window.acode.claude.feed({ sessionId: current.sessionId, from });
-      const answer = turnAnswer(chunk.items);
-      const text = answer ? speakableText(answer) : '';
-      if (text) await speak(text);
-    } catch {
-      // No transcript to read: nothing is said.
-    }
-  }, [speak]);
+  /**
+   * Queues one of Claude's messages to be read aloud (conversation mode reads each message as it
+   * arrives, not only the last one of a turn). Code, tables and paths are left out.
+   */
+  const say = useCallback(
+    (markdown: string) => {
+      if (!audio.current || modeRef.current !== 'chat') return;
+      const text = speakableText(markdown);
+      if (!text) return;
+      speechQueue.current.push(text);
+      if (speakingRef.current) return;
+      void (async () => {
+        let next: string | undefined;
+        while ((next = speechQueue.current.shift()) !== undefined) {
+          await speak(next);
+          // A barge-in or a click cleared the queue.
+          if (!audio.current) break;
+        }
+      })();
+    },
+    [speak],
+  );
 
   // After a phrase was sent: wait for Claude to start working and to be idle again.
   useEffect(() => {
@@ -243,16 +255,12 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
     if (status === 'busy' || status === 'shell' || status === 'waiting') sawBusy.current = true;
     if (sawBusy.current && status === 'idle') {
       setAwaiting(false);
-      if (modeRef.current === 'chat') void readAnswer();
       return;
     }
     if (sawBusy.current) return;
-    const timer = window.setTimeout(() => {
-      answerFrom.current = null;
-      setAwaiting(false);
-    }, PICKUP_TIMEOUT_MS);
+    const timer = window.setTimeout(() => setAwaiting(false), PICKUP_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
-  }, [awaiting, status, readAnswer]);
+  }, [awaiting, status]);
 
   const close = useCallback(() => {
     generation.current += 1;
@@ -269,7 +277,7 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
 
   /** Phrases go out one after another, in the order they were said. */
   const outbox = useRef<Promise<void>>(Promise.resolve());
-  const deliverNow = useCallback(async (text: string) => {
+  const deliverNow = useCallback((text: string) => {
     const current = targetRef.current;
     const currentMode = modeRef.current;
     // The phrase may have been finished after ARcode lost focus (it was said before): only the target matters now.
@@ -281,14 +289,6 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
       return;
     }
     if (currentMode === 'chat') {
-      // The answer is read from where the transcript was before the first unanswered phrase.
-      if (answerFrom.current === null && current.sessionId) {
-        try {
-          answerFrom.current = (await window.acode.claude.feed({ sessionId: current.sessionId })).end;
-        } catch {
-          // Without a transcript the answer cannot be read; the phrase still goes out.
-        }
-      }
       sawBusy.current = current.status === 'busy' || current.status === 'shell';
       setAwaiting(true);
     }
@@ -403,6 +403,7 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
       audio.current = { stream, context, source, processor };
       dictating.current = false;
       setOn(true);
+      bus.emit('voiceOwner', { owner });
     } catch (err) {
       if (gen === generation.current) {
         setError(micErrorMessage(err));
@@ -411,7 +412,7 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
     } finally {
       if (gen === generation.current) setStarting(false);
     }
-  }, [close, transcribe, stopSpeaking]);
+  }, [close, transcribe, stopSpeaking, owner]);
 
   const stop = useCallback(() => {
     close();
@@ -437,6 +438,11 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
 
   useEffect(() => close, [close]);
 
+  // Another button took the microphone: this one stops listening.
+  useEffect(() => bus.on('voiceOwner', ({ owner: other }) => {
+    if (other !== owner && audio.current) stop();
+  }), [owner, stop]);
+
   const phase: VoicePhase = error && !on
     ? 'error'
     : starting
@@ -457,5 +463,5 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
   /** Claude works on what was said; listening goes on, so more can be added (it is queued). */
   const claudeWorking = on && (target?.status === 'busy' || target?.status === 'shell');
 
-  return { phase, level, error, lastSent, reason, claudeWorking, toggle, stop, stopSpeaking, dismissError: () => setError(null) };
+  return { phase, level, error, lastSent, reason, claudeWorking, on, say, toggle, stop, stopSpeaking, dismissError: () => setError(null) };
 }

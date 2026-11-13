@@ -536,6 +536,7 @@ export function queuedPrompts(queue: readonly FeedQueueOp[]): QueuedPrompt[] {
   const waiting: FeedQueueOp[] = [];
   for (const op of queue) {
     if (op.op === 'enqueue') waiting.push(op);
+    else if (op.op === 'clear') waiting.length = 0;
     else if (op.op === 'dequeue') waiting.shift();
     else {
       const index = waiting.findIndex((w) => w.text === op.text);

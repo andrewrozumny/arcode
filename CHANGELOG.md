@@ -17,6 +17,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Voice chat with Claude.** A floating microphone (drag it anywhere; it starts above the arCode
   mark) or Cmd+Shift+Space turns on hands-free talk: each phrase is sent to the Claude tab after a
   pause, recognised locally like dictation, and listening resumes once Claude has answered.
+- **Dictation button in the terminal and a live chat.** Dictation (Cmd+Shift+D) sits next to
+  Claude's prompt and either types into it or sends each phrase. The floating button became a live
+  chat (Cmd+Shift+Space): every message Claude writes is read aloud as it arrives, and a window
+  above the button shows the conversation as it goes. Only one of them listens at a time.
 - **Voice modes.** The voice button has three modes: Dictation types into Claude's prompt without
   Enter so you can keep talking or edit, Commands sends each phrase, Conversation also reads
   Claude's answer aloud without code. It listens only while ARcode is the active window, and
@@ -25,7 +29,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   in the Keychain) and marked as cloud on the button; Silero is a neural Russian voice that runs on
   the Mac.
 - **Queued messages in the feed.** Messages sent while Claude is busy show at once, muted and
-  marked Queued, and join the conversation when Claude takes them.
+  marked Queued, and join the conversation when Claude takes them. A queue Claude Code dropped (a
+  restart, `popAll`) no longer leaves a message stuck as queued.
 - **Disconnect Remote Control** from the RC button.
 - **Switch the model from the header.** Click the model badge of the active Claude tab and pick
   Fable, Opus, Sonnet, Haiku or the account default; ARcode types `/model <id>` into the tab.

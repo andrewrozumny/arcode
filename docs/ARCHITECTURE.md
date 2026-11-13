@@ -135,7 +135,12 @@ a 1.5 s pause ends a phrase), half a second of pre-roll keeps the first syllable
 `downsample` brings the phrase to 16 kHz and it goes through the same `voice:transcribe`.
 `phrases.ts` drops whisper's stock phantoms. `useVoiceChat` sends a phrase through the `sendToPty`
 bus event only while the target Claude tab is `idle` and then waits for it to be busy and idle again;
-`VoiceChatButton` is the draggable button (position in localStorage, measured from the window's
+`VoiceChatButton` has two kinds, `dictation` (docked in the terminal dock, modes dictate and
+command) and `live` (always chat; `chatStream.ts` polls the transcript from where it last read,
+shows prompts, Claude's text and tool lines in a window and hands each new message to the speech
+queue; on the first read, lines newer than the moment the chat started count as new, since a fresh
+session only gets its transcript with its first message). The `voiceOwner` bus event keeps one of
+them listening at a time. The live one is the draggable button (position in localStorage, measured from the window's
 bottom right corner). Modes (`answer.ts`): dictation types without Enter, commands send, chat
 also reads the turn's final assistant message (from the transcript range after the phrase) aloud
 after `speakable.ts` strips code, tables, paths and links. Listening stops while the window is not
@@ -193,7 +198,8 @@ A `FeedRequest` may name an `agentId`: main then reads
 turn so the renderer knows when the agent finished. Closable `session` viewer tabs (opened through
 the `openFeed` bus event from the Sessions list, Agent cards and the header subagent chip) render
 the same `FeedView` read-only: only the pinned feed (`interactive`) shows prompt answer buttons. `queue-operation` records (enqueue, dequeue, remove) become `FeedQueueOp`s beside the items;
-`queuedPrompts` replays them so messages sent while Claude is busy show as queued until taken.
+Claude Code's `popAll`, and every prompt that starts a turn directly, become `clear` (the queue is empty
+by then, or was lost with a quit process). `queuedPrompts` replays them so messages sent while Claude is busy show as queued until taken.
 Session titles come from
 `custom-title`, `ai-title` and `summary` records, in that order, before the first prompt.
 

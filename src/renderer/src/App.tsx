@@ -330,7 +330,12 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
               claudeSessionId={feedSessionId}
             />
           }
-          terminal={<TerminalDock ref={terminalRef} projectRoot={projectRoot} initialState={savedTerminal} onTabsChange={onTabsChange} />}
+          terminal={
+            <>
+              <TerminalDock ref={terminalRef} projectRoot={projectRoot} initialState={savedTerminal} onTabsChange={onTabsChange} />
+              <VoiceChatButton kind="dictation" tabs={tabs} activeTab={activeTab} />
+            </>
+          }
           searchOpen={searchMode !== null}
           onOpenSearch={() => setSearchMode('files')}
           onOpenClaude={() => viewerRef.current?.openClaude()}
@@ -346,7 +351,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
-      {layout && <VoiceChatButton tabs={tabs} activeTab={activeTab} />}
+      {layout && <VoiceChatButton kind="live" tabs={tabs} activeTab={activeTab} />}
       {hint && (
         <div key={hint.nonce} className="app-hint" role="status">
           {hint.text}

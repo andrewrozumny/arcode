@@ -406,11 +406,13 @@ export interface FeedChunk {
 /**
  * A change to Claude Code's message queue. A message sent while Claude is busy is written as
  * `enqueue` right away; `dequeue` (the oldest entry) or `remove` (by text) mark it taken, after which
- * it shows up in the conversation. `hidden` entries were not typed by the user (task notifications,
- * agent messages): they keep the queue order right but are never shown.
+ * it shows up in the conversation. `clear` empties the queue: Claude Code's `popAll`, and every prompt
+ * that starts a turn directly (Claude only takes a typed prompt once its queue is empty, and a queue
+ * left when the process quit is gone). `hidden` entries were not typed by the user (task
+ * notifications, agent messages): they keep the queue order right but are never shown.
  */
 export interface FeedQueueOp {
-  op: 'enqueue' | 'dequeue' | 'remove';
+  op: 'enqueue' | 'dequeue' | 'remove' | 'clear';
   text: string | null;
   hidden: boolean;
   at: string | null;

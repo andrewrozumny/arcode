@@ -57,6 +57,8 @@ export interface BusEvents {
    * model and Remote Control controls, the voice chat; dictation types without Enter).
    */
   sendToPty: { ptyId: PtyId; text: string; submit?: boolean };
+  /** A voice button started listening; the others release the microphone. */
+  voiceOwner: { owner: string };
 }
 
 type Listener<K extends keyof BusEvents> = (payload: BusEvents[K]) => void;

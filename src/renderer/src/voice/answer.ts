@@ -16,24 +16,27 @@ export function turnAnswer(items: readonly FeedItem[]): string | null {
 export type VoiceMode = 'dictate' | 'command' | 'chat';
 
 export const VOICE_MODES: readonly { mode: VoiceMode; label: string; hint: string }[] = [
-  { mode: 'dictate', label: 'Dictation', hint: 'Types what you say into Claude\'s prompt; you edit and press Enter' },
-  { mode: 'command', label: 'Commands', hint: 'Sends each phrase to Claude; it works without talking back' },
-  { mode: 'chat', label: 'Conversation', hint: 'Sends each phrase and reads Claude\'s answer aloud (without code)' },
+  { mode: 'dictate', label: 'Type into the prompt', hint: 'Types what you say into Claude\'s prompt; keep talking or edit, then press Enter' },
+  { mode: 'command', label: 'Send each phrase', hint: 'Sends each phrase to Claude as soon as you pause' },
+  { mode: 'chat', label: 'Live chat', hint: 'Talk with Claude: it answers aloud, every message as it comes' },
 ];
 
-const MODE_KEY = 'arcode.voiceChat.mode';
+/** Modes of the dictation button in the terminal; the live chat button is always `chat`. */
+export type DictationMode = Extract<VoiceMode, 'dictate' | 'command'>;
 
-export function loadVoiceMode(): VoiceMode {
+const MODE_KEY = 'arcode.voiceDictation.mode';
+
+export function loadDictationMode(): DictationMode {
   try {
     const saved = localStorage.getItem(MODE_KEY);
-    if (saved === 'dictate' || saved === 'command' || saved === 'chat') return saved;
+    if (saved === 'dictate' || saved === 'command') return saved;
   } catch {
     // Storage unavailable: use the default.
   }
-  return 'command';
+  return 'dictate';
 }
 
-export function saveVoiceMode(mode: VoiceMode): void {
+export function saveDictationMode(mode: DictationMode): void {
   try {
     localStorage.setItem(MODE_KEY, mode);
   } catch {

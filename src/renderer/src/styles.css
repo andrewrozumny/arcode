@@ -937,3 +937,7 @@ body.resizing-horizontal * {
 .header-menu-item.header-menu-danger:not(:disabled) {
   color: #e5534b;
 }
+/* The dictation button sits in the dock's corner, next to Claude's prompt. */
+.terminal-dock {
+  position: relative;
+}

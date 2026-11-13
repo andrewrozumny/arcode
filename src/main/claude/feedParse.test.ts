@@ -457,13 +457,24 @@ describe('queue operations', () => {
       line({ type: 'queue-operation', operation: 'dequeue', content: null }, 20),
       line({ type: 'queue-operation', operation: 'remove', content: 'run the gates' }, 30),
       line({ type: 'queue-operation', operation: 'popAll' }, 40),
+      line({ type: 'queue-operation', operation: 'other' }, 50),
     ]);
     expect(parsed.queue).toEqual([
       { op: 'enqueue', text: 'run the gates', hidden: false, at: 't1', offset: 0 },
       { op: 'enqueue', text: '<task-notification>\n<task-id>x</task-id>\n</task-notification>', hidden: true, at: null, offset: 10 },
       { op: 'dequeue', text: null, hidden: true, at: null, offset: 20 },
       { op: 'remove', text: 'run the gates', hidden: false, at: null, offset: 30 },
+      { op: 'clear', text: null, hidden: true, at: null, offset: 40 },
     ]);
     expect(parsed.items).toEqual([]);
+  });
+
+  it('clears the queue when a prompt starts a turn directly, not for tool results', () => {
+    const parsed = parseFeedLines([
+      line({ type: 'queue-operation', operation: 'enqueue', content: 'stale' }, 0),
+      line({ type: 'user', uuid: 'u1', timestamp: 't', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'x', content: 'ok' }] } }, 10),
+      line({ type: 'user', uuid: 'u2', timestamp: 't', message: { role: 'user', content: 'next prompt' } }, 20),
+    ]);
+    expect(parsed.queue.map((q) => q.op)).toEqual(['enqueue', 'clear']);
   });
 });

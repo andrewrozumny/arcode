@@ -491,7 +491,12 @@ export function parseFeedRecord(
     }
     case 'user': {
       if (record.isMeta === true || !message) return;
+      const before = out.items.length;
       userContent(message.content, { id: uuid, at, offset }, out, record.toolUseResult, names);
+      // A prompt that starts a turn directly means Claude Code's queue was empty (or lost with the old process).
+      if (out.items.slice(before).some((item) => item.kind === 'user' || item.kind === 'command')) {
+        out.queue.push({ op: 'clear', text: null, hidden: true, at, offset });
+      }
       return;
     }
     case 'assistant': {
@@ -549,6 +554,7 @@ function isMachineText(text: string): boolean {
 
 /** A `queue-operation` record as a FeedQueueOp; null for unknown operations. */
 export function queueOp(record: Record<string, unknown>, at: string | null, offset: number): FeedQueueOp | null {
+  if (record.operation === 'popAll') return { op: 'clear', text: null, hidden: true, at, offset };
   const op = record.operation;
   if (op !== 'enqueue' && op !== 'dequeue' && op !== 'remove') return null;
   const content = record.content;
