@@ -115,7 +115,14 @@ export interface ReadingVoice {
  * `owner` names the button using the microphone: when one button starts listening, the others stop,
  * so dictation and the live chat never both hear the same phrase.
  */
-export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, reading: ReadingVoice, owner: string) {
+export function useVoiceChat(
+  target: VoiceTarget | null,
+  mode: VoiceMode,
+  reading: ReadingVoice,
+  owner: string,
+  /** Takes each phrase instead of a Claude tab (the live chat's discussion); only window focus pauses it. */
+  onPhrase?: (text: string) => void,
+) {
   const focused = useWindowFocus();
   const [on, setOn] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -148,7 +155,11 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
   const speechRun = useRef(0);
   const playing = useRef<AudioBufferSourceNode | null>(null);
 
-  const reason = pauseReason(target, focused);
+  const onPhraseRef = useRef(onPhrase);
+  useEffect(() => {
+    onPhraseRef.current = onPhrase;
+  }, [onPhrase]);
+  const reason = onPhrase ? (focused ? null : 'ARcode is in the background') : pauseReason(target, focused);
   useEffect(() => {
     targetRef.current = target;
     modeRef.current = mode;
@@ -278,6 +289,11 @@ export function useVoiceChat(target: VoiceTarget | null, mode: VoiceMode, readin
   /** Phrases go out one after another, in the order they were said. */
   const outbox = useRef<Promise<void>>(Promise.resolve());
   const deliverNow = useCallback((text: string) => {
+    if (onPhraseRef.current) {
+      setLastSent({ text, at: Date.now() });
+      onPhraseRef.current(text);
+      return;
+    }
     const current = targetRef.current;
     const currentMode = modeRef.current;
     // The phrase may have been finished after ARcode lost focus (it was said before): only the target matters now.

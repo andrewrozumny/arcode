@@ -17,12 +17,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Voice chat with Claude.** A floating microphone (drag it anywhere; it starts above the arCode
   mark) or Cmd+Shift+Space turns on hands-free talk: each phrase is sent to the Claude tab after a
   pause, recognised locally like dictation, and listening resumes once Claude has answered.
-- **Dictation button in the terminal and a live chat.** Dictation (Cmd+Shift+D) sits next to
-  Claude's prompt and either types into it or sends each phrase. The floating button became a live
-  chat (Cmd+Shift+Space): every message Claude writes is read aloud as it arrives, and a window
-  above the button shows the conversation as it goes. **■ Stop** ends a reading, and a 🔊 switch
-  turns reading aloud off while the chat goes on. While ElevenLabs reads, a ring around the button
-  fills as the plan's characters are used. Only one of them listens at a time.
+- **Dictation button in the terminal.** Dictation (Cmd+Shift+D) sits next to Claude's prompt and
+  either types into it or sends each phrase.
+- **Discussion.** The floating button (Cmd+Shift+Space) is a voice discussion about the work in your
+  Claude Code session with a separate, fast Claude conversation that sees what happened there but never
+  changes anything. Answers stream into a window and are read aloud sentence by sentence; **→ Claude
+  Code** types the resulting task into the Claude tab's prompt. **■ Stop** ends a reading, 🔊 turns
+  reading off, and a ring shows the ElevenLabs allowance. Only one voice button listens at a time.
 - **Voice modes.** The voice button has three modes: Dictation types into Claude's prompt without
   Enter so you can keep talking or edit, Commands sends each phrase, Conversation also reads
   Claude's answer aloud without code. It listens only while ARcode is the active window, and

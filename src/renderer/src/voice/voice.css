@@ -452,3 +452,45 @@
   color: var(--fg-muted);
   font: 11px var(--font-ui);
 }
+
+/* Discussion window: the header drags the widget; a line to type to the partner at the bottom. */
+.vc-chat-head {
+  cursor: grab;
+  user-select: none;
+}
+.vc-chat-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.vc-chat-head .vc-chat-tool {
+  color: var(--fg-muted);
+  font: 11px var(--font-ui);
+}
+.vc-chat-head .vc-chat-tool:hover:not(:disabled) {
+  color: var(--fg);
+}
+.vc-chat-line.streaming {
+  opacity: 0.85;
+}
+.vc-chat-line.handover {
+  border: 1px dashed rgba(79, 140, 255, 0.6);
+}
+.vc-chat-error {
+  align-self: stretch;
+  color: #e5534b;
+  font-size: 11px;
+}
+.vc-chat-form {
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border-strong);
+}
+.vc-chat-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 12px var(--font-ui);
+}

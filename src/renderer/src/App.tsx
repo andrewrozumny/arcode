@@ -333,7 +333,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
           terminal={
             <>
               <TerminalDock ref={terminalRef} projectRoot={projectRoot} initialState={savedTerminal} onTabsChange={onTabsChange} />
-              <VoiceChatButton kind="dictation" tabs={tabs} activeTab={activeTab} />
+              <VoiceChatButton kind="dictation" projectRoot={projectRoot} tabs={tabs} activeTab={activeTab} />
             </>
           }
           searchOpen={searchMode !== null}
@@ -351,7 +351,7 @@ function ProjectWindow({ projectRoot, home }: { projectRoot: string; home: strin
         projectRoot={projectRoot}
         onOpenFile={openFile}
       />
-      {layout && <VoiceChatButton kind="live" tabs={tabs} activeTab={activeTab} />}
+      {layout && <VoiceChatButton kind="live" projectRoot={projectRoot} tabs={tabs} activeTab={activeTab} />}
       {hint && (
         <div key={hint.nonce} className="app-hint" role="status">
           {hint.text}

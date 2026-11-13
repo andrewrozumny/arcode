@@ -136,11 +136,13 @@ a 1.5 s pause ends a phrase), half a second of pre-roll keeps the first syllable
 `phrases.ts` drops whisper's stock phantoms. `useVoiceChat` sends a phrase through the `sendToPty`
 bus event only while the target Claude tab is `idle` and then waits for it to be busy and idle again;
 `VoiceChatButton` has two kinds, `dictation` (docked in the terminal dock, modes dictate and
-command) and `live` (always chat; `chatStream.ts` polls the transcript from where it last read,
-shows prompts, Claude's text and tool lines in a window and hands each new message to the speech
-queue; on the first read, lines newer than the moment the chat started count as new, since a fresh
-session only gets its transcript with its first message). The `voiceOwner` bus event keeps one of
-them listening at a time. The live one is the draggable button (position in localStorage, measured from the window's
+command) and `live`, the discussion: phrases go to `discussion.ts` instead of a pty, which sends each
+one with a `<claude_code_session_update>` of the Claude tab's feed since the last message over
+`voice:discuss`. Main (`voice/discussion.ts`) keeps one `claude -p` per window with stream-json in and
+out (Read, Grep and Glob only, `--strict-mcp-config`, `--no-session-persistence`, an appended system
+prompt) and forwards text deltas as `voice:discussionEvent`; `SentenceStream` cuts them into sentences
+for the speech queue and skips code fences. The `voiceOwner` bus event keeps one button listening at a
+time. The live one is the draggable buttonThe live one is the draggable button (position in localStorage, measured from the window's
 bottom right corner). Modes (`answer.ts`): dictation types without Enter, commands send, chat
 also reads the turn's final assistant message (from the transcript range after the phrase) aloud
 after `speakable.ts` strips code, tables, paths and links. Listening stops while the window is not

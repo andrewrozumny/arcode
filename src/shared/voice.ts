@@ -14,6 +14,12 @@ export const VoiceChannel = {
   TtsInfo: 'voice:ttsInfo',
   /** Characters of the ElevenLabs plan used so far in this billing period. */
   TtsUsage: 'voice:ttsUsage',
+  /** One message to the discussion partner of the live chat; the answer streams back as events. */
+  Discuss: 'voice:discuss',
+  /** Ends the discussion; the next message starts a new one. */
+  DiscussReset: 'voice:discussReset',
+  /** Main to renderer: a piece of the discussion partner's answer. */
+  DiscussionEvent: 'voice:discussionEvent',
 } as const;
 
 /** Longest text rendered to speech in one call; the renderer splits longer answers. */
@@ -53,6 +59,16 @@ export interface TtsEngineInfo {
 
 export type TtsInfo = Record<TtsEngine, TtsEngineInfo>;
 
+/**
+ * The discussion partner's answer as it streams: `delta` adds text, `message` starts a new part of
+ * the answer (after the partner looked at a file), `done` ends it, `error` reports a failure.
+ */
+export type DiscussionEvent =
+  | { type: 'delta'; text: string }
+  | { type: 'message' }
+  | { type: 'done' }
+  | { type: 'error'; message: string };
+
 /** The ElevenLabs plan's character allowance: used and limit of this period, and when it resets. */
 export interface TtsUsage {
   used: number;
@@ -82,4 +98,10 @@ export interface VoiceApi {
   ttsInfo(): Promise<TtsInfo>;
   /** The ElevenLabs plan's usage; null without a key or when it cannot be read. */
   ttsUsage(): Promise<TtsUsage | null>;
+  /** Sends a message to the discussion partner of this project window. */
+  discuss(projectRoot: string, text: string): Promise<void>;
+  /** Ends this window's discussion. */
+  discussReset(): void;
+  /** The partner's answer, piece by piece. */
+  onDiscussion(listener: (event: DiscussionEvent) => void): () => void;
 }

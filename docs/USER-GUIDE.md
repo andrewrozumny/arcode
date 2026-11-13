@@ -316,23 +316,30 @@ which is remembered:
   spaces. Keep talking to add more, edit with the keyboard, and press Enter yourself.
 - **Send each phrase** sends each phrase with Enter as soon as you pause.
 
-**Live chat** is the floating button with a speech bubble. It starts just above the arCode mark in the
-bottom right corner of the viewer; drag it anywhere and it stays there. Click it (or press
-Cmd+Shift+Space) and talk: each phrase goes to Claude, and every message Claude writes, not only the
-last one of a turn, is read aloud as it arrives, without code blocks, tables, paths or links. A
-window above the button shows the conversation as it goes: your phrases, Claude's messages and a
-short grey line for each thing Claude does (a command, an edit). Close it with ×; the voice menu can
-show it again. To stop a reading, click **■ Stop** (in the bubble next to the button and in the chat
-window's header), click the button itself, or talk over it; the messages waiting to be read are dropped
-too. The 🔊 switch in the window's header turns reading aloud off and on: with it off the chat goes on
-and Claude's messages only show in the window (remembered). While ElevenLabs reads, a ring around the button shows
-the plan's character allowance: the light track fills dark as characters are used; the tooltip and
-the voice menu give the numbers and the reset date. A reading you stop has already been paid for the
-piece being read and the one rendered ahead (about 800 characters at most); messages still waiting are not. The mark on the button's corner picks
-the reading voice.
+**Discussion** is the floating button with a speech bubble. It starts just above the arCode mark in
+the bottom right corner of the viewer; drag it (or its window's header) anywhere and it stays there.
+Click it (or press Cmd+Shift+Space) and talk about the work in your Claude Code session, the way you
+would in a voice chat: why it did something, which option is better, what to do next. The partner
+is a separate, fast conversation with Claude that sees what happened in the Claude Code tab since
+your last message (prompts, Claude Code's messages, the tools it ran) and may read project files, but
+never writes, edits or runs anything and never types into Claude Code. Its answers stream into the
+window and are read aloud sentence by sentence, without code. You can also type in the line at the
+bottom of the window.
 
-- **While Claude works:** phrases still go out, like typed messages: Claude Code queues them (they
-  show as queued in the feed). Only a question Claude asks in the terminal (a permission, a choice)
+- **→ Claude Code** asks the partner for the task that follows from the discussion and types it into
+  the Claude tab's prompt without sending it; read it, edit it, press Enter.
+- **New** starts a fresh discussion. **■ Stop** (in the bubble and the window's header), a click on
+  the button, or talking over it stops a reading. The 🔊 switch turns reading aloud off (remembered).
+- The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
+  per window, with Sonnet; `ARCODE_DISCUSSION_MODEL` picks another model, `ARCODE_CLAUDE` the
+  executable). It loads no MCP servers and keeps no session on disk.
+- While ElevenLabs reads, a ring around the button shows the plan's character allowance: the light
+  track fills dark as characters are used; the tooltip and the voice menu give the numbers and the
+  reset date. A reading you stop has already been paid for the piece being read and the one rendered
+  ahead (about 800 characters at most); answers still waiting are not.
+
+- **While Claude works (dictation):** phrases still go out, like typed messages: Claude Code queues
+  them (they show as queued in the feed). Only a question Claude asks in the terminal (a permission, a choice)
   pauses listening, since anything typed would become its answer; answer those in the terminal or
   in the feed.
 - **Which tab:** the active terminal tab when it runs Claude, otherwise the last Claude tab.
@@ -343,7 +350,7 @@ the reading voice.
 
 #### Reading answers aloud
 
-The live chat's voice menu picks who reads, and with which voice:
+The discussion's voice menu picks who reads, and with which voice:
 
 | Engine | Where it runs | Set up |
 |---|---|---|
@@ -559,7 +566,7 @@ database the switcher shows recent projects only.
 | Cmd+Shift+E | Recent files (works in the terminal too) |
 | Ctrl+Esc | New Claude tab |
 | Cmd+Shift+J | Jump to the next terminal tab where Claude waits for you (works in the terminal too) |
-| Cmd+Shift+Space | Turn the live chat with Claude on or off |
+| Cmd+Shift+Space | Turn the discussion on or off |
 | Cmd+Shift+D | Turn dictation into Claude's prompt on or off |
 | Cmd+T | New shell tab |
 | Cmd+\ | Split the terminal into two columns, or focus the other column when it is split |
@@ -673,7 +680,7 @@ requests of its own, except the opt-in ElevenLabs voice described below.
   open, to see what runs in them for the activity lamp;
   `defaults` to find your screenshots folder; `sqlite3` for the optional registry; `whisper-cli`
   for voice input, on a temporary audio file that is deleted right after; and
-  `claude mcp list` only when you click the MCP check, which is Claude Code contacting the MCP
+  `claude -p` for the discussion partner (only while you use it); `claude mcp list` only when you click the MCP check, which is Claude Code contacting the MCP
   servers you configured.
 
 The one exception is opt-in: with an ElevenLabs key in the Keychain and ElevenLabs picked for

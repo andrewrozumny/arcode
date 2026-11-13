@@ -18,7 +18,7 @@ export type VoiceMode = 'dictate' | 'command' | 'chat';
 export const VOICE_MODES: readonly { mode: VoiceMode; label: string; hint: string }[] = [
   { mode: 'dictate', label: 'Type into the prompt', hint: 'Types what you say into Claude\'s prompt; keep talking or edit, then press Enter' },
   { mode: 'command', label: 'Send each phrase', hint: 'Sends each phrase to Claude as soon as you pause' },
-  { mode: 'chat', label: 'Live chat', hint: 'Talk with Claude: it answers aloud, every message as it comes' },
+  { mode: 'chat', label: 'Discussion', hint: 'Talk about the work in your Claude Code session; the partner answers aloud and never changes anything' },
 ];
 
 /** Modes of the dictation button in the terminal; the live chat button is always `chat`. */

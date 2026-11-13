@@ -4,6 +4,8 @@ import type { IpcMain } from 'electron';
 import { isRecord } from '@shared/guards';
 import { TTS_ENGINES, VoiceChannel } from '@shared/voice';
 import type { SpeechResult, TranscribeResult, TtsEngine, TtsInfo } from '@shared/voice';
+import { projectRoot, text } from '../ipcArgs';
+import { Discussion } from './discussion';
 import { DEFAULT_VOICE, ElevenLabs } from './elevenlabs';
 import { DEFAULT_SPEAKER, Silero, SILERO_SCRIPT, SILERO_VOICES, sileroPython } from './silero';
 import { speechText, speechVoice, synthesize } from './speech';
@@ -66,6 +68,30 @@ export function registerVoiceIpc(ipcMain: IpcMain): void {
   });
 
   ipcMain.handle(VoiceChannel.TtsUsage, () => elevenLabs.usage());
+
+  // One discussion per window; its answer goes back to that window only.
+  const discussions = new Map<number, Discussion>();
+  ipcMain.handle(VoiceChannel.Discuss, async (event, rawRoot: unknown, rawText: unknown): Promise<void> => {
+    const root = await projectRoot(rawRoot);
+    const message = text(rawText, 'message');
+    const sender = event.sender;
+    let discussion = discussions.get(sender.id);
+    if (!discussion) {
+      discussion = new Discussion(root, (update) => {
+        if (!sender.isDestroyed()) sender.send(VoiceChannel.DiscussionEvent, update);
+      });
+      discussions.set(sender.id, discussion);
+      sender.once('destroyed', () => {
+        discussions.get(sender.id)?.reset();
+        discussions.delete(sender.id);
+      });
+    }
+    await discussion.send(message);
+  });
+  ipcMain.on(VoiceChannel.DiscussReset, (event) => discussions.get(event.sender.id)?.reset());
+  app.on('will-quit', () => {
+    for (const discussion of discussions.values()) discussion.reset();
+  });
 
   ipcMain.handle(VoiceChannel.RequestMic, async (): Promise<boolean> => {
     if (process.platform !== 'darwin') return true;

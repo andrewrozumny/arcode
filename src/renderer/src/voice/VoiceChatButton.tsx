@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { TerminalTab } from '../terminal/types';
 import { loadDictationMode, saveDictationMode, VOICE_MODES } from './answer';
 import type { DictationMode, VoiceMode } from './answer';
-import { loadReadAloud, saveReadAloud, useChatStream } from './chatStream';
+import { loadReadAloud, saveReadAloud, useDiscussion } from './discussion';
 import { TTS_ENGINES } from '@shared/voice';
 import type { TtsEngine, TtsInfo, TtsUsage } from '@shared/voice';
 import { ENGINE_LABEL, loadReadingChoice, readingVoice, saveReadingChoice, usageFraction, usageLabel } from './reading';
@@ -152,7 +152,17 @@ function MicIcon() {
  * - `dictation`: sits in the corner of the terminal, next to Claude's prompt (Cmd+Shift+D). Its
  *   mark picks between typing into the prompt and sending each phrase.
  */
-export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dictation'; tabs: readonly TerminalTab[]; activeTab: TerminalTab | null }) {
+export function VoiceChatButton({
+  kind,
+  projectRoot,
+  tabs,
+  activeTab,
+}: {
+  kind: 'live' | 'dictation';
+  projectRoot: string;
+  tabs: readonly TerminalTab[];
+  activeTab: TerminalTab | null;
+}) {
   const live = kind === 'live';
   const target = useMemo(() => voiceTarget(tabs, activeTab), [tabs, activeTab]);
   const [dictationMode, setDictationMode] = useState<DictationMode>(loadDictationMode);
@@ -161,16 +171,34 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
   const [readingChoice, setReadingChoice] = useState<ReadingChoice>(loadReadingChoice);
   const [ttsInfo, setTtsInfo] = useState<TtsInfo | null>(null);
   const reading = useMemo(() => readingVoice(readingChoice, ttsInfo), [readingChoice, ttsInfo]);
-  const { phase, level, error, lastSent, reason, claudeWorking, on, say, toggle, stopSpeaking, dismissError } = useVoiceChat(target, mode, reading, kind);
-  // Reading aloud can be switched off: the chat keeps going, Claude's messages are only shown.
+  // Reading aloud can be switched off: the discussion goes on, the answers are only shown.
   const [readAloud, setReadAloud] = useState(loadReadAloud);
   const readAloudRef = useRef(readAloud);
   useEffect(() => {
     readAloudRef.current = readAloud;
   }, [readAloud]);
-  const sayIfOn = useCallback((text: string) => {
-    if (readAloudRef.current) say(text);
+  // The live chat is a discussion with a partner that reads the Claude Code session but never writes to it.
+  const sayRef = useRef<(text: string) => void>(() => undefined);
+  const onSentence = useCallback((sentence: string) => {
+    if (readAloudRef.current) sayRef.current(sentence);
+  }, []);
+  const discussion = useDiscussion({ projectRoot, sessionId: target?.sessionId ?? null, onSentence });
+  const sendRef = useRef(discussion.send);
+  useEffect(() => {
+    sendRef.current = discussion.send;
+  }, [discussion.send]);
+  const onPhrase = useCallback((text: string) => sendRef.current(text), []);
+  const { phase, level, error, lastSent, reason, claudeWorking, on, say, toggle, stopSpeaking, dismissError } = useVoiceChat(
+    target,
+    mode,
+    reading,
+    kind,
+    live ? onPhrase : undefined,
+  );
+  useEffect(() => {
+    sayRef.current = say;
   }, [say]);
+  const [draft, setDraft] = useState('');
   const toggleReadAloud = (): void => {
     const next = !readAloud;
     setReadAloud(next);
@@ -208,7 +236,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
     };
   }, [showsUsage, usageTick, menuOpen]);
   const usageText = showsUsage && usage ? `ElevenLabs: ${usageLabel(usage)}` : null;
-  const chat = useChatStream(live ? (target?.sessionId ?? null) : null, live && on, sayIfOn);
+  const chat = discussion.entries;
   const [chatOpen, setChatOpen] = useState(true);
   const chatRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -303,7 +331,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
   }, [lastSent]);
 
   const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
+    (event: ReactPointerEvent<HTMLElement>) => {
       if (event.button !== 0 || !offset) return;
       if (!live) {
         drag.current = { x: event.clientX, y: event.clientY, start: offset, moved: false };
@@ -314,7 +342,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
     },
     [offset, live],
   );
-  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+  const onPointerMove = (event: ReactPointerEvent<HTMLElement>): void => {
     const d = drag.current;
     if (!d || !live) return;
     const dx = event.clientX - d.x;
@@ -323,13 +351,19 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
     d.moved = true;
     setOffset(clampOffset({ right: d.start.right - dx, bottom: d.start.bottom - dy }));
   };
-  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+  const endDrag = (event: ReactPointerEvent<HTMLElement>, clickToggles: boolean): void => {
     const d = drag.current;
     drag.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (!d) return;
     if (d.moved && offset) saveOffset(offset);
-    else toggle();
+    else if (clickToggles) toggle();
+  };
+  const onPointerUp = (event: ReactPointerEvent<HTMLElement>): void => endDrag(event, true);
+  // The chat window moves by its header, together with the button.
+  const onHeaderPointerDown = (event: ReactPointerEvent<HTMLElement>): void => {
+    if ((event.target as HTMLElement).closest('button')) return;
+    onPointerDown(event);
   };
 
   if (!offset) return null;
@@ -344,7 +378,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
         ? reason
         : sent && phase !== 'off'
           ? sent
-          : working && mode !== 'dictate'
+          : working && mode === 'command'
             ? 'Claude is working; what you say now is queued'
             : null;
   const showBubble = phase !== 'off' || !!error;
@@ -361,10 +395,17 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
       ref={rootRef}
       style={place ? { right: place.right, bottom: place.bottom } : undefined}
     >
-      {live && on && chatOpen && (
+      {live && (on || chat.length > 0) && chatOpen && (
         <div className="vc-chat" role="log" aria-label="Live chat">
-          <div className="vc-chat-head">
-            <span className="vc-chat-title">Live chat{target ? ` · ${target.title}` : ''}</span>
+          <div
+            className="vc-chat-head"
+            onPointerDown={onHeaderPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={(event) => endDrag(event, false)}
+            onPointerCancel={() => (drag.current = null)}
+            title="Drag to move"
+          >
+            <span className="vc-chat-title">Discussion{target ? ` · ${target.title}` : ''}</span>
             {speakingNow && (
               <button type="button" className="vc-stop" title="Stop reading (the messages stay here)" onClick={stopSpeaking}>
                 ■ Stop
@@ -379,18 +420,57 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
             >
               {readAloud ? '🔊' : '🔇'}
             </button>
+            <button
+              type="button"
+              className="vc-chat-tool"
+              title={target ? `Write the task that follows from this discussion into the prompt of "${target.title}" (not sent)` : 'Open a Claude tab first'}
+              disabled={!target || discussion.busy || chat.length === 0}
+              onClick={() => target && discussion.handOver(target.ptyId)}
+            >
+              → Claude Code
+            </button>
+            <button type="button" className="vc-chat-tool" title="Start a new discussion" disabled={chat.length === 0} onClick={() => {
+              stopSpeaking();
+              discussion.reset();
+            }}>
+              New
+            </button>
             <button type="button" className="vc-chat-close" title="Hide the chat window" onClick={() => setChatOpen(false)}>
               ×
             </button>
           </div>
           <div className="vc-chat-list" ref={chatRef}>
-            {chat.length === 0 && <div className="vc-chat-empty">Say something; Claude's answers appear here and are read aloud.</div>}
+            {chat.length === 0 && (
+              <div className="vc-chat-empty">
+                Talk about what Claude Code is doing in this session. The partner sees what happened there, answers aloud and never changes anything.
+              </div>
+            )}
             {chat.map((entry) => (
-              <div key={entry.id} className={`vc-chat-line vc-chat-${entry.role}`}>
-                {entry.text}
+              <div
+                key={entry.id}
+                className={`vc-chat-line vc-chat-${entry.role === 'partner' ? 'claude' : entry.role}${entry.streaming ? ' streaming' : ''}${entry.handover ? ' handover' : ''}`}
+              >
+                {entry.text || (entry.streaming ? '…' : '')}
               </div>
             ))}
           </div>
+          <form
+            className="vc-chat-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const text = draft.trim();
+              if (!text) return;
+              setDraft('');
+              discussion.send(text);
+            }}
+          >
+            <input
+              className="vc-chat-input"
+              value={draft}
+              placeholder="Or type here and press Enter"
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </form>
         </div>
       )}
       {menuOpen && (
@@ -415,7 +495,7 @@ export function VoiceChatButton({ kind, tabs, activeTab }: { kind: 'live' | 'dic
           ))}
           {live && <div className="vc-menu-section">Read Claude's messages with</div>}
           {usageText && <div className="vc-usage-line">{usageText}</div>}
-          {live && !chatOpen && on && (
+          {live && !chatOpen && (on || chat.length > 0) && (
             <button type="button" className="vc-menu-item" onClick={() => {
                 setChatOpen(true);
                 setMenuOpen(false);
