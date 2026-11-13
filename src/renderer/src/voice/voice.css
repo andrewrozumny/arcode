@@ -685,3 +685,25 @@
     animation: vc-spark-breathe 1.6s ease-in-out infinite;
   }
 }
+
+/* The voice discussion icon: five rounded waveform bars; they move while you talk or it reads. */
+.vc-wave line {
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.vc-wave.live line {
+  animation: vc-wave-bar 0.9s ease-in-out infinite;
+}
+@keyframes vc-wave-bar {
+  50% {
+    transform: scaleY(0.45);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-wave.live line {
+    animation-duration: 2.4s;
+  }
+}

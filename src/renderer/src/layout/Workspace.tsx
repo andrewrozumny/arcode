@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { LayoutCommand, PanelLayout } from '@shared/app';
 import { bus } from '../bus';
 import { ActivityBar } from './ActivityBar';
+import { WaveIcon } from '../voice/VoiceChatButton';
 import { Splitter } from './Splitter';
 import { discussionWidthPx, terminalFraction, terminalHeightPx, togglePanels, treeFraction, treeWidthPx } from './layoutMath';
 
@@ -201,15 +202,7 @@ export function Workspace({
                 aria-label="Show the discussion"
                 onClick={() => update((prev) => ({ ...prev, discussionVisible: true }))}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+<WaveIcon size={16} />
               </button>
             )}
           </div>

@@ -205,11 +205,20 @@ function SpeakerIcon({ on }: { on: boolean }) {
 }
 
 /** Speech bubble: the live chat button. */
-function ChatIcon() {
+/** Heights of the waveform bars of the voice discussion icon, in a 24 px box. */
+export const WAVE_BARS = [6, 12, 17, 11, 5] as const;
+
+/**
+ * The voice discussion icon: five rounded bars of a sound wave. `live` makes them move (while you
+ * talk or an answer is read).
+ */
+export function WaveIcon({ size = 20, live = false }: { size?: number; live?: boolean }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z" fill="currentColor" />
-      <path d="M8.5 9.5h.01M12 9.5h.01M15.5 9.5h.01" stroke="var(--bg-panel)" strokeWidth="2.2" strokeLinecap="round" />
+    <svg className={live ? 'vc-wave live' : 'vc-wave'} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      {WAVE_BARS.map((height, i) => {
+        const x = 4 + i * 4;
+        return <line key={x} x1={x} x2={x} y1={12 - height / 2} y2={12 + height / 2} style={{ animationDelay: `${i * -0.18}s` }} />;
+      })}
     </svg>
   );
 }
@@ -714,7 +723,7 @@ export function VoiceChatButton({
       >
         <span className="vc-ring" aria-hidden="true" />
         {showsUsage && usage && <UsageRing used={usageFraction(usage)} />}
-        {phase === 'transcribing' || phase === 'starting' ? <span className="vc-spinner" aria-hidden="true" /> : live ? <ChatIcon /> : <MicIcon />}
+        {phase === 'transcribing' || phase === 'starting' ? <span className="vc-spinner" aria-hidden="true" /> : live ? <WaveIcon live={phase === 'hearing' || phase === 'speaking'} /> : <MicIcon />}
       </button>
       <button
         type="button"

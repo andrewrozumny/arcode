@@ -318,7 +318,7 @@ which is remembered:
 - **Send each phrase** sends each phrase with Enter as soon as you pause.
 
 **Discussion** lives in its own column on the right of the viewer, and its floating button with a
-speech bubble turns the voice on and off. The button starts just above the arCode mark in the bottom
+waveform icon turns the voice on and off. The button starts just above the arCode mark in the bottom
 right corner of the viewer; drag it anywhere and it stays there. Turning it on (or Cmd+Shift+Space)
 also expands the column when it is collapsed.
 Click it (or press Cmd+Shift+Space) and talk about the work in your Claude Code session, the way you
