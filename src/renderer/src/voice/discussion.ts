@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FeedItem } from '@shared/claude';
 import type { PtyId } from '@shared/ipc';
 import { discussionModelChoice } from '@shared/voice';
 import type { DiscussionLogRecord, DiscussionModel } from '@shared/voice';
@@ -46,11 +45,6 @@ export function handoverCheck(target: HandoverTarget | null): HandoverCheck {
   return { send: true, queued: target.status === 'busy' };
 }
 
-/** Lines of the Claude Code session sent with the first message, for context. */
-const FIRST_UPDATE_ITEMS = 40;
-/** Longest session update sent with one message; the oldest lines are dropped first. */
-const MAX_UPDATE_CHARS = 8000;
-const MAX_LINE_CHARS = 600;
 const HANDOVER_REQUEST = 'Hand the result of our discussion over to Claude Code now.';
 const HANDOVER = /<handover>([\s\S]*?)(?:<\/handover>|$)/;
 
@@ -61,34 +55,6 @@ export function splitHandover(answer: string): { said: string; task: string | nu
   const said = (answer.slice(0, match.index) + answer.slice(match.index + match[0].length)).replace(/\n{3,}/g, '\n\n').trim();
   const task = (match[1] ?? '').trim();
   return { said, task: task || null };
-}
-
-const clip = (text: string, max: number): string => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
-
-/** What happened in the Claude Code session, as plain lines for the discussion partner. */
-export function sessionUpdate(items: readonly FeedItem[]): string {
-  const lines: string[] = [];
-  for (const item of items) {
-    if (item.kind === 'user' && item.text.trim()) lines.push(`User to Claude Code: ${clip(item.text.trim(), MAX_LINE_CHARS)}`);
-    else if (item.kind === 'command') lines.push(`User ran: ${clip(item.text, 200)}`);
-    else if (item.kind === 'assistant' && item.text.trim()) lines.push(`Claude Code: ${clip(item.text.trim(), MAX_LINE_CHARS)}`);
-    else if (item.kind === 'tool') lines.push(`Claude Code used ${item.name}: ${clip(item.summary, 200)}`);
-  }
-  // Keep the newest lines within the budget.
-  const kept: string[] = [];
-  let size = 0;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i] ?? '';
-    if (size + line.length + 1 > MAX_UPDATE_CHARS) break;
-    kept.unshift(line);
-    size += line.length + 1;
-  }
-  return kept.join('\n');
-}
-
-/** The message sent to the partner: the session update (when there is one), then what the user said. */
-export function discussionMessage(update: string, text: string): string {
-  return update ? `<claude_code_session_update>\n${update}\n</claude_code_session_update>\n\n${text}` : text;
 }
 
 /** Parts of an answer that are never read aloud: code blocks and the task handed over to Claude Code. */
@@ -230,7 +196,7 @@ function deliverTask(task: string, target: HandoverTarget | null): Pick<Discussi
 
 /**
  * A spoken discussion about the work in a Claude Code session, with a partner that does not touch
- * it. Each message carries what happened in the session since the previous one. A task the partner
+ * it. Main puts a brief of the session in front of each message (see main/voice/sessionContext.ts). A task the partner
  * hands over (asked by voice, or with `handOver`) is sent to the Claude Code tab at once, pasted in
  * one piece and submitted (queued by Claude Code while it works); while it asks something or its
  * prompt has a draft it stays in the window
@@ -240,7 +206,6 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
   const [entries, setEntries] = useState<DiscussionEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const nextId = useRef(1);
-  const cursor = useRef<{ sessionId: string; offset: number } | null>(null);
   const stream = useRef(new SentenceStream());
   const answer = useRef('');
   const onSentenceRef = useRef(onSentence);
@@ -304,6 +269,9 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
           patchLast((e) => ({ ...e, text: said, streaming: false, ...handed }));
           setBusy(false);
           logRef.current({ kind: 'partner', text: said, ...(handed.task ? { task: handed.task } : {}), ...(handed.taskStatus ? { taskStatus: handed.taskStatus } : {}) });
+        } else if (event.type === 'note') {
+          setEntries((prev) => [...prev, { id: nextId.current++, role: 'note', text: event.text }]);
+          logRef.current({ kind: 'note', text: event.text });
         } else {
           stream.current.flush();
           setBusy(false);
@@ -315,24 +283,6 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
         }
       });
   }, [patchLast, enabled]);
-
-  /** What happened in the session since the last message (the recent part of it, the first time). */
-  const update = useCallback(async (): Promise<string> => {
-    if (!sessionId) return '';
-    try {
-      const last = cursor.current;
-      const chunk =
-        last && last.sessionId === sessionId
-          ? await window.acode.claude.feed({ sessionId, from: last.offset })
-          : await window.acode.claude.feed({ sessionId });
-      if (!chunk.found) return '';
-      cursor.current = { sessionId, offset: chunk.end };
-      const items = last && last.sessionId === sessionId && !chunk.reset ? chunk.items : chunk.items.slice(-FIRST_UPDATE_ITEMS);
-      return sessionUpdate(items);
-    } catch {
-      return '';
-    }
-  }, [sessionId]);
 
   const ask = useCallback(
     async (text: string, shown: string) => {
@@ -346,7 +296,8 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
       ]);
       log({ kind: 'you', text: shown });
       try {
-        await window.acode.voice.discuss(projectRoot, discussionMessage(await update(), text), model);
+        // Main puts the brief of the Claude Code session in front of the message.
+        await window.acode.voice.discuss({ projectRoot, text, model, sessionId, status: targetRef.current()?.status ?? null });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setBusy(false);
@@ -357,7 +308,7 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
         log({ kind: 'error', text: message });
       }
     },
-    [projectRoot, update, model, log],
+    [projectRoot, sessionId, model, log],
   );
 
   const send = useCallback((text: string) => void ask(text, text), [ask]);
@@ -367,27 +318,20 @@ export function useDiscussion({ projectRoot, sessionId, onSentence, handoverTarg
     window.acode.voice.discussReset();
     // The next message starts a new conversation, with its own history file.
     conversation.current = null;
-    cursor.current = null;
     stream.current = new SentenceStream();
     setBusy(false);
     setEntries([]);
   }, []);
 
-  /**
-   * After a model switch: the partner's process runs on one model, so the conversation starts over,
-   * with a note saying so (the session is sent again with the next message).
-   */
+  /** After a model switch: the partner keeps the conversation (main switches its model). */
   const restartFor = useCallback(
     (next: DiscussionModel) => {
-      const hadConversation = entries.length > 0;
-      reset();
-      if (hadConversation) {
-        const text = `Switched to ${MODEL_LABEL[next]}: the discussion starts over.`;
-        setEntries([{ id: nextId.current++, role: 'note', text }]);
-        log({ kind: 'note', text }, next);
-      }
+      if (entries.length === 0) return;
+      const text = `Switched to ${MODEL_LABEL[next]}.`;
+      setEntries((prev) => [...prev, { id: nextId.current++, role: 'note', text }]);
+      log({ kind: 'note', text }, next);
     },
-    [entries.length, reset, log],
+    [entries.length, log],
   );
 
   /** The Send button of a task that was not sent: checks again and sends it when it can. */

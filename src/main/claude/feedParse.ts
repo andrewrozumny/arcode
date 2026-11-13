@@ -342,7 +342,7 @@ export function resultMeta(name: string | null, meta: unknown): Partial<FeedTool
 }
 
 /** Text of a tool_result's content: a string or blocks (text, image, document, tool_reference). */
-function resultText(content: unknown): string {
+export function resultText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
   const parts: string[] = [];
@@ -491,6 +491,12 @@ export function parseFeedRecord(
     }
     case 'user': {
       if (record.isMeta === true || !message) return;
+      // Claude Code's summary of the conversation before a compaction is not a prompt the user typed.
+      if (record.isCompactSummary === true) {
+        const summary = stripInjected(resultText(message.content));
+        out.items.push({ kind: 'notice', id: uuid, at, offset, text: 'Earlier conversation summarized', ...(summary ? { compact: clip(summary, FIELD_CHARS) } : {}) });
+        return;
+      }
       const before = out.items.length;
       userContent(message.content, { id: uuid, at, offset }, out, record.toolUseResult, names);
       // A prompt that starts a turn directly means Claude Code's queue was empty (or lost with the old process).

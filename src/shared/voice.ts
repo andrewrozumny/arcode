@@ -95,7 +95,20 @@ export type DiscussionEvent =
   | { type: 'delta'; text: string }
   | { type: 'message' }
   | { type: 'done' }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  /** A line from ARcode about the discussion itself (session lookup unavailable). */
+  | { type: 'note'; text: string };
+
+/** One message to the discussion partner. */
+export interface DiscussRequest {
+  projectRoot: string;
+  text: string;
+  model: DiscussionModel;
+  /** Claude Code session of the window's Claude tab, or null when there is none. */
+  sessionId: string | null;
+  /** What Claude Code is doing in that tab (busy, idle, waiting...), when known. */
+  status: string | null;
+}
 
 /** The ElevenLabs plan's character allowance: used and limit of this period, and when it resets. */
 export interface TtsUsage {
@@ -126,8 +139,8 @@ export interface VoiceApi {
   ttsInfo(): Promise<TtsInfo>;
   /** The ElevenLabs plan's usage; null without a key or when it cannot be read. */
   ttsUsage(): Promise<TtsUsage | null>;
-  /** Sends a message to the discussion partner of this project window, running on `model`. */
-  discuss(projectRoot: string, text: string, model: DiscussionModel): Promise<void>;
+  /** Sends a message to the discussion partner of this window; main adds the session brief. */
+  discuss(request: DiscussRequest): Promise<void>;
   /** Ends this window's discussion. */
   discussReset(): void;
   /** Appends a record to the discussion's history file in the project; false when it could not be written. */

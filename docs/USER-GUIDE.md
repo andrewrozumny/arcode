@@ -323,9 +323,19 @@ right corner of the viewer; drag it anywhere and it stays there. Turning it on (
 also expands the column when it is collapsed.
 Click it (or press Cmd+Shift+Space) and talk about the work in your Claude Code session, the way you
 would in a voice chat: why it did something, which option is better, what to do next. The partner
-is a separate, fast conversation with Claude that sees what happened in the Claude Code tab since
-your last message (prompts, Claude Code's messages, the tools it ran) and may read project files, but
-never writes, edits or runs anything and never types into Claude Code. Its answers stream into the
+is a separate, fast conversation with Claude that knows what you are doing in the Claude Code tab and
+may read project files, but never writes, edits or runs anything and never types into Claude Code.
+With each message ARcode gives it a short brief of the session: your latest prompts, Claude Code's
+latest message, its todo list, recent errors with the end of their output, the files it changed and
+your earlier prompts, and after the first message only what changed. When you ask about something the
+brief leaves out (a failed test run, a long log, what Claude Code did an hour ago, a subagent's
+report), the partner looks it up in the session itself through ARcode's local lookup tools: one turn
+in full, the whole output of a command in pages, a search through the session. Nothing of the session
+is copied anywhere for this; the lookups read Claude Code's own transcript on demand, and only the
+session of this window's Claude tab. Switch tabs and the partner gets the brief of the other session.
+Big documents work too: ask it to debrief a large file in the project and it reads the file in parts
+before answering. A message you type or paste is sent whole (up to 150,000 characters; a longer one
+is refused with a note, save it as a file in the project instead). Its answers stream into the
 column and are read aloud sentence by sentence, without code; until the first words arrive (and in a
 longer pause, while it reads a file) a small coral spark shows it is thinking. You can also type in the line at the
 bottom of the column.
@@ -343,19 +353,21 @@ bottom of the column.
   the button, or talking over it stops a reading. The speaker switch in the column's header turns
   reading aloud off (remembered).
 - The partner runs on your own Claude Code login and subscription (`claude -p` in the background, one
-  per window; `ARCODE_CLAUDE` picks the executable). It loads no MCP servers and keeps no session on
-  disk. The **Sonnet / Opus** switch in the column's header picks its model (Sonnet by default,
-  remembered); switching starts the discussion over, with a note in the column.
+  per window; `ARCODE_CLAUDE` picks the executable). It loads no MCP servers of yours, only ARcode's
+  own lookup server (on 127.0.0.1, with a token per window), and keeps no session on disk. The
+  **Sonnet / Opus** switch in the column's header picks its model (Sonnet by default, remembered);
+  switching keeps the conversation going on the other model, with a note in the column. If the
+  partner ever has to start again, ARcode gives it the brief and your last exchanges, so it picks up
+  where you were.
 - While ElevenLabs reads, a ring around the button shows the plan's character allowance: a faint
   track fills with blue from the top, clockwise, as characters are used; the tooltip and the voice
   menu give the numbers and the reset date. A reading you stop has already been paid for the piece
   being read and the one rendered ahead (about 800 characters at most); answers still waiting are not.
 - **History:** every discussion is saved in the project, one Markdown file per conversation in
-  `.arcode/discussions/`, named by when it started (`2026-11-13_14-05.md`; New and a model switch
-  start a new file). The file starts with the date, the project and the model, then lists what you
+  `.arcode/discussions/`, named by when it started (`2026-11-13_14-05.md`; New starts a new file). The file starts with the date, the project and the model, then lists what you
   said (**Ты**) and the partner's answers (**Собеседник**) with their times, each handed-over task as
   a quoted block with its status (**Sent to Claude Code** or why not), later Send results, notes and
-  errors. It is appended to as the conversation goes. The session updates sent to the partner are not
+  errors. It is appended to as the conversation goes. The session briefs sent to the partner are not
   kept (Claude Code's own transcripts have them). Because a discussion can hold sensitive things,
   ARcode adds `.arcode/` to the repository's local `.git/info/exclude`, never to a committed file, so
   the history stays out of git. If a file cannot be written, the discussion goes on and the column

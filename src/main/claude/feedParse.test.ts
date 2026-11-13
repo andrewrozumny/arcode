@@ -84,6 +84,14 @@ describe('user records', () => {
     expect(items).toEqual([expect.objectContaining({ kind: 'user', text: '[Image #1] what is this?', images: 1 })]);
   });
 
+  it('shows a compaction summary as a notice carrying the summary, not as a prompt', () => {
+    const { items, queue } = parse(user('This session is being continued from a previous conversation.\n\nSummary: built X', { isCompactSummary: true }));
+    expect(items).toEqual([
+      expect.objectContaining({ kind: 'notice', text: 'Earlier conversation summarized', compact: 'This session is being continued from a previous conversation.\n\nSummary: built X' }),
+    ]);
+    expect(queue).toEqual([]);
+  });
+
   it('hides meta entries and sidechain records', () => {
     expect(parse(user('Base directory for this skill', { isMeta: true })).items).toEqual([]);
     expect(parse(user('subagent prompt', { isSidechain: true })).items).toEqual([]);

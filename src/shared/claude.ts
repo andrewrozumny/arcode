@@ -286,9 +286,10 @@ export type FeedItemBody =
   | { kind: 'tool'; name: string; summary: string; input: string; detail: FeedToolDetail | null }
   /**
    * A small muted line: an agent finished, the conversation was compacted, an interrupt. Notices
-   * of background tasks (agents, background shells) name the tool call that started them.
+   * of background tasks (agents, background shells) name the tool call that started them. A
+   * compaction carries the summary Claude Code wrote of the conversation before it (`compact`).
    */
-  | { kind: 'notice'; text: string; task?: FeedTaskNotice };
+  | { kind: 'notice'; text: string; task?: FeedTaskNotice; compact?: string };
 
 export interface FeedTaskNotice {
   /** tool_use id of the call that started the task, when the notification names it. */

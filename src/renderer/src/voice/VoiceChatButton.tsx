@@ -517,7 +517,7 @@ export function VoiceChatButton({
                   role="radio"
                   aria-checked={m === discussionModel}
                   className={m === discussionModel ? 'vc-model-option current' : 'vc-model-option'}
-                  title={m === discussionModel ? `The partner runs on ${MODEL_LABEL[m]}` : `Switch to ${MODEL_LABEL[m]} (the discussion starts over)`}
+                  title={m === discussionModel ? `The partner runs on ${MODEL_LABEL[m]}` : `Switch to ${MODEL_LABEL[m]} (the discussion goes on)`}
                   onClick={() => {
                     if (m === discussionModel) return;
                     stopSpeaking();

@@ -137,12 +137,29 @@ a 1.5 s pause ends a phrase), half a second of pre-roll keeps the first syllable
 bus event only while the target Claude tab is `idle` and then waits for it to be busy and idle again;
 `VoiceChatButton` has two kinds, `dictation` (docked in the terminal dock, modes dictate and
 command) and `live`, the discussion: phrases go to `discussion.ts` instead of a pty, which sends each
-one with a `<claude_code_session_update>` of the Claude tab's feed since the last message over
-`voice:discuss`. Main (`voice/discussion.ts`) keeps one `claude -p` per window, on the model the window picked
-(`discussionModelChoice` in `shared/voice.ts` allows Sonnet and Opus; a different model restarts the
-process), with stream-json in and
-out (Read, Grep and Glob only, `--strict-mcp-config`, `--no-session-persistence`, an appended system
-prompt) and forwards text deltas as `voice:discussionEvent`; `SentenceStream` cuts them into sentences
+one over `voice:discuss` with the Claude tab's session id and status (`DiscussRequest`). Main puts
+a `<claude_code_session>` brief in front of it: `voice/sessionContext.ts` keeps, per window, an
+in-memory digest of up to four sessions (`voice/sessionBrief.ts`, built from `readFeed`: prompts,
+latest messages, todos and tasks, files edited, errors joined to their calls, an open question or
+plan, the compaction summary, which `feedParse` now reads as a notice with `compact` instead of a
+prompt) and sends the full brief (16,000 characters, budgeted per section) on the first message,
+after a restart or the partner's own compaction (`compact_boundary`), on a session switch and on a
+rewritten transcript, otherwise a delta of what changed (8,000, older messages shrunk or dropped
+visibly). Every clipped part names the lookup that returns it whole. The lookups are ARcode's `arcode`
+MCP server (`voice/sessionMcp.ts`: Streamable HTTP with JSON answers on 127.0.0.1, one bearer token
+per window, passed to the child as `ARCODE_MCP_TOKEN` and expanded by Claude Code in the header, so it
+is not on the command line), with the tools of `voice/sessionTools.ts`: `session_brief`,
+`session_turn` (counted back from the latest, read backwards through `readFeed`), `tool_output` (the
+full result from the transcript, in 12,000-character pages), `session_search` (a streamed literal
+search of the last 64 MB, 3 s at most) and `subagents`. Nothing of the session is written anywhere.
+Main (`voice/discussion.ts`) keeps one `claude -p` per window, on the model the window picked
+(`discussionModelChoice` in `shared/voice.ts` allows Sonnet and Opus; a different model is switched
+in place with a stream-json `set_model` control request, and only if that fails is the process
+restarted, with an `<earlier_discussion>` replay of the last exchanges and a full brief), with
+stream-json in and out (Read, Grep and Glob, plus `mcp__arcode` through `--allowedTools`;
+`--strict-mcp-config` keeps every other MCP server out; `--no-session-persistence`, an appended
+system prompt). The user's text is never cut: above 150,000 characters it is refused. It forwards
+text deltas as `voice:discussionEvent` (and a `note` when the lookup server failed to connect); `SentenceStream` cuts them into sentences
 for the speech queue and skips code fences and `<handover>` tags. A finished answer with a
 `<handover>` task (the partner's prompt says to use it when the user asks or agrees to pass something
 on) is sent to the Claude tab through `sendToPty` when `handoverCheck` allows it (the tab idle, or busy, when Claude Code queues it, and its

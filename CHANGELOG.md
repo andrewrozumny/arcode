@@ -9,6 +9,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **The discussion partner knows the session.** Instead of the last 8,000 characters of the session,
+  each message now carries a brief: the current task, Claude Code's latest message, todos, recent
+  errors with the end of their output, files changed and earlier prompts (only what changed after the
+  first message). The partner looks up the rest itself through ARcode's local lookup tools (a turn in
+  full, the whole output of a command, a search through the session, subagents) without anything
+  being copied. A model switch keeps the conversation, long pasted text is no longer cut, and large
+  project files are read in parts.
 - **Voice input in the composer.** A microphone button (or Cmd+Shift+M) records a prompt and
   inserts the recognised text at the caret. Recognition runs locally with whisper.cpp
   (`whisper-cli` plus a ggml model in `~/models/whisper`), Russian by default
