@@ -9,10 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **Per-model limits (Fable).** The status line now records the weekly window of each model the
-  plan limits separately (Claude Code's `model_scoped` buckets such as Fable, plus Opus and Sonnet),
-  and ARcode shows each as its own bar in the header, a meter in the Claude panel's overview and a
-  card on its Usage page.
+- **Per-model limits (Fable).** ARcode asks Claude Code for the plan's usage every 5 minutes (a
+  one-second `claude` run that calls no model and spends no tokens) and shows the weekly window of
+  each model the plan limits separately (Fable, and Opus or Sonnet where the plan has them) as its
+  own bar in the header, a meter in the Claude panel's overview and a card on its Usage page. It
+  also fills the weekly bar before any session has replied, with or without the status line.
 - **The discussion partner knows the session.** Instead of the last 8,000 characters of the session,
   each message now carries a brief: the current task, Claude Code's latest message, todos, recent
   errors with the end of their output, files changed and earlier prompts (only what changed after the

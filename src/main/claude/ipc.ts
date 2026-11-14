@@ -21,6 +21,9 @@ import { SCRIPT_NAME, disableStatusLine, enableStatusLine, installScript, migrat
 import type { StatusLinePaths } from './statusline';
 import { summarizeUsage } from './usage';
 import { LiveUsageWatcher } from './usageLive';
+import { PlanUsagePoller } from './planUsage';
+import { envForChild } from '../env';
+import { locateClaude } from '../voice/discussion';
 
 function statusLinePaths(): StatusLinePaths {
   const source = app.isPackaged
@@ -43,7 +46,7 @@ function broadcast(records: LiveUsage[]): void {
  * Live plan usage from the status line script. Call once after `app.whenReady()`.
  * Only ARcode's own data folder is written here; the Claude settings change on user action alone.
  */
-export function startLiveUsage(ipcMain: IpcMain): LiveUsageWatcher {
+export function startLiveUsage(ipcMain: IpcMain): { stop: () => void } {
   const paths = statusLinePaths();
   try {
     migrateLegacyStatusLine(paths, legacyStatusLineScript(app.getPath('appData')));
@@ -56,13 +59,25 @@ export function startLiveUsage(ipcMain: IpcMain): LiveUsageWatcher {
   } catch (error) {
     console.warn('[arcode] status line script refresh failed', error);
   }
-  const watcher = new LiveUsageWatcher(join(app.getPath('userData'), 'usage'), broadcast);
+  const usageDir = join(app.getPath('userData'), 'usage');
+  const watcher = new LiveUsageWatcher(usageDir, broadcast);
   watcher.start();
+  // Per-model weekly windows (Fable) are not in the status line input; ask Claude Code for them.
+  const plan = new PlanUsagePoller(usageDir, async () => {
+    const claude = await locateClaude(process.env);
+    return claude ? { claude, env: envForChild(process.env), cwd: app.getPath('userData') } : null;
+  });
+  plan.start();
   ipcMain.handle(ClaudeChannel.UsageLive, () => watcher.snapshot());
   ipcMain.handle(ClaudeChannel.StatusLineState, () => readStatusLineState(paths));
   ipcMain.handle(ClaudeChannel.StatusLineEnable, () => enableStatusLine(paths));
   ipcMain.handle(ClaudeChannel.StatusLineDisable, () => disableStatusLine(paths));
-  return watcher;
+  return {
+    stop: () => {
+      plan.stop();
+      watcher.stop();
+    },
+  };
 }
 
 /** Registers the read-only `claude:*` handlers. Every handler that takes a root checks it is a project folder. */

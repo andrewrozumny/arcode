@@ -243,9 +243,19 @@ On an explicit click ARcode installs its script into `<userData>` and points `st
 `~/.claude/settings.json` at it (backup kept, atomic write, refuses when another status line is set).
 The script writes one JSON record per session to `<userData>/usage`; `LiveUsageWatcher` broadcasts
 them to all windows (ADR 0005). Besides the 5-hour and weekly windows a record carries `models`: the
-weekly window of each model the plan limits on its own, from `rate_limits.model_scoped` (server
-buckets such as Fable, `utilization` in percent and an ISO `resets_at`) and from `seven_day_opus` /
-`seven_day_sonnet`; `pickPlanLimits` picks each by name like the plan windows.
+weekly window of each model the plan limits on its own (Fable; Opus or Sonnet on plans that limit
+them); `pickPlanLimits` picks each by name like the plan windows.
+
+**Plan usage poll** (`claude/planUsage.ts`). The status line input has no per-model windows
+(Claude Code 2.1.325 sends only `five_hour`, `seven_day` and `spend_limit` there). They come from
+the `get_usage` control request of `claude -p --input-format stream-json`, which reads the claude.ai
+usage endpoint without calling a model. Every 5 minutes `PlanUsagePoller` starts the user's
+`claude` in `<userData>` with hooks off (`--settings {"disableAllHooks":true}`), no MCP and
+`--no-session-persistence`, sends `get_usage` with `skip_behaviors`, closes stdin (about a second),
+and writes the answer as `<userData>/usage/plan.json`: a record with session `plan` and no folder,
+so it adds plan windows (`model_scoped`, or the raw `limits[]` rows) and never a session's context.
+The renderer needs no change: every view merges plan windows across records. This works whether or
+not the status line is on.
 
 **Notifications** (`notifications.ts`, `terminal/ipc.ts`). When a Claude process owned by a
 window's pty starts waiting for the user and the window is not focused, a system notification is

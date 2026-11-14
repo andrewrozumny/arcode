@@ -3,7 +3,8 @@ import type { LiveUsage, StatusLineState, UsageLimit, UsageSummary, UsageWindow 
 import { formatAge, formatCount, formatLocalTime } from '../format';
 import { modelFamily } from '../layout/modelFamily';
 import { claudeApi } from './api';
-import { pickLiveUsage, useLiveUsage } from './liveUsage';
+import { headerUsage, useLiveUsage } from './liveUsage';
+import { useMinuteClock } from './SessionsView';
 import { usePanel } from './panelData';
 import { Meter, Notice } from './ui';
 import { useLoad } from './useLoad';
@@ -88,7 +89,9 @@ function LiveCard({ title, win }: { title: string; win: LiveUsage['fiveHour'] })
  */
 function LiveUsageSection({ root }: { root: string }) {
   const records = useLiveUsage();
-  const live = pickLiveUsage(records, null, root);
+  // Context of this project's session, plan windows of every record (the plan poll included).
+  const now = useMinuteClock();
+  const live = headerUsage(records, null, root, now);
   const panel = usePanel();
   const [state, setState] = useState<StatusLineState | null>(null);
   const [busy, setBusy] = useState(false);
