@@ -19,14 +19,21 @@ if [ ! -d "$SRC" ]; then
   exit 1
 fi
 
-# Quit a running instance so the bundle can be replaced safely.
-if pgrep -x ARcode >/dev/null 2>&1; then
+# Quit a running instance so the bundle can be replaced safely. Not pgrep: on macOS it skips its
+# own ancestors, so run from a terminal inside ARcode it never sees the app. If the quit is
+# cancelled, stop: replacing the bundle under a live app leaves it running the old code.
+MAIN="$DEST/Contents/MacOS/ARcode"
+running() { ps -axo comm= | grep -qxF "$MAIN"; }
+if running; then
   osascript -e 'quit app "ARcode"' >/dev/null 2>&1 || true
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
-    pgrep -x ARcode >/dev/null 2>&1 || break
+  for _ in $(seq 1 60); do
+    running || break
     sleep 0.5
   done
-  pkill -x ARcode >/dev/null 2>&1 || true
+  if running; then
+    echo "ARcode is still running (was the quit cancelled?); not replacing the bundle." >&2
+    exit 1
+  fi
 fi
 
 mkdir -p "$DEST"
